@@ -204,16 +204,31 @@ void CardWidget::loadCardImages()
     QString imageName = m_card.getImageFilename();
     QString frontPath = QString(":/pic/res/%1.png").arg(imageName);
 
+    qDebug() << "Trying to load card image:" << frontPath;
+    qDebug() << "Card info - Suit:" << m_card.SuitToString() << "Point:" << m_card.PointToString();
+
     //加载正面图片
     if (!m_front.load(frontPath)) {
         qWarning() << "CardWidget: Failed to load front image:" << frontPath
             << "for card:" << imageName;
+        
+        // 尝试加载一个默认图片
+        m_front = QPixmap(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
+        m_front.fill(Qt::white);
+        QPainter p(&m_front);
+        p.drawRect(0, 0, CARD_WIDGET_WIDTH-1, CARD_WIDGET_HEIGHT-1);
+        p.drawText(rect(), Qt::AlignCenter, imageName);
     }
 
     // 加载背面图片
     if (m_back.isNull()) {
-        if (!m_back.load(":/pic/res/Back.png")) {
+        QString backPath = ":/pic/res/Back.png";
+        qDebug() << "Trying to load back image:" << backPath;
+        if (!m_back.load(backPath)) {
             qWarning() << "CardWidget: Failed to load back image";
+            // 创建一个默认的背面图片
+            m_back = QPixmap(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
+            m_back.fill(Qt::blue);
         }
     }
     update(); // 确保加载图片后刷新显示

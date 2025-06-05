@@ -7,6 +7,9 @@
 #include <QResizeEvent>
 #include <QPropertyAnimation>
 #include <QtMath>
+#include <QDir>
+#include <QContextMenuEvent>
+#include <QMenu>
 
 PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurrentPlayer, QWidget* parent)
     : QWidget(parent)
@@ -15,25 +18,66 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     , m_isCurrentPlayer(isCurrentPlayer)
     , m_isEnabled(false)
     , m_isHighlighted(false)
+    , m_useCustomBackground(false)
+    , m_playButton(nullptr)
+    , m_skipButton(nullptr)
+    , m_buttonLayout(nullptr)
 {
+    // 加载默认资源
+    loadDefaultResources();
+    
     // 根据位置设置合适的尺寸
     QSize preferredSize = calculatePreferredSize();
     setMinimumSize(preferredSize);
     resize(preferredSize);
     
-    // 创建玩家信息标签
+    // 创建主布局
+    QVBoxLayout* mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(5, 5, 5, 5);
+    
+    // 创建头像和信息区域
+    QHBoxLayout* infoLayout = new QHBoxLayout();
+    
+    // 创建头像标签
+    m_avatarLabel = new QLabel(this);
+    m_avatarLabel->setFixedSize(AVATAR_SIZE, AVATAR_SIZE);
+    m_avatarLabel->setScaledContents(true);
+    setDefaultAvatar();
+    infoLayout->addWidget(m_avatarLabel);
+    
+    // 创建名称和状态标签的垂直布局
+    QVBoxLayout* labelsLayout = new QVBoxLayout();
+    
     m_nameLabel = new QLabel(this);
-    m_nameLabel->setAlignment(Qt::AlignCenter);
-    m_nameLabel->setStyleSheet("QLabel { color: white; font-size: 14px; }");
+    m_nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    m_nameLabel->setStyleSheet("QLabel { color: white; font-size: 14px; font-weight: bold; }");
+    labelsLayout->addWidget(m_nameLabel);
     
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setAlignment(Qt::AlignCenter);
+    m_statusLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     m_statusLabel->setStyleSheet("QLabel { color: white; font-size: 12px; }");
+    labelsLayout->addWidget(m_statusLabel);
+    
+    infoLayout->addLayout(labelsLayout);
+    infoLayout->addStretch();
+    
+    mainLayout->addLayout(infoLayout);
+    
+    // 如果是当前玩家（底部位置），添加按钮
+    if (m_position == PlayerPosition::Bottom) {
+        setupButtons();
+        mainLayout->addLayout(m_buttonLayout);
+    }
     
     // 更新玩家信息
     updatePlayerInfo();
+
+    // 连接玩家手牌更新信号
+    if (m_player) {
+        connect(m_player, &Player::cardsUpdated, this, &PlayerWidget::updatePlayerInfo);
+    }
     
-    // 设置背景色（可以根据需要调整）
+    // 设置背景色
     setStyleSheet("PlayerWidget { background-color: rgba(0, 100, 0, 180); border-radius: 10px; }");
 }
 
@@ -131,6 +175,7 @@ void PlayerWidget::setEnabled(bool enabled)
     for (CardWidget* widget : m_cardWidgets) {
         widget->setEnabled(enabled);
     }
+    updateButtonsState();
     update();
 }
 
@@ -156,9 +201,22 @@ void PlayerWidget::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
     
+    // 更新头像位置
+    int avatarMargin = 5;
+    if (m_position == PlayerPosition::Bottom || m_position == PlayerPosition::Top) {
+        m_avatarLabel->move(avatarMargin, avatarMargin);
+    } else {
+        m_avatarLabel->move(avatarMargin, height() / 2 - AVATAR_SIZE / 2);
+    }
+    
     // 更新标签位置
-    m_nameLabel->setGeometry(0, 5, width(), NAME_LABEL_HEIGHT);
-    m_statusLabel->setGeometry(0, NAME_LABEL_HEIGHT + 5, width(), NAME_LABEL_HEIGHT);
+    if (m_position == PlayerPosition::Bottom || m_position == PlayerPosition::Top) {
+        m_nameLabel->setGeometry(AVATAR_SIZE + 2 * avatarMargin, 5, width() - AVATAR_SIZE - 3 * avatarMargin, NAME_LABEL_HEIGHT);
+        m_statusLabel->setGeometry(AVATAR_SIZE + 2 * avatarMargin, NAME_LABEL_HEIGHT + 5, width() - AVATAR_SIZE - 3 * avatarMargin, NAME_LABEL_HEIGHT);
+    } else {
+        m_nameLabel->setGeometry(AVATAR_SIZE + 2 * avatarMargin, height() / 2 - NAME_LABEL_HEIGHT, width() - AVATAR_SIZE - 3 * avatarMargin, NAME_LABEL_HEIGHT);
+        m_statusLabel->setGeometry(AVATAR_SIZE + 2 * avatarMargin, height() / 2, width() - AVATAR_SIZE - 3 * avatarMargin, NAME_LABEL_HEIGHT);
+    }
     
     // 重新布局卡片
     relayoutCards();
@@ -170,8 +228,14 @@ void PlayerWidget::paintEvent(QPaintEvent* event)
     painter.setRenderHint(QPainter::Antialiasing);
     
     // 绘制背景
-    QColor bgColor = m_isHighlighted ? QColor(0, 150, 0, 180) : QColor(0, 100, 0, 180);
-    painter.fillRect(rect(), bgColor);
+    if (m_useCustomBackground && !m_backgroundPixmap.isNull()) {
+        painter.drawPixmap(rect(), m_backgroundPixmap);
+    } else if (!m_defaultBackgroundPixmap.isNull()) {
+        painter.drawPixmap(rect(), m_defaultBackgroundPixmap);
+    } else {
+        QColor bgColor = m_isHighlighted ? QColor(0, 150, 0, 180) : QColor(0, 100, 0, 180);
+        painter.fillRect(rect(), bgColor);
+    }
     
     // 如果是当前玩家，绘制边框
     if (m_isCurrentPlayer) {
@@ -364,11 +428,13 @@ CardWidget* PlayerWidget::createCardWidget(const Card& card)
     
     // 连接点击信号
     connect(widget, &CardWidget::clicked, this, [this](CardWidget* clickedWidget) {
+        // 发送点击信号
         emit cardClicked(clickedWidget);
         
-        // 如果启用了选择功能，发送选中牌的信号
+        // 如果启用了选择功能，发送选中牌的信号并更新按钮状态
         if (m_isEnabled) {
             emit cardsSelected(getSelectedCards());
+            updateButtonsState();
         }
     });
     
@@ -380,6 +446,8 @@ void PlayerWidget::updatePlayerInfo()
     if (m_player) {
         m_nameLabel->setText(m_player->getName());
         m_statusLabel->setText(QString("剩余牌数：%1").arg(m_player->getHandCards().size()));
+        qDebug() << "更新玩家信息:" << m_player->getName() 
+                 << "剩余牌数:" << m_player->getHandCards().size();
     }
 }
 
@@ -474,6 +542,11 @@ void PlayerWidget::setPosition(PlayerPosition position)
 
 QSize PlayerWidget::calculatePreferredSize() const
 {
+    int height = PLAYER_WIDGET_MIN_HEIGHT;
+    if (m_position == PlayerPosition::Bottom) {
+        height += 40; // 为按钮预留空间
+    }
+    
     switch (m_position) {
         case PlayerPosition::Left:
         case PlayerPosition::Right:
@@ -484,7 +557,7 @@ QSize PlayerWidget::calculatePreferredSize() const
                        CARD_WIDGET_HEIGHT + NAME_LABEL_HEIGHT * 2 + CARDS_MARGIN * 2);
         case PlayerPosition::Bottom:
         default:
-            return QSize(PLAYER_WIDGET_MIN_WIDTH, PLAYER_WIDGET_MIN_HEIGHT);
+            return QSize(PLAYER_WIDGET_MIN_WIDTH, height);
     }
 }
 
@@ -506,6 +579,144 @@ void PlayerWidget::updateCardZOrder()
             if (stack[i]->isSelected()) {
                 stack[i]->raise();
             }
+        }
+    }
+}
+
+void PlayerWidget::loadDefaultResources()
+{
+    // 加载默认头像
+    QString defaultAvatarPath = ":/pic/res/default_avatar.png";
+    if (!m_defaultAvatarPixmap.load(defaultAvatarPath)) {
+        qWarning() << "Failed to load default avatar:" << defaultAvatarPath;
+        // 创建一个默认的头像
+        m_defaultAvatarPixmap = QPixmap(AVATAR_SIZE, AVATAR_SIZE);
+        m_defaultAvatarPixmap.fill(Qt::gray);
+    }
+    
+    // 加载默认背景
+    QString defaultBackgroundPath = ":/pic/res/player_bg.png";
+    if (!m_defaultBackgroundPixmap.load(defaultBackgroundPath)) {
+        qWarning() << "Failed to load default background:" << defaultBackgroundPath;
+        m_defaultBackgroundPixmap = QPixmap(); // 使用空背景，会fallback到纯色背景
+    }
+}
+
+void PlayerWidget::setPlayerAvatar(const QString& avatarPath)
+{
+    if (avatarPath.isEmpty()) {
+        setDefaultAvatar();
+        return;
+    }
+    
+    QPixmap newAvatar;
+    if (newAvatar.load(avatarPath)) {
+        m_avatarPixmap = newAvatar;
+        m_avatarLabel->setPixmap(m_avatarPixmap.scaled(AVATAR_SIZE, AVATAR_SIZE, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    } else {
+        qWarning() << "Failed to load avatar from path:" << avatarPath;
+        setDefaultAvatar();
+    }
+}
+
+void PlayerWidget::setDefaultAvatar()
+{
+    m_avatarPixmap = m_defaultAvatarPixmap;
+    m_avatarLabel->setPixmap(m_avatarPixmap.scaled(AVATAR_SIZE, AVATAR_SIZE, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+}
+
+void PlayerWidget::setPlayerBackground(const QString& backgroundPath)
+{
+    if (backgroundPath.isEmpty()) {
+        setDefaultBackground();
+        return;
+    }
+    
+    if (m_backgroundPixmap.load(backgroundPath)) {
+        m_useCustomBackground = true;
+        update();
+    } else {
+        qWarning() << "Failed to load background from path:" << backgroundPath;
+        setDefaultBackground();
+    }
+}
+
+void PlayerWidget::setDefaultBackground()
+{
+    m_useCustomBackground = false;
+    update();
+}
+
+void PlayerWidget::setupButtons()
+{
+    m_buttonLayout = new QHBoxLayout();
+    m_buttonLayout->setContentsMargins(0, 5, 0, 5);
+    m_buttonLayout->setSpacing(10);
+    
+    m_playButton = new QPushButton("出牌", this);
+    m_skipButton = new QPushButton("跳过", this);
+    
+    // 设置按钮样式
+    QString buttonStyle = "QPushButton {"
+                        "    background-color: #4CAF50;"
+                        "    color: white;"
+                        "    border: none;"
+                        "    padding: 5px 15px;"
+                        "    border-radius: 4px;"
+                        "    font-size: 14px;"
+                        "}"
+                        "QPushButton:hover {"
+                        "    background-color: #45a049;"
+                        "}"
+                        "QPushButton:disabled {"
+                        "    background-color: #cccccc;"
+                        "    color: #666666;"
+                        "}";
+    
+    m_playButton->setStyleSheet(buttonStyle);
+    m_skipButton->setStyleSheet(buttonStyle);
+    
+    // 添加快捷键
+    m_playButton->setShortcut(Qt::Key_Return);  // 回车键出牌
+    m_skipButton->setShortcut(Qt::Key_Space);   // 空格键跳过
+    
+    // 连接信号
+    connect(m_playButton, &QPushButton::clicked, this, &PlayerWidget::playCardsRequested);
+    connect(m_skipButton, &QPushButton::clicked, this, &PlayerWidget::skipTurnRequested);
+    
+    m_buttonLayout->addStretch();
+    m_buttonLayout->addWidget(m_playButton);
+    m_buttonLayout->addWidget(m_skipButton);
+    m_buttonLayout->addStretch();
+    
+    // 初始状态下禁用按钮
+    updateButtonsState();
+}
+
+void PlayerWidget::updateButtonsState()
+{
+    if (m_playButton && m_skipButton) {
+        bool hasSelectedCards = !getSelectedCards().isEmpty();
+        m_playButton->setEnabled(m_isEnabled && hasSelectedCards);
+        m_skipButton->setEnabled(m_isEnabled);
+    }
+}
+
+void PlayerWidget::contextMenuEvent(QContextMenuEvent* event)
+{
+    if (m_position == PlayerPosition::Bottom && m_isEnabled) {
+        QMenu menu(this);
+        QAction* playAction = menu.addAction("出牌");
+        QAction* skipAction = menu.addAction("跳过");
+        
+        // 如果没有选中的牌，禁用出牌选项
+        playAction->setEnabled(!getSelectedCards().isEmpty());
+        
+        QAction* selectedAction = menu.exec(event->globalPos());
+        if (selectedAction == playAction) {
+            emit playCardsRequested();
+        } else if (selectedAction == skipAction) {
+            emit skipTurnRequested();
         }
     }
 }

@@ -2,6 +2,8 @@
 #include <QMessageBox>
 #include <QScreen>
 #include <QApplication>
+#include <QTimer>
+#include <QDebug>
 
 GuanDan::GuanDan(QWidget* parent)
     : QMainWindow(parent)
@@ -86,17 +88,23 @@ void GuanDan::resizeEvent(QResizeEvent* event)
 
 void GuanDan::createPlayers()
 {
+    qDebug() << "开始创建玩家...";
     // 创建游戏控制器
     m_gameController = new GD_Controller(this);
 
     // 获取游戏区域
     QWidget* gameArea = m_centralWidget->findChild<QWidget*>();
+    if (!gameArea) {
+        qWarning() << "无法找到游戏区域！";
+        return;
+    }
 
     // 创建四个玩家界面
     for (int i = 0; i < 4; ++i) {
         // 创建玩家对象
         Player* player = new Player(QString("玩家%1").arg(i + 1), i);
         m_players.append(player);
+        qDebug() << "创建玩家:" << player->getName() << "ID:" << player->getID();
         
         // 创建玩家界面，设置位置和是否为当前玩家
         PlayerPosition position;
@@ -118,6 +126,8 @@ void GuanDan::createPlayers()
         // 创建玩家界面
         PlayerWidget* playerWidget = new PlayerWidget(player, position, i == 0, gameArea);
         m_playerWidgets.append(playerWidget);
+        playerWidget->show();
+        qDebug() << "创建玩家界面:" << player->getName() << "位置:" << static_cast<int>(position);
     }
 
     // 初始布局玩家界面
@@ -138,6 +148,16 @@ void GuanDan::setupConnections()
         this, &GuanDan::onRoundOver);
     connect(m_gameController, &GD_Controller::sigGameOver,
         this, &GuanDan::onGameOver);
+    connect(m_gameController, &GD_Controller::sigCardsDealt,
+        this, [this](int playerId, const QVector<Card>& cards) {
+            qDebug() << "收到发牌信号 - 玩家ID:" << playerId << "牌数:" << cards.size();
+            for (PlayerWidget* widget : m_playerWidgets) {
+                if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
+                    widget->updateHandDisplay(cards, widget->getPlayer()->getID() == 0);
+                    break;
+                }
+            }
+        });
 
     // 连接玩家界面信号
     for (PlayerWidget* widget : m_playerWidgets) {
@@ -212,6 +232,7 @@ void GuanDan::arrangePlayerWidgets()
 void GuanDan::startGame()
 {
     if (!m_gameInProgress) {
+        qDebug() << "开始游戏...";
         m_gameInProgress = true;
         m_startButton->setEnabled(false);
         
@@ -220,12 +241,35 @@ void GuanDan::startGame()
         // 创建两个队伍
         Team* team1 = new Team(0);
         Team* team2 = new Team(1);
+
+        // 分配玩家到队伍
+        team1->addPlayer(m_players[0]);
+        team1->addPlayer(m_players[2]);
+        team2->addPlayer(m_players[1]);
+        team2->addPlayer(m_players[3]);
+
+        // 设置玩家的队伍
+        m_players[0]->setTeam(team1);
+        m_players[2]->setTeam(team1);
+        m_players[1]->setTeam(team2);
+        m_players[3]->setTeam(team2);
+
         teams.append(team1);
         teams.append(team2);
+
+        qDebug() << "队伍1玩家:" << team1->getPlayers()[0]->getName() << "," << team1->getPlayers()[1]->getName();
+        qDebug() << "队伍2玩家:" << team2->getPlayers()[0]->getName() << "," << team2->getPlayers()[1]->getName();
 
         // 初始化游戏
         m_gameController->setupNewGame(m_players, teams);
         m_gameController->startGame();
+
+        // 更新所有玩家界面
+        for (PlayerWidget* widget : m_playerWidgets) {
+            if (widget && widget->getPlayer()) {
+                widget->updatePlayerInfo();
+            }
+        }
     }
 }
 
