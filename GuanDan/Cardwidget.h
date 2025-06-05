@@ -7,8 +7,8 @@
 #include "Player.h"
 
 // 定义图片尺寸
-const int CARD_WIDGET_WIDTH = 56;
-const int CARD_WIDGET_HEIGHT = 78;
+const int CARD_WIDGET_WIDTH = 90;
+const int CARD_WIDGET_HEIGHT = 125;
 const int SELECTION_BORDER_SIZE_CW = 2;
 const QColor HOVER_TINT_COLOR_CW = QColor(0, 0, 0, 50); // 悬停蒙版颜色
 const QColor SELECTED_BORDER_COLOR_CW = Qt::blue; // 选中边框颜色

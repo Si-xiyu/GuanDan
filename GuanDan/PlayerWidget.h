@@ -9,6 +9,8 @@
 #include <QScrollArea> // 如果牌太多，用于手牌区域滚动
 #include <QVector>
 #include <QMap>
+#include <QPixmap>
+#include <QPushButton>
 
 #include "Player.h"     // 玩家数据类
 #include "Card.h"       // 卡牌数据类
@@ -18,13 +20,13 @@
 class GD_Controller; // PlayerWidget可以直接向控制器发送信号
 
 // 定义玩家视图的常量
-const int PLAYER_WIDGET_MIN_WIDTH = 600;
-const int PLAYER_WIDGET_MIN_HEIGHT = 150;
-const int CARD_OVERLAP_HORIZONTAL = 30;  // 卡片水平重叠的像素数
-const int CARD_OVERLAP_VERTICAL = 20;    // 相同牌垂直重叠的像素数
-const int SIDE_CARD_OVERLAP = 15;        // 侧面玩家牌的重叠像素数
-const int CARDS_MARGIN = 10;             // 卡片区域的边距
-const int NAME_LABEL_HEIGHT = 25;        // 玩家名称标签的高度
+const int PLAYER_WIDGET_MIN_WIDTH = 800;
+const int PLAYER_WIDGET_MIN_HEIGHT = 200;
+const int CARD_OVERLAP_HORIZONTAL = 40;  // 卡片水平重叠的像素数
+const int CARD_OVERLAP_VERTICAL = 25;    // 相同牌垂直重叠的像素数
+const int SIDE_CARD_OVERLAP = 20;        // 侧面玩家牌的重叠像素数
+const int CARDS_MARGIN = 15;             // 卡片区域的边距
+const int NAME_LABEL_HEIGHT = 30;        // 玩家名称标签的高度
 
 // 玩家位置枚举
 enum class PlayerPosition {
@@ -39,54 +41,56 @@ class PlayerWidget : public QWidget
     Q_OBJECT
 
 public:
-    explicit PlayerWidget(Player* player, PlayerPosition position = PlayerPosition::Bottom, 
-                        bool isCurrentPlayer = false, QWidget* parent = nullptr);
-    PlayerWidget(Player* player, bool isCurrentPlayer, QWidget* parent);
+    PlayerWidget(Player* player, PlayerPosition position, bool isCurrentPlayer, QWidget* parent = nullptr);
     ~PlayerWidget();
 
-    // 更新玩家手牌
-    void updateCards(const QVector<Card>& cards);
-    // 移除指定的牌
-    void removeCards(const QVector<Card>& cards);
-    // 添加新的牌
-    void addCards(const QVector<Card>& cards);
-    // 获取当前选中的牌
-    QVector<Card> getSelectedCards() const;
-    // 清除所有选中状态
-    void clearSelection();
-    // 设置是否可以操作
-    void setEnabled(bool enabled);
-    // 设置是否显示牌面
-    void setCardsVisible(bool visible);
-    // 设置玩家状态（准备、思考中等）
-    void setPlayerStatus(const QString& status);
-    // 高亮显示玩家（轮到该玩家出牌时）
-    void setHighlighted(bool highlighted);
-
-    void setPlayer(Player* player); // 将此控件与一个玩家数据对象关联
+    // 玩家信息相关
+    void setPlayer(Player* player);
     Player* getPlayer() const;
+    void setPlayerName(const QString& name);
+    void updatePlayerInfo();
 
-    // 设置玩家位置
+    // 卡片操作相关
+    void updateCards(const QVector<Card>& cards);
+    void removeCards(const QVector<Card>& cards);
+    void addCards(const QVector<Card>& cards);
+    void clearSelection();
+    QVector<Card> getSelectedCards() const;
+
+    // 状态设置
+    void setEnabled(bool enabled);
+    void setCardsVisible(bool visible);
+    void setPlayerStatus(const QString& status);
+    void setHighlighted(bool highlighted);
+    void highlightTurn(bool isCurrentTurn);
     void setPosition(PlayerPosition position);
     PlayerPosition getPosition() const { return m_position; }
 
-    // UI 更新槽函数 (由 GameWindow 或 Controller 连接)
-public slots:
-    void updateHandDisplay(const QVector<Card>& handCards, bool showCardFronts); // 更新手牌显示
-    void setPlayerName(const QString& name);
-    void highlightTurn(bool isCurrentTurn);      // 如果轮到此玩家，高亮显示
-    void clearPlayedCardsArea();                // 清空此玩家打出的牌的区域
-    void displayPlayedCombo(const QVector<Card>& cards); // 显示此玩家刚刚打出的牌组合
+    // 显示更新
+    void updateHandDisplay(const QVector<Card>& handCards, bool showCardFronts);
+    void displayPlayedCombo(const QVector<Card>& cards);
+    void clearPlayedCardsArea();
+
+    // 新增：设置玩家头像
+    void setPlayerAvatar(const QString& avatarPath);
+    void setDefaultAvatar();
+    
+    // 新增：设置玩家背景
+    void setPlayerBackground(const QString& backgroundPath);
+    void setDefaultBackground();
 
 signals:
     // 当玩家选择了牌时发出信号
     void cardsSelected(const QVector<Card>& cards);
     // 当玩家点击了某张牌时发出信号
     void cardClicked(CardWidget* cardWidget);
+    void playCardsRequested();    // 出牌信号
+    void skipTurnRequested();     // 跳过信号
 
 protected:
     virtual void resizeEvent(QResizeEvent* event) override;
     virtual void paintEvent(QPaintEvent* event) override;
+    virtual void contextMenuEvent(QContextMenuEvent* event) override;  // 添加右键菜单事件处理
 
 private:
     // 重新布局所有卡片
@@ -95,8 +99,6 @@ private:
     void sortCards();
     // 创建新的卡片视图
     CardWidget* createCardWidget(const Card& card);
-    // 更新玩家信息显示
-    void updatePlayerInfo();
     // 计算卡片的理想位置
     QPoint calculateCardPosition(int index, int stackIndex) const;
     // 获取相同点数的牌的数量
@@ -127,10 +129,33 @@ private:
     QHBoxLayout* m_handLayout;      // 用于排列 CardWidget 的水平布局
     QScrollArea* m_handScrollArea;  // 使手牌区域可滚动
 
-    QList<CardWidget*> m_playedCardWidgets; // 用于显示在"牌桌"上组合的 CardWidget
+    QVector<CardWidget*> m_playedCardWidgets; // 用于显示在"牌桌"上组合的 CardWidget
 
     bool m_isCurrentTurn; // 用于样式控制，标记是否轮到此玩家
     PlayerPosition m_position;            // 玩家位置
+
+    // 新增：玩家头像相关
+    QLabel* m_avatarLabel;
+    QPixmap m_avatarPixmap;
+    QPixmap m_defaultAvatarPixmap;
+    static const int AVATAR_SIZE = 60;
+
+    // 新增：背景相关
+    QPixmap m_backgroundPixmap;
+    QPixmap m_defaultBackgroundPixmap;
+    bool m_useCustomBackground;
+
+    // 新增：加载默认资源
+    void loadDefaultResources();
+
+    // 添加按钮
+    QPushButton* m_playButton;    // 出牌按钮
+    QPushButton* m_skipButton;    // 跳过按钮
+    QHBoxLayout* m_buttonLayout;  // 按钮布局
+
+    // 添加按钮布局相关方法
+    void setupButtons();
+    void updateButtonsState();
 };
 
 #endif // PLAYERWIDGET_H
