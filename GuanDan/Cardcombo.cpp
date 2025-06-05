@@ -4,8 +4,8 @@
 #include <algorithm>
 #include <functional>
 
-#include "cardcombo.h"
-#include "player.h"
+#include "Cardcombo.h"
+
 
 // CardCombo::ComboInfo中的getDescription方法实现(调试函数)
 QString CardCombo::ComboInfo::getDescription() const {

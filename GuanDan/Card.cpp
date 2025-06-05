@@ -145,6 +145,11 @@ bool operator==(const Card& card1, const Card& card2)
         (card1.suit() == card2.suit());
 }
 
+bool operator!=(const Card& card1, const Card& card2)
+{
+	return !(card1 == card2);
+}
+
 bool operator<(const Card& card1, const Card& card2)
 {
     if (card1.getComparisonValue() != card2.getComparisonValue()) {

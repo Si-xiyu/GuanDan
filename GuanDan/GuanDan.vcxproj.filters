@@ -61,6 +61,12 @@
     <ClCompile Include="Team.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="GD_Controller.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Card.h">
@@ -78,12 +84,18 @@
     <ClInclude Include="Team.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PlayerWidget.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Player.h">
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="Cardwidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="GD_Controller.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

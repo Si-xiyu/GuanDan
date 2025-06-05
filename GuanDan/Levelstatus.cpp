@@ -1,5 +1,5 @@
-#include "levelstatus.h"
-#include "team.h"
+#include "Levelstatus.h"
+#include "Team.h"
 #include <QDebug>
 
 LevelStatus::LevelStatus() : m_isGameOver(false), m_gameWinnerTeamId(-1) {

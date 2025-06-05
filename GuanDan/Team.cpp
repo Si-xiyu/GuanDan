@@ -1,5 +1,5 @@
-#include "team.h"
-#include "player.h"
+#include "Team.h"
+#include "Player.h"
 
 #include <QDebug>  // 用于调试
 
