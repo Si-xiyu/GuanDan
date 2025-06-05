@@ -3,7 +3,7 @@
 
 #include <array>
 
-#include "card.h"
+#include "Card.h"
 
 class Team; // 前向声明 Team 类
 

@@ -4,8 +4,8 @@
 #include <QList>
 #include <QString>
 
-#include "card.h"
-#include "player.h"
+#include "Card.h"
+#include "Player.h"
 
 class Team
 {

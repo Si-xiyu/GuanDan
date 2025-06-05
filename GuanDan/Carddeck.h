@@ -1,7 +1,7 @@
 #ifndef CARDDECK_H
 #define CARDDECK_H
 
-#include "card.h" // 包含 Card 类的定义
+#include "Card.h" // 包含 Card 类的定义
 
 #include <QVector>
 

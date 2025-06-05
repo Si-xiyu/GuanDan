@@ -4,7 +4,7 @@
 #include <QString>
 
 class Player; // 前向定义，使用Player和Team的指针
-class team;
+class Team;
 
 class Card
 {
