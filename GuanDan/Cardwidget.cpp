@@ -3,34 +3,37 @@
 #include <QMouseEvent>
 #include <QPixmap>
 #include <QDebug>
+#include <QTransform>
 
 #include "Cardwidget.h"
 #include "Card.h"
 #include "Player.h"
 
 CardWidget::CardWidget(QWidget* parent)
-    : QWidget{ parent }
+    : QWidget(parent)
+    , m_isfront(true)
+    , m_isSelect(false)
+    , m_isHovered(false)
+    , m_rotation(0.0)
+    , m_card()
+    , m_owner(nullptr)
 {
-    m_isfront = true;
-    m_isSelect = false;
-    m_isHovered = false;
-
     setAttribute(Qt::WA_Hover);    // 启用悬停检测
     setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);   // 设置尺寸
     loadCardImages(); // 加载图片
 }
 
 CardWidget::CardWidget(const Card& cardData, Player* owner, QWidget* parent)
-    : QWidget(parent),
-    m_card(cardData),
-    m_owner(owner)
+    : QWidget(parent)
+    , m_isfront(true)
+    , m_isSelect(false)
+    , m_isHovered(false)
+    , m_rotation(0.0)
+    , m_card(cardData)
+    , m_owner(owner)
 {
-    m_isfront = true;
-    m_isSelect = false;
-    m_isHovered = false;
-
-    setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
     setAttribute(Qt::WA_Hover); // 启用悬停事件
+    setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
     loadCardImages(); // 加载图片
 }
 
@@ -82,56 +85,62 @@ Player* CardWidget::getOwner()
     return m_owner;
 }
 
-//图片绘制事件重写
+// 卡片旋转功能
+void CardWidget::setRotation(qreal angle)
+{
+    if (m_rotation != angle) {
+        m_rotation = angle;
+        update(); // 触发重绘
+    }
+}
+
+qreal CardWidget::rotation() const
+{
+    return m_rotation;
+}
+
+// 图片绘制事件重写
 void CardWidget::paintEvent(QPaintEvent* event)
 {
     Q_UNUSED(event);
     QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
-    QRect widgetRect = this->rect();
-    QPixmap imageToDraw;
+    // 保存当前的变换矩阵
+    painter.save();
 
-    // 1. 确定基础图像
-    if (m_isfront) {
-        imageToDraw = m_front;
-    }
-    else {
-        imageToDraw = m_back;
-    }
+    // 设置旋转中心点为卡片中心
+    painter.translate(width() / 2, height() / 2);
+    painter.rotate(m_rotation);
+    painter.translate(-width() / 2, -height() / 2);
 
-    // 2. 绘制基础图像
-    if (!imageToDraw.isNull()) {
-        // 保持宽高比缩放并居中绘制
-        QPixmap scaledPixmap = imageToDraw.scaled(widgetRect.size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        int x = (widgetRect.width() - scaledPixmap.width()) / 2;
-        int y = (widgetRect.height() - scaledPixmap.height()) / 2;
-        painter.drawPixmap(x, y, scaledPixmap);
-    }
-    else {
-        // 图片加载失败或未设置时的占位符，显示卡牌的信息
-        painter.fillRect(widgetRect, Qt::lightGray);
-        painter.setPen(Qt::black);
-        QString cardStr = m_isfront ? (m_card.SuitToString() + "_" + m_card.PointToString()) : "Back";
-        painter.drawText(widgetRect, Qt::AlignCenter, cardStr + "\n(No Image)");
-    }
+    // 绘制卡片
+    QPixmap currentImage = m_isfront ? m_front : m_back;
+    QRect targetRect = rect();
 
-    // 3. 绘制悬停效果 (深色蒙版)
-    if (m_isHovered || m_isSelect) {
-        painter.fillRect(widgetRect, HOVER_TINT_COLOR_CW); // 使用头文件中定义的颜色
-    }
-
-    // 4. 绘制选中边框
+    // 如果卡片被选中，绘制选中边框
     if (m_isSelect) {
         painter.setPen(QPen(SELECTED_BORDER_COLOR_CW, SELECTION_BORDER_SIZE_CW));
-        // 调整边框矩形，使边框线在widget边缘居中
-        QRectF borderRect = QRectF(widgetRect).adjusted(
-            (float)SELECTION_BORDER_SIZE_CW / 2.0f,
-            (float)SELECTION_BORDER_SIZE_CW / 2.0f,
-            -(float)SELECTION_BORDER_SIZE_CW / 2.0f,
-            -(float)SELECTION_BORDER_SIZE_CW / 2.0f
-        );
-        painter.drawRoundedRect(borderRect, 5.0, 5.0); // 圆角效果
+        painter.drawRect(targetRect.adjusted(SELECTION_BORDER_SIZE_CW/2, 
+                                          SELECTION_BORDER_SIZE_CW/2,
+                                          -SELECTION_BORDER_SIZE_CW/2, 
+                                          -SELECTION_BORDER_SIZE_CW/2));
+        
+        // 绘制选中时的蒙版
+        painter.fillRect(targetRect, SELECTED_TINT_COLOR_CW);
     }
+
+    // 绘制卡片图像
+    painter.drawPixmap(targetRect, currentImage);
+
+    // 如果鼠标悬停，绘制悬停效果
+    if (m_isHovered && !m_isSelect) {
+        painter.fillRect(targetRect, HOVER_TINT_COLOR_CW);
+    }
+
+    // 恢复变换矩阵
+    painter.restore();
 
     // 5. 如果是级牌，添加特殊标识
     if (m_isfront && m_card.isWildCard()) {
@@ -139,8 +148,8 @@ void CardWidget::paintEvent(QPaintEvent* event)
         painter.setPen(Qt::NoPen);
         painter.setBrush(QColor(255, 215, 0)); // 金色
 
-        int starSize = widgetRect.width() / 4; // 星星大小为卡片宽度的1/4
-        QRect starRect(widgetRect.right() - starSize - 2, 2, starSize, starSize);
+        int starSize = targetRect.width() / 4; // 星星大小为卡片宽度的1/4
+        QRect starRect(targetRect.right() - starSize - 2, 2, starSize, starSize);
 
         // 绘制一个简单的五角星
         QPolygonF star;
@@ -168,7 +177,7 @@ void CardWidget::mousePressEvent(QMouseEvent* event)
         // 父控件接收到信号后，会调用这个 CardWidget 的 setSelected() 方法
         emit clicked(this);
     }
-    QWidget::mousePressEvent(event); // 调用基类的实现，确保事件可以继续传播
+    event->accept(); // 处理完事件后标记为已接受
 }
 
 void CardWidget::enterEvent(QEvent* event)
@@ -193,7 +202,7 @@ void CardWidget::leaveEvent(QEvent* event)
 void CardWidget::loadCardImages()
 {
     QString imageName = m_card.getImageFilename();
-    QString frontPath = QString(":/Card_image/res/%1.png").arg(imageName);
+    QString frontPath = QString(":/pic/res/%1.png").arg(imageName);
 
     //加载正面图片
     if (!m_front.load(frontPath)) {
@@ -203,7 +212,7 @@ void CardWidget::loadCardImages()
 
     // 加载背面图片
     if (m_back.isNull()) {
-        if (!m_back.load(":/Card_image/res/Back.png")) {
+        if (!m_back.load(":/pic/res/Back.png")) {
             qWarning() << "CardWidget: Failed to load back image";
         }
     }
