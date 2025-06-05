@@ -3,8 +3,8 @@
 
 #include <QWidget>
 
-#include "card.h"
-#include "player.h"
+#include "Card.h"
+#include "Player.h"
 
 // 定义图片尺寸
 const int CARD_WIDGET_WIDTH = 56;

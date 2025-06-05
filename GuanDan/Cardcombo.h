@@ -3,9 +3,8 @@
 
 #include <QVector>
 #include <QString>
-#include <QMap>
 
-#include "card.h"     // 包含 Card 类定义
+#include "Card.h"     // 包含 Card 类定义
 
 // 前向声明 Player 和 Team
 class Player;

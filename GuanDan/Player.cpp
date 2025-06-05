@@ -51,12 +51,12 @@ QVector<Card> Player::getHandCards() const
     return m_handCards;
 }
 
-void Player::setTeam(team* team)
+void Player::setTeam(Team* team)
 {
     m_team = team;
 }
 
-team* Player::getTeam() const
+Team* Player::getTeam() const
 {
     return m_team;
 }

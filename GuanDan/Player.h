@@ -11,7 +11,7 @@ class Player : public QObject
 {
     Q_OBJECT
 public:
-    explicit Player(QString name, int id, team* team = nullptr, QObject* parent = nullptr)
+    explicit Player(QString name, int id, Team* team = nullptr, QObject* parent = nullptr)
         : QObject(parent), m_name(name), m_id(id), m_team(team)
     {
     }
@@ -32,8 +32,8 @@ public:
     QVector<Card> getHandCards() const;
 
     // 所属队伍
-    void setTeam(team* team);
-    team* getTeam() const;
+    void setTeam(Team* team);
+    Team* getTeam() const;
 
     // 游戏状态
     void setReady(bool ready);
@@ -54,7 +54,7 @@ private:
     int m_id; // 玩家id
 
     QVector<Card> m_handCards;    // 手牌
-    team* m_team = nullptr;       // 所属队伍
+    Team* m_team = nullptr;       // 所属队伍
     bool m_isReady = false;       // 是否准备就绪
 };
 
