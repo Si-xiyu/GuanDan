@@ -17,6 +17,8 @@ const QColor SELECTED_TINT_COLOR_CW = QColor(0, 0, 0, 70); // 选中蒙版颜色
 class CardWidget : public QWidget
 {
     Q_OBJECT
+    Q_PROPERTY(qreal rotation READ rotation WRITE setRotation)
+
 public:
     explicit CardWidget(QWidget* parent = nullptr);
     explicit CardWidget(const Card& cardData, Player* owner = nullptr, QWidget* parent = nullptr);
@@ -35,12 +37,16 @@ public:
     void setOwner(Player* player);
     Player* getOwner();
 
+    // 旋转相关方法
+    void setRotation(qreal angle);
+    qreal rotation() const;
+
 protected:
     //重写事件处理函数
-    void paintEvent(QPaintEvent* event);
-    void mousePressEvent(QMouseEvent* event);
-    void enterEvent(QEvent* event);   // 添加悬停效果
-    void leaveEvent(QEvent* event);
+    void paintEvent(QPaintEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void enterEvent(QEvent* event) override;   // 添加悬停效果
+    void leaveEvent(QEvent* event) override;
 
 private:
     void loadCardImages(); // 私有辅助函数加载图片
@@ -52,6 +58,7 @@ private:
     bool m_isfront;
     bool m_isSelect;
     bool m_isHovered;
+    qreal m_rotation;  // 存储旋转角度
 
     Card m_card;
     Player* m_owner = nullptr;

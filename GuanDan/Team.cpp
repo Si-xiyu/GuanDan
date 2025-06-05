@@ -3,7 +3,7 @@
 
 #include <QDebug>  // 用于调试
 
-Team::Team(int& id)
+Team::Team(int id)
     : m_id(id), m_currentLevelRank(Card::CardPoint::Card_2) // 初始级牌默认为 2
 {
 }

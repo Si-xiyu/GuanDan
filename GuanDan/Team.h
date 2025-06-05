@@ -11,7 +11,7 @@ class Team
 {
 public:
 
-    Team(int& id); //必须指定队伍Id
+    Team(int id); //必须指定队伍Id
 
     // 管理玩家
     void addPlayer(Player* player);
