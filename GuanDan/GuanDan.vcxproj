@@ -95,8 +95,10 @@
     <ClCompile Include="Cardcombo.cpp" />
     <ClCompile Include="Carddeck.cpp" />
     <ClCompile Include="Cardwidget.cpp" />
+    <ClCompile Include="GD_Controller.cpp" />
     <ClCompile Include="Levelstatus.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="PlayerWidget.cpp" />
     <ClCompile Include="Team.cpp" />
     <QtRcc Include="GuanDan.qrc" />
     <QtUic Include="GuanDan.ui" />
@@ -109,7 +111,9 @@
     <ClInclude Include="Card.h" />
     <ClInclude Include="Cardcombo.h" />
     <ClInclude Include="Carddeck.h" />
+    <QtMoc Include="GD_Controller.h" />
     <ClInclude Include="Levelstatus.h" />
+    <ClInclude Include="PlayerWidget.h" />
     <ClInclude Include="Team.h" />
     <QtMoc Include="Cardwidget.h" />
     <QtMoc Include="Player.h" />

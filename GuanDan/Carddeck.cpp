@@ -1,4 +1,4 @@
-#include "carddeck.h"
+#include "Carddeck.h"
 
 #include <QDebug>
 #include <algorithm> // for std::shuffle

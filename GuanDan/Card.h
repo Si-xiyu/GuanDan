@@ -9,6 +9,7 @@ class Team;
 class Card
 {
     friend bool operator==(const Card& card1, const Card& card2);
+    friend bool operator!=(const Card& card1, const Card& card2);
     friend bool operator<(const Card& card1, const Card& card2);
     friend bool operator>(const Card& card1, const Card& card2);
 

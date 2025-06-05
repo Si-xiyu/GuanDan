@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QVector>
 #include "Card.h"
+#include "Cardcombo.h"
 
 class Team;
 
@@ -25,6 +26,7 @@ public:
     void setType(Type type);
     Type getType() const;
     void setId(int Id);
+    int getID();
 
     // 手牌管理
     void addCards(const QVector<Card>& cards);
@@ -40,9 +42,7 @@ public:
     bool isReady() const;
 
     // 出牌验证（调用CardCombo类）
-    bool canPlayCards(const QVector<Card>& cards,
-        int current_table_combo_type,
-        int current_table_combo_level) const;
+    bool canPlayCards(const QVector<Card>& cards, CardCombo::ComboInfo& current_table) const;
 
 signals:
     void cardsUpdated(); // 手牌变化信号

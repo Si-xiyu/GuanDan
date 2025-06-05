@@ -21,6 +21,11 @@ void Player::setId(int Id)
     m_id = Id;
 }
 
+int Player::getID()
+{
+	return m_id;
+}
+
 Player::Type Player::getType() const
 {
     return m_type;
@@ -71,17 +76,15 @@ bool Player::isReady() const
     return m_isReady;
 }
 
-bool Player::canPlayCards(const QVector<Card>& cards,
-    int current_table_combo_type,
-    int current_table_combo_level) const
+bool Player::canPlayCards(const QVector<Card>& cards, CardCombo::ComboInfo& current_table) const
 {
     // 1. 调用 getAllPossibleValidPlays 获取所有合法出牌组合
     QVector<CardCombo::ComboInfo> valid_plays =
         CardCombo::getAllPossibleValidPlays(
             cards,
             const_cast<Player*>(this), // 当前玩家上下文
-            current_table_combo_type,
-            current_table_combo_level);
+            current_table.type,
+            current_table.level);
 
     // 2. 判断是否存在至少一个合法出牌组合
     return !valid_plays.isEmpty();

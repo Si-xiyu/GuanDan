@@ -4,9 +4,9 @@
 #include <QPixmap>
 #include <QDebug>
 
-#include "cardwidget.h"
-#include "card.h"
-#include "player.h"
+#include "Cardwidget.h"
+#include "Card.h"
+#include "Player.h"
 
 CardWidget::CardWidget(QWidget* parent)
     : QWidget{ parent }
@@ -131,6 +131,33 @@ void CardWidget::paintEvent(QPaintEvent* event)
             -(float)SELECTION_BORDER_SIZE_CW / 2.0f
         );
         painter.drawRoundedRect(borderRect, 5.0, 5.0); // 圆角效果
+    }
+
+    // 5. 如果是级牌，添加特殊标识
+    if (m_isfront && m_card.isWildCard()) {
+        // 在右上角绘制一个金色星星标记
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(255, 215, 0)); // 金色
+
+        int starSize = widgetRect.width() / 4; // 星星大小为卡片宽度的1/4
+        QRect starRect(widgetRect.right() - starSize - 2, 2, starSize, starSize);
+
+        // 绘制一个简单的五角星
+        QPolygonF star;
+        const double PI = 3.14159265358979323846;
+        for (int i = 0; i < 5; ++i) {
+            double angle = -PI / 2 + i * 4 * PI / 5;
+            star << QPointF(
+                starRect.center().x() + starRect.width() / 2 * cos(angle),
+                starRect.center().y() + starRect.height() / 2 * sin(angle)
+            );
+            angle += 2 * PI / 5;
+            star << QPointF(
+                starRect.center().x() + starRect.width() / 4 * cos(angle),
+                starRect.center().y() + starRect.height() / 4 * sin(angle)
+            );
+        }
+        painter.drawPolygon(star);
     }
 }
 
