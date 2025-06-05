@@ -247,32 +247,18 @@ void GD_Controller::startNewRound()
 
 void GD_Controller::dealCardsToPlayers()
 {
-    // 创建一副完整的牌
-    QVector<Card> deck;
-    for (int suit = Card::Diamond; suit <= Card::Joker; ++suit) {
-        if (suit == Card::Joker) {
-            deck.append(Card(Card::Card_LJ, static_cast<Card::CardSuit>(suit)));
-            deck.append(Card(Card::Card_BJ, static_cast<Card::CardSuit>(suit)));
-        }
-        else {
-            for (int point = Card::Card_2; point <= Card::Card_A; ++point) {
-                deck.append(Card(static_cast<Card::CardPoint>(point),
-                    static_cast<Card::CardSuit>(suit)));
-            }
-        }
-    }
-
-    // 洗牌
-    std::random_shuffle(deck.begin(), deck.end());
+    // 创建牌组并自动初始化（构造函数中会创建两副牌并洗牌）
+    CardDeck deck;
+    QVector<Card> allCards = deck.getDeckCards();
 
     // 发牌
-    int cardsPerPlayer = deck.size() / m_players.size();
+    int cardsPerPlayer = allCards.size() / m_players.size(); // 每个玩家27张
     QVector<int> playerIds = getActivePlayerIdsSorted();
 
     for (int i = 0; i < playerIds.size(); ++i) {
         QVector<Card> playerCards;
         for (int j = 0; j < cardsPerPlayer; ++j) {
-            playerCards.append(deck[i * cardsPerPlayer + j]);
+            playerCards.append(allCards[i * cardsPerPlayer + j]);
         }
 
         Player* player = getPlayerById(playerIds[i]);
