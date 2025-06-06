@@ -56,4 +56,7 @@
         <file>res/Spades_K.png</file>
         <file>res/Spades_Q.png</file>
     </qresource>
+    <qresource prefix="/mus">
+        <file>res/BackGroundMusic.mp3</file>
+    </qresource>
 </RCC>

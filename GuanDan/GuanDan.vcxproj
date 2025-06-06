@@ -94,7 +94,7 @@
   <ItemGroup>
     <ClCompile Include="Cardcombo.cpp" />
     <ClCompile Include="Carddeck.cpp" />
-    <ClCompile Include="Cardwidget.cpp" />
+    <ClCompile Include="CardWidget.cpp" />
     <ClCompile Include="GD_Controller.cpp" />
     <ClCompile Include="Levelstatus.cpp" />
     <ClCompile Include="Player.cpp" />
@@ -117,7 +117,7 @@
     <ClInclude Include="Levelstatus.h" />
     <QtMoc Include="PlayerWidget.h" />
     <ClInclude Include="Team.h" />
-    <QtMoc Include="Cardwidget.h" />
+    <QtMoc Include="CardWidget.h" />
     <QtMoc Include="Player.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

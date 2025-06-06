@@ -20,13 +20,13 @@
 class GD_Controller; // PlayerWidget可以直接向控制器发送信号
 
 // 定义玩家视图的常量
-const int PLAYER_WIDGET_MIN_WIDTH = 800;
-const int PLAYER_WIDGET_MIN_HEIGHT = 200;
-const int CARD_OVERLAP_HORIZONTAL = 40;  // 卡片水平重叠的像素数
-const int CARD_OVERLAP_VERTICAL = 25;    // 相同牌垂直重叠的像素数
-const int SIDE_CARD_OVERLAP = 20;        // 侧面玩家牌的重叠像素数
-const int CARDS_MARGIN = 15;             // 卡片区域的边距
-const int NAME_LABEL_HEIGHT = 30;        // 玩家名称标签的高度
+const int PLAYER_WIDGET_MIN_WIDTH = 1000;  // 增加宽度以容纳更多卡牌
+const int PLAYER_WIDGET_MIN_HEIGHT = 300;  // 增加高度以容纳垂直堆叠的卡牌
+const int CARD_OVERLAP_HORIZONTAL = 40;    // 卡片水平重叠的像素数
+const int CARD_OVERLAP_VERTICAL = 25;      // 相同牌垂直重叠的像素数
+const int SIDE_CARD_OVERLAP = 20;          // 侧面玩家牌的重叠像素数
+const int CARDS_MARGIN = 15;               // 卡片区域的边距
+const int NAME_LABEL_HEIGHT = 30;          // 玩家名称标签的高度
 
 // 玩家位置枚举
 enum class PlayerPosition {
@@ -65,6 +65,8 @@ public:
     void highlightTurn(bool isCurrentTurn);
     void setPosition(PlayerPosition position);
     PlayerPosition getPosition() const { return m_position; }
+    void updateButtonsState();
+    void setupButtons();
 
     // 显示更新
     void updateHandDisplay(const QVector<Card>& handCards, bool showCardFronts);
@@ -121,7 +123,7 @@ private:
     QLabel* m_nameLabel;                  // 玩家名称标签
     QLabel* m_statusLabel;                // 玩家状态标签
     QVector<CardWidget*> m_cardWidgets;   // 所有卡片视图
-    QMap<Card::CardPoint, QVector<CardWidget*>> m_cardStacks; // 按点数分组的卡片
+    QMap<Card::CardPoint, QVector<CardWidget*>> m_cardStacks; // 按点数分组的卡片，用于在视图中堆叠显示
 
     // UI 元素
     QVBoxLayout* m_mainLayout;      // 主垂直布局
@@ -152,10 +154,6 @@ private:
     QPushButton* m_playButton;    // 出牌按钮
     QPushButton* m_skipButton;    // 跳过按钮
     QHBoxLayout* m_buttonLayout;  // 按钮布局
-
-    // 添加按钮布局相关方法
-    void setupButtons();
-    void updateButtonsState();
 };
 
 #endif // PLAYERWIDGET_H

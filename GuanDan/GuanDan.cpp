@@ -166,13 +166,47 @@ void GuanDan::setupConnections()
             this, &GuanDan::updateGameStatus);
         
         // 当玩家选择卡牌时通知游戏控制器
-        connect(widget, &PlayerWidget::cardsSelected,
-            [this, widget](const QVector<Card>& cards) {
+        connect(widget, &PlayerWidget::playCardsRequested,
+            [this, widget]() {
                 if (widget->getPlayer()) {
-                    m_gameController->onPlayerAttemptPlay(widget->getPlayer()->getID(), cards);
+                    QVector<Card> selectedCards = widget->getSelectedCards();
+                    if (!selectedCards.isEmpty()) {
+                        m_gameController->onPlayerAttemptPlay(widget->getPlayer()->getID(), selectedCards);
+                    }
+                }
+            });
+            
+        // 当玩家点击跳过按钮时通知游戏控制器
+        connect(widget, &PlayerWidget::skipTurnRequested,
+            [this, widget]() {
+                if (widget->getPlayer()) {
+                    m_gameController->onPlayerPass(widget->getPlayer()->getID());
                 }
             });
     }
+
+    // 连接游戏控制器的玩家控制信号
+    connect(m_gameController, &GD_Controller::sigEnablePlayerControls,
+        this, [this](int playerId, bool canPlay, bool canPass) {
+            for (PlayerWidget* widget : m_playerWidgets) {
+                if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
+                    widget->setEnabled(canPlay);
+                    widget->updateButtonsState();
+                    break;
+                }
+            }
+        });
+
+    // 连接当前玩家回合信号
+    connect(m_gameController, &GD_Controller::sigSetCurrentTurnPlayer,
+        this, [this](int playerId, const QString& playerName) {
+            for (PlayerWidget* widget : m_playerWidgets) {
+                if (widget->getPlayer()) {
+                    bool isCurrentPlayer = (widget->getPlayer()->getID() == playerId);
+                    widget->highlightTurn(isCurrentPlayer);
+                }
+            }
+        });
 }
 
 void GuanDan::arrangePlayerWidgets()
@@ -235,6 +269,7 @@ void GuanDan::startGame()
         qDebug() << "开始游戏...";
         m_gameInProgress = true;
         m_startButton->setEnabled(false);
+        m_startButton->hide(); // 隐藏开始按钮
         
         // 设置玩家和队伍
         QVector<Team*> teams;

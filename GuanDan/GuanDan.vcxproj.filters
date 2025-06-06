@@ -52,7 +52,7 @@
     <ClCompile Include="Carddeck.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Cardwidget.cpp">
+    <ClCompile Include="CardWidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Levelstatus.cpp">
@@ -92,7 +92,7 @@
     <QtMoc Include="Player.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-    <QtMoc Include="Cardwidget.h">
+    <QtMoc Include="CardWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="GD_Controller.h">
