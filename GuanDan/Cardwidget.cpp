@@ -172,12 +172,14 @@ void CardWidget::paintEvent(QPaintEvent* event)
 
 void CardWidget::mousePressEvent(QMouseEvent* event)
 {
+    if (!isEnabled()) return;  // 如果卡牌被禁用，不处理点击事件
+    
     if (event->button() == Qt::LeftButton) {
-        // 发射clicked 信号，由父控件HandCards处理选中逻辑
-        // 父控件接收到信号后，会调用这个 CardWidget 的 setSelected() 方法
-        emit clicked(this);
+        m_isSelect = !m_isSelect;  // 切换选中状态
+        update();  // 重绘卡牌
+        emit clicked(this);  // 发送点击信号
     }
-    event->accept(); // 处理完事件后标记为已接受
+    QWidget::mousePressEvent(event);
 }
 
 void CardWidget::enterEvent(QEvent* event)

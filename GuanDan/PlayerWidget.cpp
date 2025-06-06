@@ -87,8 +87,11 @@ PlayerWidget::~PlayerWidget()
     qDeleteAll(m_cardWidgets);
     m_cardWidgets.clear();
     m_cardStacks.clear();
-}
 
+    // 清理已打出的牌
+    qDeleteAll(m_playedCardWidgets);
+    m_playedCardWidgets.clear();
+}
 void PlayerWidget::updateCards(const QVector<Card>& cards)
 {
     // 清理现有卡片
@@ -100,8 +103,6 @@ void PlayerWidget::updateCards(const QVector<Card>& cards)
     for (const Card& card : cards) {
         CardWidget* cardWidget = createCardWidget(card);
         m_cardWidgets.append(cardWidget);
-        
-        // 按点数分组
         m_cardStacks[card.point()].append(cardWidget);
     }
     
@@ -410,12 +411,23 @@ void PlayerWidget::layoutCardsForTop()
 
 void PlayerWidget::sortCards()
 {
-    // 对每个堆叠中的牌进行排序
+    // 使用基于Card::point()的预排序，减少sort调用
+    QMap<Card::CardPoint, QVector<CardWidget*>> sortedStacks;
+
+    for (CardWidget* widget : m_cardWidgets) {
+        Card::CardPoint point = widget->getCard().point();
+        sortedStacks[point].append(widget);
+    }
+
+    // 替代原有m_cardStacks
+    m_cardStacks = sortedStacks;
+
+    // 在每个堆栈内部排序
     for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
-        QVector<CardWidget*>& stack = it.value();
-        std::sort(stack.begin(), stack.end(), [](CardWidget* a, CardWidget* b) {
-            return a->getCard() < b->getCard();
-        });
+        std::sort(it.value().begin(), it.value().end(),
+            [](CardWidget* a, CardWidget* b) {
+                return a->getCard() > b->getCard();
+            });
     }
 }
 
@@ -649,45 +661,60 @@ void PlayerWidget::setDefaultBackground()
 
 void PlayerWidget::setupButtons()
 {
-    m_buttonLayout = new QHBoxLayout();
-    m_buttonLayout->setContentsMargins(0, 5, 0, 5);
-    m_buttonLayout->setSpacing(10);
+    if (!m_buttonLayout) {
+        m_buttonLayout = new QHBoxLayout();
+        m_buttonLayout->setContentsMargins(0, 5, 0, 5);
+        m_buttonLayout->setSpacing(10);
+    }
     
-    m_playButton = new QPushButton("出牌", this);
-    m_skipButton = new QPushButton("跳过", this);
+    if (!m_playButton) {
+        m_playButton = new QPushButton("出牌", this);
+        // 设置按钮样式
+        QString buttonStyle = "QPushButton {"
+                            "    background-color: #4CAF50;"
+                            "    color: white;"
+                            "    border: none;"
+                            "    padding: 5px 15px;"
+                            "    border-radius: 4px;"
+                            "    font-size: 14px;"
+                            "}"
+                            "QPushButton:hover {"
+                            "    background-color: #45a049;"
+                            "}"
+                            "QPushButton:disabled {"
+                            "    background-color: #cccccc;"
+                            "    color: #666666;"
+                            "}";
+        m_playButton->setStyleSheet(buttonStyle);
+        m_playButton->setShortcut(Qt::Key_Return);  // 回车键出牌
+        connect(m_playButton, &QPushButton::clicked, this, &PlayerWidget::playCardsRequested);
+    }
     
-    // 设置按钮样式
-    QString buttonStyle = "QPushButton {"
-                        "    background-color: #4CAF50;"
-                        "    color: white;"
-                        "    border: none;"
-                        "    padding: 5px 15px;"
-                        "    border-radius: 4px;"
-                        "    font-size: 14px;"
-                        "}"
-                        "QPushButton:hover {"
-                        "    background-color: #45a049;"
-                        "}"
-                        "QPushButton:disabled {"
-                        "    background-color: #cccccc;"
-                        "    color: #666666;"
-                        "}";
+    if (!m_skipButton) {
+        m_skipButton = new QPushButton("跳过", this);
+        m_skipButton->setStyleSheet(m_playButton->styleSheet());
+        m_skipButton->setShortcut(Qt::Key_Space);   // 空格键跳过
+        connect(m_skipButton, &QPushButton::clicked, this, &PlayerWidget::skipTurnRequested);
+    }
     
-    m_playButton->setStyleSheet(buttonStyle);
-    m_skipButton->setStyleSheet(buttonStyle);
+    // 清空现有布局
+    while (m_buttonLayout->count() > 0) {
+        QLayoutItem* item = m_buttonLayout->takeAt(0);
+        if (item->widget()) {
+            item->widget()->hide();
+        }
+        delete item;
+    }
     
-    // 添加快捷键
-    m_playButton->setShortcut(Qt::Key_Return);  // 回车键出牌
-    m_skipButton->setShortcut(Qt::Key_Space);   // 空格键跳过
-    
-    // 连接信号
-    connect(m_playButton, &QPushButton::clicked, this, &PlayerWidget::playCardsRequested);
-    connect(m_skipButton, &QPushButton::clicked, this, &PlayerWidget::skipTurnRequested);
-    
+    // 重新添加按钮
     m_buttonLayout->addStretch();
     m_buttonLayout->addWidget(m_playButton);
     m_buttonLayout->addWidget(m_skipButton);
     m_buttonLayout->addStretch();
+    
+    // 显示按钮
+    m_playButton->show();
+    m_skipButton->show();
     
     // 初始状态下禁用按钮
     updateButtonsState();
@@ -699,6 +726,10 @@ void PlayerWidget::updateButtonsState()
         bool hasSelectedCards = !getSelectedCards().isEmpty();
         m_playButton->setEnabled(m_isEnabled && hasSelectedCards);
         m_skipButton->setEnabled(m_isEnabled);
+        
+        // 确保按钮可见性
+        m_playButton->setVisible(m_position == PlayerPosition::Bottom);
+        m_skipButton->setVisible(m_position == PlayerPosition::Bottom);
     }
 }
 

@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <QTextStream>
 
+#include "carddeck.h"
+
 GD_Controller::GD_Controller(QObject* parent)
     : QObject(parent)
     , m_currentPlayerId(-1)
@@ -247,28 +249,42 @@ void GD_Controller::startNewRound()
 
 void GD_Controller::dealCardsToPlayers()
 {
-    // 创建牌组并自动初始化（构造函数中会创建两副牌并洗牌）
+    // 创建牌组并自动初始化（deck构造函数中会创建两副牌并洗牌）
     CardDeck deck;
-    QVector<Card> allCards = deck.getDeckCards();
+	QVector<Card> allCards = deck.getDeckCards(); // 得到乱序的牌组（注意，是无所有者的牌组！）
 
     // 发牌
-    int cardsPerPlayer = allCards.size() / m_players.size(); // 每个玩家27张
-    QVector<int> playerIds = getActivePlayerIdsSorted();
+    const int cardsPerPlayer = 27; // 每个玩家27张
+	QVector<int> playerIds = getActivePlayerIdsSorted(); // 因为没人出完牌，所以直接获取所有玩家ID
 
-    for (int i = 0; i < playerIds.size(); ++i) {
-        QVector<Card> playerCards;
+	// 给四个玩家发牌
+    for (int i = 0; i < 4; ++i) {
+		QVector<Card> playerCards; // 添加到每个玩家的手牌数组
         for (int j = 0; j < cardsPerPlayer; ++j) {
             playerCards.append(allCards[i * cardsPerPlayer + j]);
         }
-
+        // 获取玩家对象的映射
         Player* player = getPlayerById(playerIds[i]);
+
+        // 给playerCards找主人
+        for (Card& card : playerCards) {
+            card.setOwner(player); // 设置牌的所有者ID
+		}
+		// 如果玩家存在，则清空原有手牌并添加新牌
         if (player) {
             // 清空原有手牌并添加新牌
             player->getHandCards().clear();
             player->addCards(playerCards);
-            emit sigCardsDealt(playerIds[i], playerCards);
+            emit sigCardsDealt(playerIds[i], playerCards); // 发送发牌完成信号
+        }
+        else
+        {
+			qDebug() << "错误：玩家ID" << playerIds[i] << "不存在，无法发牌";
         }
     }
+
+    // 设置游戏阶段为出牌阶段
+    m_currentPhase = GamePhase::Playing;
 
     // 确定首个出牌玩家
     determineFirstPlayerForRound();
@@ -276,25 +292,39 @@ void GD_Controller::dealCardsToPlayers()
 
 void GD_Controller::determineFirstPlayerForRound()
 {
+	// 第一局，随机一名玩家开始
     if (m_currentRoundNumber == 1) {
-        // 第一局，持有红桃2的玩家先出
-        Card firstCard(Card::Card_2, Card::Heart);
-        for (auto it = m_players.begin(); it != m_players.end(); ++it) {
-            if (it.value()->getHandCards().contains(firstCard)) {
-                m_currentPlayerId = it.key();
-                m_circleLeaderId = m_currentPlayerId;
-                break;
-            }
+		QVector<int> playerIds = getActivePlayerIdsSorted(); // 获取所有玩家ID
+        // 随机选择一个玩家作为首个出牌玩家
+        int randomIndex = QRandomGenerator::global()->bounded(playerIds.size());
+        m_currentPlayerId = playerIds[randomIndex];
+
+        m_circleLeaderId = m_currentPlayerId; // 首个出牌玩家也是圈主
+        Player* firstPlayer = getPlayerById(m_currentPlayerId);
+
+		// 如果找到首个出牌玩家，则发送信号
+        if (firstPlayer) {
+            emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
+            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+            emit sigBroadcastMessage(QString("第%1局开始，随机选择%2先出牌！")
+                .arg(m_currentRoundNumber)
+                .arg(firstPlayer ? firstPlayer->getName() : "未知玩家"));
+		}
+        else
+        {
+	        qWarning() << "错误：首个出牌玩家ID" << m_currentPlayerId << "不存在，无法开始游戏";
         }
+       
     }
+    // 其他局，由上一局最后一名玩家开始
     else {
-        // 其他局，由上一局最后一名玩家开始
+		// 如果上一局完成了，则最后一名玩家开始新一局
         if (!m_roundFinishOrder.isEmpty()) {
             m_currentPlayerId = m_roundFinishOrder.last();
             m_circleLeaderId = m_currentPlayerId;
         }
     }
-
+	// 如果当前玩家ID有效，则设置当前玩家为出牌玩家
     if (m_currentPlayerId != -1) {
         Player* firstPlayer = getPlayerById(m_currentPlayerId);
         if (firstPlayer) {
@@ -307,8 +337,10 @@ void GD_Controller::determineFirstPlayerForRound()
 void GD_Controller::nextPlayerTurn()
 {
     QVector<int> activePlayers = getActivePlayerIdsSorted();
-    if (activePlayers.isEmpty()) return;
-
+    if (activePlayers.isEmpty()) {
+		qDebug() << "GD_Controller::nextPlayerTurn():玩家都出完牌了，没有下一个玩家";
+        return;
+    }
     // 找到当前玩家的索引
     int currentIndex = activePlayers.indexOf(m_currentPlayerId);
     if (currentIndex == -1) return;
@@ -318,13 +350,12 @@ void GD_Controller::nextPlayerTurn()
     m_currentPlayerId = activePlayers[nextIndex];
 
     Player* nextPlayer = getPlayerById(m_currentPlayerId);
-    if (!nextPlayer) return;
-
-    emit sigSetCurrentTurnPlayer(m_currentPlayerId, nextPlayer->getName());
-
-    // 确定是否可以过牌
-    bool canPass = m_currentTableCombo.type != CardComboType::Invalid;
-    emit sigEnablePlayerControls(m_currentPlayerId, true, canPass);
+    if (!nextPlayer) {
+        return;
+		qDebug()<< "GD_Controller::nextPlayerTurn():下一个玩家ID" << m_currentPlayerId << "不存在";
+    }
+	emit sigSetCurrentTurnPlayer(m_currentPlayerId, nextPlayer->getName());
+    emit sigEnablePlayerControls(m_currentPlayerId, true, false);
 }
 
 bool GD_Controller::canPlayerPlay(int playerId, const QVector<Card>& cardsToPlay, CardCombo::ComboInfo& outPlayedCombo)
@@ -344,7 +375,7 @@ bool GD_Controller::canPlayerPlay(int playerId, const QVector<Card>& cardsToPlay
 
     // 使用Player的canPlayCards方法验证牌型
 	if (!player->canPlayCards(cardsToPlay, m_currentTableCombo))
-		return false;
+        return false;
     else
         return true;
 }
@@ -419,22 +450,19 @@ void GD_Controller::processPlayerPass(int playerId)
     }
 }
 
+// 当玩家跳过时进行判定
 void GD_Controller::checkCircleEndAndNextAction()
 {
-    if (m_activePlayersInRound <= 1) {
-        return; // 如果只剩一个玩家，不需要检查一圈结束
-    }
-
     // 检查是否所有其他活跃玩家都已过牌
     if (allOtherActivePlayersPassed(m_circleLeaderId)) {
-        // 一圈结束，赢家开始新一圈
+        // 一圈结束，赢家开始新一圈，重置桌面牌型
         m_currentTableCombo.type = CardComboType::Invalid;
         m_currentTableCombo.cards_in_combo.clear();
         m_passedPlayersInCircle.clear();
+		// 重置当前玩家ID为这小轮的赢家（没人大过他）
         m_currentPlayerId = m_circleLeaderId;
 
         emit sigClearTableCards();
-        emit sigBroadcastMessage("新一圈开始");
 
         Player* winner = getPlayerById(m_circleLeaderId);
         if (winner) {
@@ -448,6 +476,7 @@ void GD_Controller::checkCircleEndAndNextAction()
     }
 }
 
+// 当玩家出完牌时判定
 void GD_Controller::checkRoundEndAndNextAction()
 {
     // 检查是否有玩家出完牌
@@ -495,7 +524,7 @@ void GD_Controller::processRoundResults()
             Player* player = getPlayerById(m_roundFinishOrder[i]);
             if (player && player->getTeam() == winningTeam) {
                 winnerRank = i + 1;
-                break;
+            break;
             }
         }
     }
@@ -522,7 +551,7 @@ void GD_Controller::processRoundResults()
     else {
         // 准备开始新的一局
         m_currentRoundNumber++;
-        startNewRound();
+            startNewRound();
     }
 }
 
@@ -790,6 +819,7 @@ void GD_Controller::completeTribute(const TributeInfo& tribute)
 
 Player* GD_Controller::getPlayerById(int id) const
 {
+    // 通过QMap的映射关系查找
     auto it = m_players.find(id);
     return (it != m_players.end()) ? it.value() : nullptr;
 }
@@ -818,17 +848,16 @@ QVector<int> GD_Controller::getActivePlayerIdsSorted() const
         allIds.append(it.key());
     }
 
-    // 按座位顺序排序（假设ID就是座位顺序）
+    // 按座位顺序排序
     std::sort(allIds.begin(), allIds.end());
 
-    // 只返回还在游戏中的玩家
+    // 只返回还在没出完牌的玩家
     QVector<int> activeIds;
     for (int id : allIds) {
         if (isPlayerInGame(id)) {
             activeIds.append(id);
         }
     }
-
     return activeIds;
 }
 
