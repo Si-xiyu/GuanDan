@@ -85,8 +85,8 @@ void GD_Controller::startGame()
 
 // ==================== 玩家操作槽函数 ====================
 
-// 处理玩家出牌操作
-void GD_Controller::onPlayerAttemptPlay(int playerId, const QVector<Card>& cardsToPlay)
+// 处理玩家出牌操作(总方法)
+void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
 {
     if (m_currentPhase != GamePhase::Playing) {
         emit sigShowPlayerMessage(playerId, "当前不是出牌阶段", true);
@@ -97,22 +97,21 @@ void GD_Controller::onPlayerAttemptPlay(int playerId, const QVector<Card>& cards
         emit sigShowPlayerMessage(playerId, "还没轮到您出牌", true);
         return;
     }
-
-    CardCombo::ComboInfo playedCombo;
-    if (!canPlayerPlay(playerId, cardsToPlay, playedCombo)) {
+    // 默认Combo是非法
+    CardCombo::ComboInfo out_played_combo;
+	// 验证玩家出牌是否合法，并返回所出的牌型信息playedCombo
+    if (!PlayerPlay(playerId, cardsToPlay, out_played_combo)) { // 如果出牌合法，会返回确定的牌组，反之不变
         emit sigShowPlayerMessage(playerId, "出牌不符合规则", true);
         return;
     }
-
-    if (processPlayerPlay(playerId, playedCombo)) {
-        checkCircleEndAndNextAction();
-        checkRoundEndAndNextAction();
-    }
+    // 处理玩家手牌
+    processPlayerPlay(playerId, out_played_combo);
 }
 
-// 处理玩家过牌操作
+// 处理玩家过牌操作(总方法)
 void GD_Controller::onPlayerPass(int playerId)
 {
+    // 1. 实现玩家的过牌操作和全局逻辑
     if (m_currentPhase != GamePhase::Playing) {
         emit sigShowPlayerMessage(playerId, "当前不是出牌阶段", true);
         return;
@@ -128,9 +127,7 @@ void GD_Controller::onPlayerPass(int playerId)
         emit sigShowPlayerMessage(playerId, "您是第一个出牌，不能过牌", true);
         return;
     }
-
     processPlayerPass(playerId);
-    checkCircleEndAndNextAction();
 }
 
 // 实现提示功能
@@ -334,6 +331,7 @@ void GD_Controller::determineFirstPlayerForRound()
     }
 }
 
+// 找到下一个未出完牌玩家的轮次逻辑 (仅控制m_currentPlayerId）
 void GD_Controller::nextPlayerTurn()
 {
     QVector<int> activePlayers = getActivePlayerIdsSorted();
@@ -347,6 +345,7 @@ void GD_Controller::nextPlayerTurn()
 
     // 找到下一个未出完牌的玩家
     int nextIndex = (currentIndex + 1) % activePlayers.size();
+	// 设置当前玩家ID为下一个玩家
     m_currentPlayerId = activePlayers[nextIndex];
 
     Player* nextPlayer = getPlayerById(m_currentPlayerId);
@@ -358,30 +357,65 @@ void GD_Controller::nextPlayerTurn()
     emit sigEnablePlayerControls(m_currentPlayerId, true, false);
 }
 
-bool GD_Controller::canPlayerPlay(int playerId, const QVector<Card>& cardsToPlay, CardCombo::ComboInfo& outPlayedCombo)
+// 清空当前桌面牌型和过牌玩家列表，并发送清空桌面牌型的信号
+void GD_Controller::resetTableCombo()
+{
+    m_currentTableCombo.type = CardComboType::Invalid;
+    m_currentTableCombo.cards_in_combo.clear();
+}
+
+// 判断玩家是否可以出牌，如果可以出牌的话处理为具体牌型，并返回出牌的牌型信息 (WildCardDialog的调用！)
+bool GD_Controller::PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, CardCombo::ComboInfo& outPlayedCombo)
 {
     Player* player = getPlayerById(playerId);
-    if (!player) return false;
 
     // 验证玩家是否拥有这些牌
     for (const Card& card : cardsToPlay) {
         if (!player->getHandCards().contains(card)) {
+			qDebug() << "玩家" << player->getName() << "没有手牌" << card.PointToString();
             return false;
         }
     }
 
     // 获取当前级牌
     Card::CardPoint currentLevel = m_levelStatus.getTeamPlayingLevel(getTeamOfPlayer(playerId)->getId());
-
     // 使用Player的canPlayCards方法验证牌型
-	if (!player->canPlayCards(cardsToPlay, m_currentTableCombo))
-        return false;
+    if (player->canPlayCards(cardsToPlay, m_currentTableCombo)) {
+        // 可以出牌，则outPlayedCombo数组为玩家选中的牌的合法牌型
+        QVector<CardCombo::ComboInfo> possibleCombos = CardCombo::getAllPossibleValidPlays(
+            cardsToPlay,           // 玩家选择要打出的这些牌
+            player,
+            m_currentTableCombo.type,
+            m_currentTableCombo.level);
+
+		// 如果只有一个可能的组合，则直接使用它
+        if (possibleCombos.size() == 1) 
+        {
+			outPlayedCombo = possibleCombos[0];
+            return true;
+        }
+
+		// 如果有多个可能的组合，则需要WildCardDialog处理
+		if (possibleCombos.size() > 1)
+		{
+            qDebug() << "GD_Controller::PlayerPlay： 玩家" << player->getName() << "选择的牌有多种可出牌型，共 " << possibleCombos.size() << " 种。正在弹出选择对话框...";
+            // 待实现!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            return true;
+		}
+    }
     else
-        return true;
+    {
+        return false;
+    }
 }
 
-bool GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& playedCombo)
+// 玩家选择手牌后出牌处理函数
+void GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& playedCombo)
 {
+	// 如果出牌不合法
+    if (playedCombo.type == CardComboType::Invalid) {
+        return;
+	}
     // 从玩家手牌中移除牌
     Player* player = getPlayerById(playerId);
 	player->removeCards(playedCombo.cards_in_combo);
@@ -399,78 +433,54 @@ bool GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& 
         .arg(player->getName())
         .arg(playedCombo.getDescription());
     emit sigBroadcastMessage(message);
-
-    // 检查玩家是否出完牌
-    if (player->getHandCards().isEmpty()) {
-        m_roundFinishOrder.append(playerId);
-        m_activePlayersInRound--;
-
-        emit sigBroadcastMessage(QString("%1 出完了所有牌！").arg(player->getName()));
-
-        // 如果这是第一个出完牌的玩家，清空桌面开始新一圈
-        if (m_roundFinishOrder.size() == 1) {
-            m_currentTableCombo.type = CardComboType::Invalid;
-            m_currentTableCombo.cards_in_combo.clear();
-            emit sigClearTableCards();
-        }
-    }
-
-    return true;
 }
 
+// 玩家选择过牌处理函数
 void GD_Controller::processPlayerPass(int playerId)
 {
-    if (m_currentTableCombo.type == CardComboType::Invalid) {
-        emit sigShowPlayerMessage(playerId, "首轮出牌不能过", true);
+	// 在过牌玩家列表中添加玩家ID
+    Player* player = getPlayerById(playerId);
+    if (!player) {
+		qDebug() << "GD_Controller::processPlayerPass: Player with ID" << playerId << "not found!";
         return;
     }
-
-    Player* player = getPlayerById(playerId);
-    if (!player) return;
 
     m_passedPlayersInCircle.insert(playerId);
 
     QString message = QString("%1 选择不出").arg(player->getName());
     emit sigBroadcastMessage(message);
-
-    // 检查是否所有其他玩家都过牌了
-    if (allOtherActivePlayersPassed(m_circleLeaderId)) {
-        // 清空桌面，由最后出牌的玩家继续出牌
-        m_currentTableCombo.type = CardComboType::Invalid;
-        m_currentTableCombo.cards_in_combo.clear();
-        m_passedPlayersInCircle.clear();
-        emit sigClearTableCards();
-
-        QString newMessage = QString("所有玩家都过牌，轮到 %1 出牌").arg(player->getName());
-        emit sigBroadcastMessage(newMessage);
-    }
-    else {
-        // 轮到下一个玩家
-        nextPlayerTurn();
-    }
 }
 
 // 当玩家跳过时进行判定
 void GD_Controller::checkCircleEndAndNextAction()
 {
-    // 检查是否所有其他活跃玩家都已过牌
+    // 1. 赢家开始新的一圈：检查是否所有其他活跃玩家都已过牌
     if (allOtherActivePlayersPassed(m_circleLeaderId)) {
         // 一圈结束，赢家开始新一圈，重置桌面牌型
-        m_currentTableCombo.type = CardComboType::Invalid;
-        m_currentTableCombo.cards_in_combo.clear();
+        resetTableCombo();
         m_passedPlayersInCircle.clear();
-		// 重置当前玩家ID为这小轮的赢家（没人大过他）
-        m_currentPlayerId = m_circleLeaderId;
-
         emit sigClearTableCards();
 
-        Player* winner = getPlayerById(m_circleLeaderId);
-        if (winner) {
-            emit sigSetCurrentTurnPlayer(m_currentPlayerId, winner->getName());
-            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-        }
+        // 重置当前玩家ID为这小轮的赢家（没人大过他）
+        m_currentPlayerId = m_circleLeaderId;
+        emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
+        emit sigEnablePlayerControls(m_currentPlayerId, true, false);
     }
+	// 2. 出完牌的下家开始新的一圈：检查是否把手里的牌出完了
     else {
+        Player* player = getPlayerById(m_currentPlayerId);
+        if (player->getHandCards().isEmpty()) {
+            m_roundFinishOrder.append(m_currentPlayerId);
+            m_activePlayersInRound--;
+
+            // 如果这是第一个出完牌的玩家，清空桌面开始新一圈
+            if (m_roundFinishOrder.size() == 1) {
+                m_currentTableCombo.type = CardComboType::Invalid;
+                m_currentTableCombo.cards_in_combo.clear();
+                emit sigClearTableCards();
+            }
+        }
+
         // 继续下一个玩家
         nextPlayerTurn();
     }
@@ -821,9 +831,15 @@ Player* GD_Controller::getPlayerById(int id) const
 {
     // 通过QMap的映射关系查找
     auto it = m_players.find(id);
-    return (it != m_players.end()) ? it.value() : nullptr;
+    if (it != m_players.end()) {
+        return it.value();
+    }
+	// 如果没找到，则返回nullptr并输出
+    else {
+        qDebug() << "GD_Controller::getPlayerById: Player with ID " << id << " not found!";
+        return nullptr;
+    }
 }
-
 Team* GD_Controller::getTeamOfPlayer(int playerId) const
 {
     Player* player = getPlayerById(playerId);
