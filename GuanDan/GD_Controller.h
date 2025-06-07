@@ -8,11 +8,11 @@
 #include <QMap>
 #include <QSet> // 用于记录已pass的玩家
 
-#include "card.h"
-#include "player.h"
-#include "team.h"
-#include "levelstatus.h"
-#include "cardcombo.h" // 包含 CardCombo::ComboInfo 和 CardComboType
+#include "Card.h"
+#include "Player.h"
+#include "Team.h"
+#include "Levelstatus.h"
+#include "Cardcombo.h" // 包含 CardCombo::ComboInfo 和 CardComboType
 
 // 前向声明UI类，如果Controller需要直接与之交互（通常通过信号槽）
 class GameWindow;

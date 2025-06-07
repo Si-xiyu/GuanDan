@@ -73,11 +73,11 @@ public:
     void displayPlayedCombo(const QVector<Card>& cards);
     void clearPlayedCardsArea();
 
-    // 新增：设置玩家头像
+    // 设置玩家头像
     void setPlayerAvatar(const QString& avatarPath);
     void setDefaultAvatar();
     
-    // 新增：设置玩家背景
+    // 设置玩家背景
     void setPlayerBackground(const QString& backgroundPath);
     void setDefaultBackground();
 

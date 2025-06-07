@@ -172,7 +172,7 @@ void CardWidget::paintEvent(QPaintEvent* event)
 
 void CardWidget::mousePressEvent(QMouseEvent* event)
 {
-    if (!isEnabled()) return;  // 如果卡牌被禁用，不处理点击事件
+    //if (!isEnabled()) return;  // 如果卡牌被禁用，不处理点击事件
     
     if (event->button() == Qt::LeftButton) {
         m_isSelect = !m_isSelect;  // 切换选中状态
