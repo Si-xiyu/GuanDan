@@ -93,6 +93,9 @@ protected:
     virtual void resizeEvent(QResizeEvent* event) override;
     virtual void paintEvent(QPaintEvent* event) override;
     virtual void contextMenuEvent(QContextMenuEvent* event) override;  // 添加右键菜单事件处理
+    void stopAllAnimations();
+    void animateCardsRemoval(const QVector<CardWidget*>& widgets);
+    void animateCardsAddition(const QVector<CardWidget*>& widgets);
 
 private:
     // 重新布局所有卡片

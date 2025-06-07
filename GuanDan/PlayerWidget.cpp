@@ -94,25 +94,30 @@ PlayerWidget::~PlayerWidget()
 }
 void PlayerWidget::updateCards(const QVector<Card>& cards)
 {
+    // 停止所有正在进行的动画
+    stopAllAnimations();
+
     // 清理现有卡片
     qDeleteAll(m_cardWidgets);
     m_cardWidgets.clear();
     m_cardStacks.clear();
-    
+
     // 创建新的卡片视图
     for (const Card& card : cards) {
         CardWidget* cardWidget = createCardWidget(card);
         m_cardWidgets.append(cardWidget);
         m_cardStacks[card.point()].append(cardWidget);
     }
-    
+
     // 对卡片进行排序
     sortCards();
-    
+
     // 重新布局
     relayoutCards();
-}
 
+    // 更新玩家信息
+    updatePlayerInfo();
+}
 void PlayerWidget::removeCards(const QVector<Card>& cards)
 {
     for (const Card& card : cards) {
@@ -333,7 +338,6 @@ void PlayerWidget::layoutCardsForBottom()
             animation->setEndValue(QPoint(x, y));
             animation->setEasingCurve(QEasingCurve::OutCubic);
 
-            // 移除选中牌提升到最上层的逻辑
             animation->start(QAbstractAnimation::DeleteWhenStopped);
         }
 
@@ -341,8 +345,8 @@ void PlayerWidget::layoutCardsForBottom()
         currentX += CARD_WIDGET_WIDTH - actualOverlap;
     }
 
-    // 延迟更新Z顺序，等待动画开始
-    QTimer::singleShot(50, this, &PlayerWidget::updateCardZOrder);
+    // 在动画完成后更新Z顺序
+    QTimer::singleShot(200, this, &PlayerWidget::updateCardZOrder);
 }
 
 void PlayerWidget::layoutCardsForSide()
@@ -483,10 +487,23 @@ void PlayerWidget::updatePlayerInfo()
 {
     if (m_player) {
         m_nameLabel->setText(m_player->getName());
-        m_statusLabel->setText(QString("剩余牌数：%1").arg(m_player->getHandCards().size()));
+        
+        // 获取当前实际手牌数量
+        int handCardCount = m_cardWidgets.size();
+        // 也可以从Player对象获取，但要确保同步
+        // int handCardCount = m_player->getHandCards().size();
+        
+        m_statusLabel->setText(QString("剩余牌数：%1").arg(handCardCount));
+        
         qDebug() << "更新玩家信息:" << m_player->getName() 
-                 << "剩余牌数:" << m_player->getHandCards().size();
+                 << "剩余牌数:" << handCardCount;
     }
+    
+    // 更新按钮状态
+    updateButtonsState();
+    
+    // 清空选择状态（因为手牌发生了变化）
+    clearSelection();
 }
 
 QPoint PlayerWidget::calculateCardPosition(int index, int stackIndex) const
@@ -602,24 +619,55 @@ QSize PlayerWidget::calculatePreferredSize() const
 // 添加一个辅助函数来处理卡片的Z顺序
 void PlayerWidget::updateCardZOrder()
 {
-    // 首先将所有卡片的Z值重置
-    for (CardWidget* card : m_cardWidgets) {
-        card->stackUnder(nullptr);
-    }
-    
-    // 然后按照堆叠顺序设置Z值
-    for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
-        QVector<CardWidget*>& stack = it.value();
-        for (int i = 0; i < stack.size(); ++i) {
-            if (i > 0) {
-                stack[i]->stackUnder(stack[i-1]);
-            }
-            if (stack[i]->isSelected()) {
-                stack[i]->raise();
-            }
+    // 获取排序后的点数列表
+    QVector<Card::CardPoint> sortedPoints = m_cardStacks.keys().toVector();
+    std::sort(sortedPoints.begin(), sortedPoints.end());
+
+    // 收集所有卡片及其Z顺序信息
+    QVector<QPair<CardWidget*, int>> cardZOrders;
+
+    // 按照从左到右的顺序计算Z值
+    for (int groupIndex = 0; groupIndex < sortedPoints.size(); ++groupIndex) {
+        Card::CardPoint point = sortedPoints[groupIndex];
+        QVector<CardWidget*>& stack = m_cardStacks[point];
+
+        if (stack.isEmpty()) continue;
+
+        // 在组内部，按照y坐标设置Z值
+        // 需要注意：在layoutCardsForBottom中，cardIndex=0对应的是y坐标最大的牌（最下方）
+        // 而我们希望y坐标最大的牌在Z轴上层
+        for (int cardIndex = 0; cardIndex < stack.size(); ++cardIndex) {
+            CardWidget* card = stack[cardIndex];
+
+            // 组间基础层级：每个组比前一个组高1000层，确保组间不会重叠
+            int baseZLevel = groupIndex * 1000;
+
+            // 组内层级：cardIndex=0是y坐标最大的牌（最下方），应该在Z轴最上层
+            // 所以cardIndex越小，Z层级越高
+            int inGroupZLevel = (stack.size() - 1 - cardIndex) * 10;
+
+            int totalZLevel = baseZLevel + inGroupZLevel;
+            cardZOrders.append(qMakePair(card, totalZLevel));
         }
     }
+
+    // 按Z顺序从低到高排序
+    std::sort(cardZOrders.begin(), cardZOrders.end(),
+        [](const QPair<CardWidget*, int>& a, const QPair<CardWidget*, int>& b) {
+            return a.second < b.second;
+        });
+
+    // 先将所有卡片降到底层
+    for (const auto& pair : cardZOrders) {
+        pair.first->lower();
+    }
+
+    // 按照计算的顺序逐个提升
+    for (const auto& pair : cardZOrders) {
+        pair.first->raise();
+    }
 }
+
 
 void PlayerWidget::loadDefaultResources()
 {
@@ -775,5 +823,88 @@ void PlayerWidget::contextMenuEvent(QContextMenuEvent* event)
         } else if (selectedAction == skipAction) {
             emit skipTurnRequested();
         }
+    }
+}
+
+// 新增：停止所有动画的方法
+void PlayerWidget::stopAllAnimations()
+{
+    // 停止所有卡片的位置动画
+    for (CardWidget* widget : m_cardWidgets) {
+        QPropertyAnimation* animation = widget->findChild<QPropertyAnimation*>();
+        if (animation) {
+            animation->stop();
+        }
+    }
+
+    // 取消所有延迟的定时器
+    for (QTimer* timer : findChildren<QTimer*>()) {
+        if (timer->isSingleShot()) {
+            timer->stop();
+        }
+    }
+}
+
+// 新增：卡片移除动画
+void PlayerWidget::animateCardsRemoval(const QVector<CardWidget*>& widgets)
+{
+    for (CardWidget* widget : widgets) {
+        // 创建淡出动画
+        QPropertyAnimation* fadeOut = new QPropertyAnimation(widget, "windowOpacity");
+        fadeOut->setDuration(200);
+        fadeOut->setStartValue(1.0);
+        fadeOut->setEndValue(0.0);
+
+        // 创建缩放动画
+        QPropertyAnimation* scaleOut = new QPropertyAnimation(widget, "geometry");
+        scaleOut->setDuration(200);
+        QRect currentGeometry = widget->geometry();
+        QRect targetGeometry = QRect(
+            currentGeometry.center().x() - 5,
+            currentGeometry.center().y() - 5,
+            10, 10
+        );
+        scaleOut->setStartValue(currentGeometry);
+        scaleOut->setEndValue(targetGeometry);
+
+        // 动画完成后删除widget
+        connect(fadeOut, &QPropertyAnimation::finished, [widget]() {
+            widget->deleteLater();
+            });
+
+        fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
+        scaleOut->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+}
+
+// 新增：卡片添加动画
+void PlayerWidget::animateCardsAddition(const QVector<CardWidget*>& widgets)
+{
+    for (CardWidget* widget : widgets) {
+        widget->show();
+
+        // 创建淡入动画
+        QPropertyAnimation* fadeIn = new QPropertyAnimation(widget, "windowOpacity");
+        fadeIn->setDuration(300);
+        fadeIn->setStartValue(0.0);
+        fadeIn->setEndValue(1.0);
+
+        // 创建从小到大的缩放动画
+        QPropertyAnimation* scaleIn = new QPropertyAnimation(widget, "geometry");
+        scaleIn->setDuration(300);
+        QRect targetGeometry = QRect(
+            widget->x(), widget->y(),
+            CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT
+        );
+        QRect startGeometry = QRect(
+            targetGeometry.center().x() - 5,
+            targetGeometry.center().y() - 5,
+            10, 10
+        );
+        scaleIn->setStartValue(startGeometry);
+        scaleIn->setEndValue(targetGeometry);
+
+        fadeIn->start(QAbstractAnimation::DeleteWhenStopped);
+        scaleIn->start(QAbstractAnimation::DeleteWhenStopped);
     }
 }
