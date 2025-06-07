@@ -35,12 +35,14 @@ private:
 
     Ui::GuanDanClass ui;
     GD_Controller* m_gameController;    // 游戏控制器
-    QVector<PlayerWidget*> m_playerWidgets; // 玩家界面
-    QVector<Player*> m_players;         // 玩家对象
     QPushButton* m_startButton;         // 开始游戏按钮
+    QPushButton* m_playButton;    // 出牌按钮
+    QPushButton* m_skipButton;    // 跳过按钮
     QWidget* m_centralWidget;           // 中央窗口部件
     QVBoxLayout* m_mainLayout;          // 主布局
     
     bool m_gameInProgress;              // 游戏进行状态
+    QVector<PlayerWidget*> m_playerWidgets; // 玩家界面
+    QVector<Player*> m_players;         // 玩家对象
 };
 

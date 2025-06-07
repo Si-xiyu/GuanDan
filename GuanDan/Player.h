@@ -32,6 +32,7 @@ public:
     void addCards(const QVector<Card>& cards);
     void removeCards(const QVector<Card>& cards);
     QVector<Card> getHandCards() const;
+    void setHandCards(const QVector<Card>& cards);  // 设置手牌
 
     // 所属队伍
     void setTeam(Team* team);

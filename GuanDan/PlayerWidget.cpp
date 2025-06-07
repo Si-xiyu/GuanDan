@@ -7,7 +7,7 @@
 #include <QResizeEvent>
 #include <QPropertyAnimation>
 #include <QtMath>
-#include <QDir>
+#include <QTimer>
 #include <QContextMenuEvent>
 #include <QMenu>
 
@@ -18,10 +18,10 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     , m_isCurrentPlayer(isCurrentPlayer)
     , m_isEnabled(false)
     , m_isHighlighted(false)
+    , m_isCurrentTurn(false)
     , m_useCustomBackground(false)
     , m_playButton(nullptr)
     , m_skipButton(nullptr)
-    , m_buttonLayout(nullptr)
 {
     // 加载默认资源
     loadDefaultResources();
@@ -32,8 +32,8 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     resize(preferredSize);
     
     // 创建主布局
-    QVBoxLayout* mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(5, 5, 5, 5);
+    m_mainLayout = new QVBoxLayout(this);
+    m_mainLayout->setContentsMargins(5, 5, 5, 5);
     
     // 创建头像和信息区域
     QHBoxLayout* infoLayout = new QHBoxLayout();
@@ -61,12 +61,11 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     infoLayout->addLayout(labelsLayout);
     infoLayout->addStretch();
     
-    mainLayout->addLayout(infoLayout);
+    m_mainLayout->addLayout(infoLayout);
     
     // 如果是当前玩家（底部位置），添加按钮
     if (m_position == PlayerPosition::Bottom) {
         setupButtons();
-        mainLayout->addLayout(m_buttonLayout);
     }
     
     // 更新玩家信息
@@ -79,6 +78,10 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     
     // 设置背景色
     setStyleSheet("PlayerWidget { background-color: rgba(0, 100, 0, 180); border-radius: 10px; }");
+    
+    qDebug() << "PlayerWidget构造完成 - 玩家:" << (m_player ? m_player->getName() : "无名") 
+             << "位置:" << static_cast<int>(m_position)
+             << "当前玩家:" << m_isCurrentPlayer;
 }
 
 PlayerWidget::~PlayerWidget()
@@ -94,25 +97,30 @@ PlayerWidget::~PlayerWidget()
 }
 void PlayerWidget::updateCards(const QVector<Card>& cards)
 {
+    // 停止所有正在进行的动画
+    stopAllAnimations();
+
     // 清理现有卡片
     qDeleteAll(m_cardWidgets);
     m_cardWidgets.clear();
     m_cardStacks.clear();
-    
+
     // 创建新的卡片视图
     for (const Card& card : cards) {
         CardWidget* cardWidget = createCardWidget(card);
         m_cardWidgets.append(cardWidget);
         m_cardStacks[card.point()].append(cardWidget);
     }
-    
+
     // 对卡片进行排序
     sortCards();
-    
+
     // 重新布局
     relayoutCards();
-}
 
+    // 更新玩家信息
+    updatePlayerInfo();
+}
 void PlayerWidget::removeCards(const QVector<Card>& cards)
 {
     for (const Card& card : cards) {
@@ -172,11 +180,28 @@ void PlayerWidget::clearSelection()
 
 void PlayerWidget::setEnabled(bool enabled)
 {
+    qDebug() << "PlayerWidget::setEnabled - 玩家:" << (m_player ? m_player->getName() : "无名") 
+             << "启用状态改变:" << m_isEnabled << "->" << enabled;
+    
     m_isEnabled = enabled;
+    
+    // 更新卡片的启用状态
     for (CardWidget* widget : m_cardWidgets) {
         widget->setEnabled(enabled);
     }
+    
+    // 更新按钮状态
     updateButtonsState();
+    
+    // 更新整个控件的外观
+    if (enabled) {
+        // 当前玩家回合时的高亮样式
+        setStyleSheet("PlayerWidget { background-color: rgba(0, 150, 0, 200); border-radius: 10px; }");
+    } else {
+        // 非当前玩家回合时的样式
+        setStyleSheet("PlayerWidget { background-color: rgba(0, 100, 0, 180); border-radius: 10px; }");
+    }
+    
     update();
 }
 
@@ -221,6 +246,13 @@ void PlayerWidget::resizeEvent(QResizeEvent* event)
     
     // 重新布局卡片
     relayoutCards();
+    
+    // 在大小变化时重新布局按钮
+    if (m_playButton && m_skipButton) {
+        int buttonY = height() - m_playButton->height() - 10;
+        m_playButton->move((width() / 2) - m_playButton->width() - 10, buttonY);
+        m_skipButton->move((width() / 2) + 10, buttonY);
+    }
 }
 
 void PlayerWidget::paintEvent(QPaintEvent* event)
@@ -248,91 +280,112 @@ void PlayerWidget::paintEvent(QPaintEvent* event)
 
 void PlayerWidget::relayoutCards()
 {
-    if (m_cardWidgets.isEmpty()) return;
+    qDebug() << "PlayerWidget::relayoutCards - 开始重新布局卡牌";
     
+    // 根据位置使用不同的布局方法
     switch (m_position) {
-        case PlayerPosition::Bottom:
-            layoutCardsForBottom();
-            break;
-        case PlayerPosition::Left:
-        case PlayerPosition::Right:
-            layoutCardsForSide();
-            break;
-        case PlayerPosition::Top:
-            layoutCardsForTop();
-            break;
+    case PlayerPosition::Bottom:
+        layoutCardsForBottom();
+        break;
+    case PlayerPosition::Top:
+        layoutCardsForTop();
+        break;
+    case PlayerPosition::Left:
+    case PlayerPosition::Right:
+        layoutCardsForSide();
+        break;
     }
+    
+    // 更新所有卡片的Z顺序
+    updateCardZOrder();
+    
+    // 确保按钮在最上层
+    if (m_playButton && m_skipButton) {
+        m_playButton->raise();
+        m_skipButton->raise();
+    }
+    
+    qDebug() << "卡牌布局完成 - 总计:" << m_cardWidgets.size() << "张牌";
 }
 
 void PlayerWidget::layoutCardsForBottom()
 {
+    if (m_cardWidgets.isEmpty()) return;
+
     // 计算卡片区域
     QRect cardsArea = rect().adjusted(CARDS_MARGIN, 2 * NAME_LABEL_HEIGHT + 10,
-                                    -CARDS_MARGIN, -CARDS_MARGIN);
-    
-    // 计算每组牌的位置
-    int currentX = cardsArea.left();
-    int baseY = cardsArea.top();
-    
-    // 计算总宽度，确保居中显示
+        -CARDS_MARGIN, -CARDS_MARGIN);
+
+    if (cardsArea.width() <= 0 || cardsArea.height() <= 0) {
+        return; // 避免无效区域
+    }
+
+    // 按点数分组计算布局
+    QVector<Card::CardPoint> sortedPoints = m_cardStacks.keys().toVector();
+    std::sort(sortedPoints.begin(), sortedPoints.end());
+
+    // 计算总宽度
     int totalWidth = 0;
-    for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
-        if (!it.value().isEmpty()) {
+    for (Card::CardPoint point : sortedPoints) {
+        if (!m_cardStacks[point].isEmpty()) {
             totalWidth += CARD_WIDGET_WIDTH;
-            if (it != m_cardStacks.begin()) {
+            if (totalWidth > CARD_WIDGET_WIDTH) { // 不是第一组
                 totalWidth -= CARD_OVERLAP_HORIZONTAL;
             }
         }
     }
-    
+
+    // 如果卡片总宽度超过可用区域，调整重叠度
+    int actualOverlap = CARD_OVERLAP_HORIZONTAL;
+    if (totalWidth > cardsArea.width() && sortedPoints.size() > 1) {
+        int excessWidth = totalWidth - cardsArea.width();
+        int additionalOverlap = excessWidth / (sortedPoints.size() - 1);
+        actualOverlap = qMin(CARD_OVERLAP_HORIZONTAL + additionalOverlap,
+            CARD_WIDGET_WIDTH - 10); // 最大重叠不超过卡片宽度-10
+
+        // 重新计算总宽度
+        totalWidth = sortedPoints.size() * CARD_WIDGET_WIDTH -
+            (sortedPoints.size() - 1) * actualOverlap;
+    }
+
     // 计算起始X坐标，使卡片居中显示
-    currentX = cardsArea.left() + (cardsArea.width() - totalWidth) / 2;
-    
+    int currentX = cardsArea.left() + (cardsArea.width() - totalWidth) / 2;
+    int baseY = cardsArea.top();
+
     // 按点数顺序布局卡片
-    for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
-        QVector<CardWidget*>& stack = it.value();
+    for (Card::CardPoint point : sortedPoints) {
+        QVector<CardWidget*>& stack = m_cardStacks[point];
         if (stack.isEmpty()) continue;
-        
-        // 计算这组牌的垂直堆叠
+
+        // 布局这一组牌
         for (int i = 0; i < stack.size(); ++i) {
             CardWidget* card = stack[i];
-            
-            // 确保卡片大小正确
+
+            // 确保卡片属性正确
             card->setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
-            card->setRotation(0); // 确保卡片没有旋转
-            
-            // 计算位置
+            card->setRotation(0);
+            card->setParent(this);
+
+            // 计算位置 - 同点数的牌向上堆叠（y坐标减小）
             int x = currentX;
-            int y = baseY + i * CARD_OVERLAP_VERTICAL;
-            
-            // 如果不是最上面的牌，稍微往下移动一点
-            if (i < stack.size() - 1) {
-                y += 5; // 添加一点垂直偏移，使堆叠效果更明显
-            }
-            
-            // 创建动画移动到新位置
+            int y = baseY - i * CARD_OVERLAP_VERTICAL;
+
+            // 使用动画移动到新位置
             QPropertyAnimation* animation = new QPropertyAnimation(card, "pos");
-            animation->setDuration(200);
+            animation->setDuration(150); // 缩短动画时间
             animation->setStartValue(card->pos());
             animation->setEndValue(QPoint(x, y));
+            animation->setEasingCurve(QEasingCurve::OutCubic);
+
             animation->start(QAbstractAnimation::DeleteWhenStopped);
-            
-            // 确保选中的牌显示在最上面
-            if (card->isSelected()) {
-                card->raise();
-            }
         }
-        
+
         // 移动到下一组牌的位置
-        currentX += CARD_WIDGET_WIDTH - CARD_OVERLAP_HORIZONTAL;
+        currentX += CARD_WIDGET_WIDTH - actualOverlap;
     }
-    
-    // 更新所有卡片的Z顺序，确保选中的牌在最上面
-    for (CardWidget* card : m_cardWidgets) {
-        if (card->isSelected()) {
-            card->raise();
-        }
-    }
+
+    // 在动画完成后更新Z顺序
+    QTimer::singleShot(200, this, &PlayerWidget::updateCardZOrder);
 }
 
 void PlayerWidget::layoutCardsForSide()
@@ -411,25 +464,41 @@ void PlayerWidget::layoutCardsForTop()
 
 void PlayerWidget::sortCards()
 {
-    // 使用基于Card::point()的预排序，减少sort调用
-    QMap<Card::CardPoint, QVector<CardWidget*>> sortedStacks;
+    // 清空现有的堆栈
+    m_cardStacks.clear();
 
+    // 重新按点数分组
     for (CardWidget* widget : m_cardWidgets) {
         Card::CardPoint point = widget->getCard().point();
-        sortedStacks[point].append(widget);
+        m_cardStacks[point].append(widget);
     }
 
-    // 替代原有m_cardStacks
-    m_cardStacks = sortedStacks;
-
-    // 在每个堆栈内部排序
+    // 在每个堆栈内部按花色排序
     for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
         std::sort(it.value().begin(), it.value().end(),
             [](CardWidget* a, CardWidget* b) {
-                return a->getCard() > b->getCard();
+                const Card& cardA = a->getCard();
+                const Card& cardB = b->getCard();
+
+                // 首先按点数排序
+                if (cardA.point() != cardB.point()) {
+                    return cardA.point() < cardB.point();
+                }
+
+                // 点数相同则按花色排序
+                return cardA.suit() < cardB.suit();
             });
     }
+
+    // 重建m_cardWidgets数组，保持正确顺序
+    m_cardWidgets.clear();
+    for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
+        for (CardWidget* widget : it.value()) {
+            m_cardWidgets.append(widget);
+        }
+    }
 }
+
 
 CardWidget* PlayerWidget::createCardWidget(const Card& card)
 {
@@ -439,16 +508,7 @@ CardWidget* PlayerWidget::createCardWidget(const Card& card)
     widget->show();
     
     // 连接点击信号
-    connect(widget, &CardWidget::clicked, this, [this](CardWidget* clickedWidget) {
-        // 发送点击信号
-        emit cardClicked(clickedWidget);
-        
-        // 如果启用了选择功能，发送选中牌的信号并更新按钮状态
-        if (m_isEnabled) {
-            emit cardsSelected(getSelectedCards());
-            updateButtonsState();
-        }
-    });
+    connect(widget, &CardWidget::clicked, this, &PlayerWidget::cardClicked);
     
     return widget;
 }
@@ -457,10 +517,23 @@ void PlayerWidget::updatePlayerInfo()
 {
     if (m_player) {
         m_nameLabel->setText(m_player->getName());
-        m_statusLabel->setText(QString("剩余牌数：%1").arg(m_player->getHandCards().size()));
+        
+        // 获取当前实际手牌数量
+        int handCardCount = m_cardWidgets.size();
+        // 也可以从Player对象获取，但要确保同步
+        // int handCardCount = m_player->getHandCards().size();
+        
+        m_statusLabel->setText(QString("剩余牌数：%1").arg(handCardCount));
+        
         qDebug() << "更新玩家信息:" << m_player->getName() 
-                 << "剩余牌数:" << m_player->getHandCards().size();
+                 << "剩余牌数:" << handCardCount;
     }
+    
+    // 更新按钮状态
+    updateButtonsState();
+    
+    // 清空选择状态（因为手牌发生了变化）
+    clearSelection();
 }
 
 QPoint PlayerWidget::calculateCardPosition(int index, int stackIndex) const
@@ -495,9 +568,6 @@ void PlayerWidget::displayPlayedCombo(const QVector<Card>& cards)
         cardWidget->show();
         m_playedCardWidgets.append(cardWidget);
     }
-
-    // TODO: 实现打出牌的布局逻辑
-    // 这部分可以根据实际需求来实现，比如水平排列或特定的展示方式
 }
 
 void PlayerWidget::setPlayer(Player* player)
@@ -518,9 +588,42 @@ Player* PlayerWidget::getPlayer() const
 
 void PlayerWidget::updateHandDisplay(const QVector<Card>& handCards, bool showCardFronts)
 {
-    // 更新手牌显示
-    updateCards(handCards);
-    setCardsVisible(showCardFronts);
+    qDebug() << "PlayerWidget::updateHandDisplay - 玩家:" << (m_player ? m_player->getName() : "无名")
+             << "卡牌数量:" << handCards.size()
+             << "显示正面:" << showCardFronts;
+             
+    // 停止所有动画
+    stopAllAnimations();
+
+    // 清理现有卡片
+    qDeleteAll(m_cardWidgets);
+    m_cardWidgets.clear();
+    m_cardStacks.clear();
+
+    // 确保玩家对象的手牌与显示一致
+    if (m_player) {
+        // 更新玩家对象的手牌
+        m_player->setHandCards(handCards);
+    }
+
+    // 创建新的卡片视图
+    for (const Card& card : handCards) {
+        CardWidget* cardWidget = createCardWidget(card);
+        cardWidget->setFrontSide(showCardFronts);
+        cardWidget->setEnabled(m_isEnabled && showCardFronts);
+        m_cardWidgets.append(cardWidget);
+        m_cardStacks[card.point()].append(cardWidget);
+        
+        // 注意：不需要在这里再次连接信号，因为createCardWidget已经连接了
+    }
+
+    // 对卡片进行排序
+    sortCards();
+
+    // 重新布局
+    relayoutCards();
+
+    qDebug() << "手牌显示更新完成 - 创建了" << m_cardWidgets.size() << "个卡片控件";
 }
 
 void PlayerWidget::setPlayerName(const QString& name)
@@ -530,15 +633,28 @@ void PlayerWidget::setPlayerName(const QString& name)
 
 void PlayerWidget::highlightTurn(bool isCurrentTurn)
 {
+    qDebug() << "PlayerWidget::highlightTurn - 玩家:" << (m_player ? m_player->getName() : "无名") 
+             << "高亮状态改变:" << m_isCurrentTurn << "->" << isCurrentTurn;
+             
     m_isCurrentTurn = isCurrentTurn;
-    setHighlighted(isCurrentTurn);
     
-    // 更新状态显示
+    // 根据是否是当前回合设置不同的样式
     if (isCurrentTurn) {
-        setPlayerStatus("轮到你出牌");
+        // 当前回合的高亮样式
+        setStyleSheet("PlayerWidget { background-color: rgba(0, 180, 0, 220); border: 2px solid gold; border-radius: 10px; }");
+        
+        // 如果是当前玩家且是当前回合，确保按钮可见
+        if (m_position == PlayerPosition::Bottom) {
+            if (m_playButton) m_playButton->show();
+            if (m_skipButton) m_skipButton->show();
+            updateButtonsState();
+        }
     } else {
-        updatePlayerInfo(); // 恢复显示剩余牌数
+        // 非当前回合的样式
+        setStyleSheet("PlayerWidget { background-color: rgba(0, 100, 0, 180); border-radius: 10px; }");
     }
+    
+    update();
 }
 
 void PlayerWidget::setPosition(PlayerPosition position)
@@ -576,24 +692,64 @@ QSize PlayerWidget::calculatePreferredSize() const
 // 添加一个辅助函数来处理卡片的Z顺序
 void PlayerWidget::updateCardZOrder()
 {
-    // 首先将所有卡片的Z值重置
-    for (CardWidget* card : m_cardWidgets) {
-        card->stackUnder(nullptr);
-    }
+    // 获取排序后的点数列表
+    QVector<Card::CardPoint> sortedPoints = m_cardStacks.keys().toVector();
+    std::sort(sortedPoints.begin(), sortedPoints.end());
     
-    // 然后按照堆叠顺序设置Z值
-    for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
-        QVector<CardWidget*>& stack = it.value();
-        for (int i = 0; i < stack.size(); ++i) {
-            if (i > 0) {
-                stack[i]->stackUnder(stack[i-1]);
-            }
-            if (stack[i]->isSelected()) {
-                stack[i]->raise();
-            }
+    // 收集所有卡片及其Z顺序信息
+    QVector<QPair<CardWidget*, int>> cardZOrders;
+
+    // 按照从左到右的顺序计算Z值
+    for (int groupIndex = 0; groupIndex < sortedPoints.size(); ++groupIndex) {
+        Card::CardPoint point = sortedPoints[groupIndex];
+        QVector<CardWidget*>& stack = m_cardStacks[point];
+
+        if (stack.isEmpty()) continue;
+
+        // 在组内部，按照y坐标设置Z值
+        // 需要注意：在layoutCardsForBottom中，cardIndex=0对应的是y坐标最大的牌（最下方）
+        // 而我们希望y坐标最大的牌在Z轴上层
+        for (int cardIndex = 0; cardIndex < stack.size(); ++cardIndex) {
+            CardWidget* card = stack[cardIndex];
+
+            // 组间基础层级：每个组比前一个组高1000层，确保组间不会重叠
+            int baseZLevel = groupIndex * 1000;
+
+            // 组内层级：cardIndex=0是y坐标最大的牌（最下方），应该在Z轴最上层
+            // 所以cardIndex越小，Z层级越高
+            int inGroupZLevel = (stack.size() - 1 - cardIndex) * 10;
+
+            int totalZLevel = baseZLevel + inGroupZLevel;
+            cardZOrders.append(qMakePair(card, totalZLevel));
+            
+            qDebug() << "卡牌Z顺序计算 - 卡牌:" << card->getCard().PointToString()
+                     << card->getCard().SuitToString()
+                     << "组索引:" << groupIndex
+                     << "组内索引:" << cardIndex
+                     << "计算Z值:" << totalZLevel;
         }
     }
+
+    // 按Z顺序从低到高排序
+    std::sort(cardZOrders.begin(), cardZOrders.end(),
+        [](const QPair<CardWidget*, int>& a, const QPair<CardWidget*, int>& b) {
+            return a.second < b.second;
+        });
+
+    // 先将所有卡片降到底层
+    for (const auto& pair : cardZOrders) {
+        pair.first->lower();
+    }
+
+    // 按照计算的顺序逐个提升
+    for (const auto& pair : cardZOrders) {
+        pair.first->raise();
+        qDebug() << "设置卡牌Z顺序 - 卡牌:" << pair.first->getCard().PointToString()
+                 << pair.first->getCard().SuitToString()
+                 << "Z值:" << pair.second;
+    }
 }
+
 
 void PlayerWidget::loadDefaultResources()
 {
@@ -661,75 +817,94 @@ void PlayerWidget::setDefaultBackground()
 
 void PlayerWidget::setupButtons()
 {
-    if (!m_buttonLayout) {
-        m_buttonLayout = new QHBoxLayout();
-        m_buttonLayout->setContentsMargins(0, 5, 0, 5);
-        m_buttonLayout->setSpacing(10);
+    qDebug() << "PlayerWidget::setupButtons - 设置按钮 玩家:" << (m_player ? m_player->getName() : "无名");
+    
+    // 如果已经有按钮，先删除它们
+    if (m_playButton) {
+        delete m_playButton;
+        m_playButton = nullptr;
     }
     
-    if (!m_playButton) {
-        m_playButton = new QPushButton("出牌", this);
-        // 设置按钮样式
-        QString buttonStyle = "QPushButton {"
-                            "    background-color: #4CAF50;"
-                            "    color: white;"
-                            "    border: none;"
-                            "    padding: 5px 15px;"
-                            "    border-radius: 4px;"
-                            "    font-size: 14px;"
-                            "}"
-                            "QPushButton:hover {"
-                            "    background-color: #45a049;"
-                            "}"
-                            "QPushButton:disabled {"
-                            "    background-color: #cccccc;"
-                            "    color: #666666;"
-                            "}";
-        m_playButton->setStyleSheet(buttonStyle);
-        m_playButton->setShortcut(Qt::Key_Return);  // 回车键出牌
-        connect(m_playButton, &QPushButton::clicked, this, &PlayerWidget::playCardsRequested);
+    if (m_skipButton) {
+        delete m_skipButton;
+        m_skipButton = nullptr;
     }
     
-    if (!m_skipButton) {
-        m_skipButton = new QPushButton("跳过", this);
-        m_skipButton->setStyleSheet(m_playButton->styleSheet());
-        m_skipButton->setShortcut(Qt::Key_Space);   // 空格键跳过
-        connect(m_skipButton, &QPushButton::clicked, this, &PlayerWidget::skipTurnRequested);
-    }
+    // 创建新按钮
+    m_playButton = new QPushButton("出牌", this);
+    m_playButton->setFixedSize(80, 30);
+    m_playButton->setStyleSheet(
+        "QPushButton {"
+        "    background-color: #4CAF50;"
+        "    color: white;"
+        "    border: none;"
+        "    border-radius: 4px;"
+        "    font-size: 14px;"
+        "}"
+        "QPushButton:hover { background-color: #45a049; }"
+        "QPushButton:disabled { background-color: #cccccc; }"
+    );
+    m_playButton->setShortcut(Qt::Key_Return);
+    connect(m_playButton, &QPushButton::clicked, this, &PlayerWidget::playCardsRequested);
     
-    // 清空现有布局
-    while (m_buttonLayout->count() > 0) {
-        QLayoutItem* item = m_buttonLayout->takeAt(0);
-        if (item->widget()) {
-            item->widget()->hide();
-        }
-        delete item;
-    }
+    m_skipButton = new QPushButton("跳过", this);
+    m_skipButton->setFixedSize(80, 30);
+    m_skipButton->setStyleSheet(m_playButton->styleSheet());
+    m_skipButton->setShortcut(Qt::Key_Space);
+    connect(m_skipButton, &QPushButton::clicked, this, &PlayerWidget::skipTurnRequested);
     
-    // 重新添加按钮
-    m_buttonLayout->addStretch();
-    m_buttonLayout->addWidget(m_playButton);
-    m_buttonLayout->addWidget(m_skipButton);
-    m_buttonLayout->addStretch();
+    // 设置按钮位置
+    int buttonY = height() - m_playButton->height() - 10;
+    m_playButton->move((width() / 2) - m_playButton->width() - 10, buttonY);
+    m_skipButton->move((width() / 2) + 10, buttonY);
     
-    // 显示按钮
-    m_playButton->show();
-    m_skipButton->show();
+    // 确保按钮在最上层
+    m_playButton->raise();
+    m_skipButton->raise();
     
-    // 初始状态下禁用按钮
+    // 初始状态
     updateButtonsState();
+    
+    qDebug() << "按钮设置完成 - 出牌按钮位置:" << m_playButton->pos() 
+             << "跳过按钮位置:" << m_skipButton->pos();
 }
 
 void PlayerWidget::updateButtonsState()
 {
     if (m_playButton && m_skipButton) {
         bool hasSelectedCards = !getSelectedCards().isEmpty();
-        m_playButton->setEnabled(m_isEnabled && hasSelectedCards);
-        m_skipButton->setEnabled(m_isEnabled);
+        bool shouldShowButtons = m_position == PlayerPosition::Bottom && m_isEnabled;
         
-        // 确保按钮可见性
-        m_playButton->setVisible(m_position == PlayerPosition::Bottom);
-        m_skipButton->setVisible(m_position == PlayerPosition::Bottom);
+        qDebug() << "PlayerWidget::updateButtonsState - 玩家:" << (m_player ? m_player->getName() : "无名")
+                 << "位置:" << static_cast<int>(m_position)
+                 << "启用状态:" << m_isEnabled
+                 << "有选中牌:" << hasSelectedCards;
+        
+        // 设置按钮状态
+        m_playButton->setEnabled(shouldShowButtons && hasSelectedCards);
+        m_skipButton->setEnabled(shouldShowButtons);
+        
+        // 设置按钮可见性
+        m_playButton->setVisible(shouldShowButtons);
+        m_skipButton->setVisible(shouldShowButtons);
+        
+        // 确保按钮在最上层
+        if (shouldShowButtons) {
+            m_playButton->raise();
+            m_skipButton->raise();
+            
+            // 更新按钮位置（确保在窗口大小变化时仍然正确）
+            int buttonY = height() - m_playButton->height() - 10;
+            m_playButton->move((width() / 2) - m_playButton->width() - 10, buttonY);
+            m_skipButton->move((width() / 2) + 10, buttonY);
+        }
+        
+        qDebug() << "按钮状态更新 - 出牌按钮可见:" << m_playButton->isVisible()
+                 << "启用:" << m_playButton->isEnabled()
+                 << "位置:" << m_playButton->pos()
+                 << "跳过按钮可见:" << m_skipButton->isVisible()
+                 << "启用:" << m_skipButton->isEnabled()
+                 << "位置:" << m_skipButton->pos();
     }
 }
 
@@ -750,4 +925,130 @@ void PlayerWidget::contextMenuEvent(QContextMenuEvent* event)
             emit skipTurnRequested();
         }
     }
+}
+
+// 新增：停止所有动画的方法
+void PlayerWidget::stopAllAnimations()
+{
+    // 停止所有卡片的位置动画
+    for (CardWidget* widget : m_cardWidgets) {
+        QPropertyAnimation* animation = widget->findChild<QPropertyAnimation*>();
+        if (animation) {
+            animation->stop();
+        }
+    }
+
+    // 取消所有延迟的定时器
+    for (QTimer* timer : findChildren<QTimer*>()) {
+        if (timer->isSingleShot()) {
+            timer->stop();
+        }
+    }
+}
+
+// 新增：卡片移除动画
+void PlayerWidget::animateCardsRemoval(const QVector<CardWidget*>& widgets)
+{
+    for (CardWidget* widget : widgets) {
+        // 创建淡出动画
+        QPropertyAnimation* fadeOut = new QPropertyAnimation(widget, "windowOpacity");
+        fadeOut->setDuration(200);
+        fadeOut->setStartValue(1.0);
+        fadeOut->setEndValue(0.0);
+
+        // 创建缩放动画
+        QPropertyAnimation* scaleOut = new QPropertyAnimation(widget, "geometry");
+        scaleOut->setDuration(200);
+        QRect currentGeometry = widget->geometry();
+        QRect targetGeometry = QRect(
+            currentGeometry.center().x() - 5,
+            currentGeometry.center().y() - 5,
+            10, 10
+        );
+        scaleOut->setStartValue(currentGeometry);
+        scaleOut->setEndValue(targetGeometry);
+
+        // 动画完成后删除widget
+        connect(fadeOut, &QPropertyAnimation::finished, [widget]() {
+            widget->deleteLater();
+            });
+
+        fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
+        scaleOut->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+}
+
+// 新增：卡片添加动画
+void PlayerWidget::animateCardsAddition(const QVector<CardWidget*>& widgets)
+{
+    for (CardWidget* widget : widgets) {
+        widget->show();
+
+        // 创建淡入动画
+        QPropertyAnimation* fadeIn = new QPropertyAnimation(widget, "windowOpacity");
+        fadeIn->setDuration(300);
+        fadeIn->setStartValue(0.0);
+        fadeIn->setEndValue(1.0);
+
+        // 创建从小到大的缩放动画
+        QPropertyAnimation* scaleIn = new QPropertyAnimation(widget, "geometry");
+        scaleIn->setDuration(300);
+        QRect targetGeometry = QRect(
+            widget->x(), widget->y(),
+            CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT
+        );
+        QRect startGeometry = QRect(
+            targetGeometry.center().x() - 5,
+            targetGeometry.center().y() - 5,
+            10, 10
+        );
+        scaleIn->setStartValue(startGeometry);
+        scaleIn->setEndValue(targetGeometry);
+
+        fadeIn->start(QAbstractAnimation::DeleteWhenStopped);
+        scaleIn->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+}
+
+void PlayerWidget::cardClicked(CardWidget* clickedWidget)
+{
+    qDebug() << "PlayerWidget::cardClicked - 玩家:" << (m_player ? m_player->getName() : "无名")
+             << "点击卡牌:" << clickedWidget->getCard().PointToString()
+             << clickedWidget->getCard().SuitToString()
+             << "启用状态:" << m_isEnabled
+             << "位置:" << static_cast<int>(m_position)
+             << "卡牌位置:" << clickedWidget->pos()
+             << "卡牌父控件:" << (clickedWidget->parentWidget() ? clickedWidget->parentWidget()->metaObject()->className() : "无");
+             
+    if (!m_isEnabled) {
+        qDebug() << "忽略卡牌点击 - 控件未启用";
+        return;
+    }
+    
+    if (m_position != PlayerPosition::Bottom) {
+        qDebug() << "忽略卡牌点击 - 非底部玩家";
+        return;
+    }
+
+    // 确保卡牌确实属于这个玩家
+    bool cardFound = false;
+    for (CardWidget* card : m_cardWidgets) {
+        if (card == clickedWidget) {
+            cardFound = true;
+            break;
+        }
+    }
+    
+    if (!cardFound) {
+        qDebug() << "忽略卡牌点击 - 卡牌不属于该玩家";
+        return;
+    }
+
+    // 更新按钮状态
+    updateButtonsState();
+
+    // 发送选中卡牌信号
+    QVector<Card> selectedCards = getSelectedCards();
+    qDebug() << "发送选中卡牌信号 - 选中数量:" << selectedCards.size();
+    emit cardsSelected(selectedCards);
 }
