@@ -56,7 +56,7 @@ WildCardDialog::WildCardDialog(const QVector<CardCombo::ComboInfo>& validCombos,
     , m_radioGroup(nullptr)
     , m_validCombos(validCombos)
     , m_selectedIndex(-1)
-    , m_hoverStates(validCombos.size(), false)  // 初始化悬停状态数组
+    , m_selectedStyles(validCombos.size(), QString())  // 初始化选中样式数组
     , m_selectionAnimation(nullptr)
 {
     setupUI();
@@ -279,12 +279,17 @@ bool WildCardDialog::eventFilter(QObject* obj, QEvent* event)
                 // 如果已经选中，则取消选中
                 m_radioGroup->button(index)->setChecked(false);
                 m_selectedIndex = -1;
+                // 恢复普通样式，允许悬停效果
                 widget->setStyleSheet(NORMAL_STYLE);
+                m_selectedStyles[index].clear();
             } else {
                 // 如果未选中，则选中
                 if (QRadioButton* radio = qobject_cast<QRadioButton*>(m_radioGroup->button(index))) {
                     radio->setChecked(true);
-                    onComboSelectionChanged();
+                    // 保存当前样式（可能是悬停样式）
+                    m_selectedStyles[index] = widget->styleSheet();
+                    m_selectedIndex = index;
+                    updateConfirmButtonState();
                 }
             }
             return true;
@@ -314,7 +319,7 @@ void WildCardDialog::highlightSelection(int index)
         QWidget* widget = m_comboWidgets[i];
         if (i == index) {
             // 如果当前组件处于悬停状态，使用悬停样式
-            widget->setStyleSheet(m_hoverStates[i] ? SELECTED_HOVER_STYLE : SELECTED_STYLE);
+            widget->setStyleSheet(m_selectedStyles[i]);
         } else {
             widget->setStyleSheet(NORMAL_STYLE);
         }
@@ -353,10 +358,16 @@ void WildCardDialog::onComboSelectionChanged()
         for (int i = 0; i < m_comboWidgets.size(); ++i) {
             QWidget* widget = m_comboWidgets[i];
             if (i == selectedId) {
-                // 选中时使用悬停样式
-                widget->setStyleSheet(HOVER_STYLE);
+                // 如果已经有保存的样式，使用保存的样式
+                if (!m_selectedStyles[i].isEmpty()) {
+                    widget->setStyleSheet(m_selectedStyles[i]);
+                } else {
+                    // 否则使用当前样式（可能是悬停样式）
+                    m_selectedStyles[i] = widget->styleSheet();
+                }
             } else {
                 widget->setStyleSheet(NORMAL_STYLE);
+                m_selectedStyles[i].clear();
             }
         }
         m_selectedIndex = selectedId;

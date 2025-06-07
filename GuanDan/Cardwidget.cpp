@@ -66,6 +66,10 @@ void CardWidget::setSelected(bool flag)
 {
     if (m_isSelect != flag) {
         m_isSelect = flag;
+        if (m_isSelect) {
+            // 如果被选中，保持当前的悬停效果
+            m_isHovered = true;
+        }
         update(); // 选中状态改变，请求重绘
     }
 }
@@ -129,23 +133,19 @@ void CardWidget::paintEvent(QPaintEvent* event)
     QPixmap currentImage = m_isfront ? m_front : m_back;
     QRect targetRect = rect();
 
-    // 如果卡片被选中，绘制选中边框
-    if (m_isSelect) {
+    // 绘制卡片图像
+    painter.drawPixmap(targetRect, currentImage);
+
+    // 如果卡片被选中或悬停，绘制效果
+    if (m_isSelect || m_isHovered) {
+        // 绘制边框
         painter.setPen(QPen(SELECTED_BORDER_COLOR_CW, SELECTION_BORDER_SIZE_CW));
         painter.drawRect(targetRect.adjusted(SELECTION_BORDER_SIZE_CW/2, 
                                           SELECTION_BORDER_SIZE_CW/2,
                                           -SELECTION_BORDER_SIZE_CW/2, 
                                           -SELECTION_BORDER_SIZE_CW/2));
         
-        // 绘制选中时的蒙版
-        painter.fillRect(targetRect, SELECTED_TINT_COLOR_CW);
-    }
-
-    // 绘制卡片图像
-    painter.drawPixmap(targetRect, currentImage);
-
-    // 如果鼠标悬停，绘制悬停效果
-    if (m_isHovered && !m_isSelect) {
+        // 绘制蒙版，选中和悬停使用相同的效果
         painter.fillRect(targetRect, HOVER_TINT_COLOR_CW);
     }
 
@@ -197,16 +197,14 @@ void CardWidget::mousePressEvent(QMouseEvent* event)
     }
     
     if (event->button() == Qt::LeftButton) {
-        m_isSelect = !m_isSelect;
-        update();
-        qDebug() << "卡牌选中状态改变为:" << m_isSelect;
+        setSelected(!m_isSelect);  // 使用setSelected方法来改变状态
         emit clicked(this);
     }
 }
 
 void CardWidget::enterEvent(QEvent* event)
 {
-    if (!m_isHovered) {
+    if (!m_isSelect && !m_isHovered) {  // 只有未选中的卡片才响应悬停
         m_isHovered = true;
         update(); // 请求重绘以显示悬停效果
     }
@@ -215,7 +213,7 @@ void CardWidget::enterEvent(QEvent* event)
 
 void CardWidget::leaveEvent(QEvent* event)
 {
-    if (m_isHovered) {
+    if (!m_isSelect && m_isHovered) {  // 只有未选中的卡片才响应离开
         m_isHovered = false;
         update(); // 请求重绘以移除悬停效果
     }

@@ -61,7 +61,7 @@ private:
     QVector<CardCombo::ComboInfo> m_validCombos;
     QVector<QWidget*> m_comboWidgets;
     int m_selectedIndex;
-    QVector<bool> m_hoverStates;
+    QVector<QString> m_selectedStyles;
 
     // 动画相关
     QPropertyAnimation* m_selectionAnimation;
