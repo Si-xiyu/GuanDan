@@ -171,7 +171,7 @@ void GuanDan::setupConnections()
                 if (widget->getPlayer()) {
                     QVector<Card> selectedCards = widget->getSelectedCards();
                     if (!selectedCards.isEmpty()) {
-                        m_gameController->onPlayerAttemptPlay(widget->getPlayer()->getID(), selectedCards);
+                        m_gameController->onPlayerPlay(widget->getPlayer()->getID(), selectedCards);
                     }
                 }
             });

@@ -177,11 +177,28 @@ void PlayerWidget::clearSelection()
 
 void PlayerWidget::setEnabled(bool enabled)
 {
+    qDebug() << "PlayerWidget::setEnabled - 玩家:" << (m_player ? m_player->getName() : "无名") 
+             << "启用状态改变:" << m_isEnabled << "->" << enabled;
+    
     m_isEnabled = enabled;
+    
+    // 更新卡片的启用状态
     for (CardWidget* widget : m_cardWidgets) {
         widget->setEnabled(enabled);
     }
+    
+    // 更新按钮状态
     updateButtonsState();
+    
+    // 更新整个控件的外观
+    if (enabled) {
+        // 当前玩家回合时的高亮样式
+        setStyleSheet("PlayerWidget { background-color: rgba(0, 150, 0, 200); border-radius: 10px; }");
+    } else {
+        // 非当前玩家回合时的样式
+        setStyleSheet("PlayerWidget { background-color: rgba(0, 100, 0, 180); border-radius: 10px; }");
+    }
+    
     update();
 }
 
@@ -538,9 +555,6 @@ void PlayerWidget::displayPlayedCombo(const QVector<Card>& cards)
         cardWidget->show();
         m_playedCardWidgets.append(cardWidget);
     }
-
-    // TODO: 实现打出牌的布局逻辑
-    // 这部分可以根据实际需求来实现，比如水平排列或特定的展示方式
 }
 
 void PlayerWidget::setPlayer(Player* player)
@@ -804,6 +818,13 @@ void PlayerWidget::updateButtonsState()
         // 确保按钮可见性
         m_playButton->setVisible(m_position == PlayerPosition::Bottom);
         m_skipButton->setVisible(m_position == PlayerPosition::Bottom);
+        
+        // 添加调试日志
+        qDebug() << "PlayerWidget::updateButtonsState - 玩家:" << (m_player ? m_player->getName() : "无名")
+                 << "启用状态:" << m_isEnabled
+                 << "出牌按钮启用:" << (m_isEnabled && hasSelectedCards)
+                 << "跳过按钮启用:" << m_isEnabled
+                 << "位置:" << static_cast<int>(m_position);
     }
 }
 
