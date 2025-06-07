@@ -31,14 +31,15 @@ public:
     void startGame(); // 开始整个游戏（第一局）
 
 public slots:
-    // --- 来自UI的玩家操作 ---
-    // 当玩家在UI上选择了一组牌，并点击了“出牌”按钮
+    // --- 来自UI的玩家操作槽函数 ---
+
+    // 当玩家在UI上选择了一组牌，并点击了“出牌”按钮(槽函数)
     void onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay);
-    // 当玩家点击了“过牌”按钮
+    // 当玩家点击了“过牌”按钮(槽函数)
     void onPlayerPass(int playerId);
-    // 当玩家点击了“提示”按钮 (可选，如果实现提示功能)
+    // 当玩家点击了“提示”按钮 (槽函数)
     void onPlayerRequestHint(int playerId);
-    // 当玩家完成了进贡/还贡操作
+    // 当玩家完成了进贡/还贡操作 (槽函数)
     void onPlayerTributeCardSelected(int tributingPlayerId, const Card& tributeCard);
 
 
@@ -124,8 +125,8 @@ private:
 	// 玩家是否可以跳过
     void processPlayerPass(int playerId);
 
-    void checkCircleEndAndNextAction(); // 检查一圈是否结束，以及后续动作
-    void checkRoundEndAndNextAction();  // 检查一局是否结束
+    bool checkCircleEnd(); // 检查一圈是否结束，以及后续动作
+    bool checkRoundEnd();  // 检查一局是否结束
     void processRoundResults();         // 处理一局结束后的计分、升级等
     QString generateRoundSummary() const;
 
