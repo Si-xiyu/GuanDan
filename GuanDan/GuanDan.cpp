@@ -161,9 +161,15 @@ void GuanDan::setupConnections()
 
     // 连接玩家界面信号
     for (PlayerWidget* widget : m_playerWidgets) {
-        // 当玩家手牌状态改变时更新显示
+        // 当玩家选择卡牌时更新按钮状态，但不重新显示所有卡牌
         connect(widget, &PlayerWidget::cardsSelected,
-            this, &GuanDan::updateGameStatus);
+            [this, widget](const QVector<Card>& cards) {
+                qDebug() << "收到卡牌选择信号 - 玩家:" << widget->getPlayer()->getName()
+                         << "选中卡牌数量:" << cards.size();
+                
+                // 只更新按钮状态，不重新显示所有卡牌
+                widget->updateButtonsState();
+            });
         
         // 当玩家选择卡牌时通知游戏控制器
         connect(widget, &PlayerWidget::playCardsRequested,
@@ -188,12 +194,24 @@ void GuanDan::setupConnections()
     // 连接游戏控制器的玩家控制信号
     connect(m_gameController, &GD_Controller::sigEnablePlayerControls,
         this, [this](int playerId, bool canPlay, bool canPass) {
+            qDebug() << "收到启用玩家控制信号 - 玩家ID:" << playerId << "可出牌:" << canPlay << "可跳过:" << canPass;
+            
+            bool found = false;
             for (PlayerWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
+                    found = true;
                     widget->setEnabled(canPlay);
                     widget->updateButtonsState();
-                    break;
+                    widget->highlightTurn(true); // 高亮显示当前玩家
+                    qDebug() << "已更新玩家UI状态:" << widget->getPlayer()->getName();
+                } else if (widget->getPlayer()) {
+                    // 其他玩家设置为非高亮
+                    widget->highlightTurn(false);
                 }
+            }
+            
+            if (!found) {
+                qWarning() << "警告: 未找到ID为" << playerId << "的玩家控件";
             }
         });
 
@@ -310,7 +328,21 @@ void GuanDan::startGame()
 
 void GuanDan::onGameStarted()
 {
+    qDebug() << "GuanDan::onGameStarted - 游戏开始";
     updateGameStatus();
+    
+    // 添加调试代码，检查所有玩家控件的状态
+    QTimer::singleShot(500, this, [this]() {
+        qDebug() << "检查玩家控件状态:";
+        for (int i = 0; i < m_playerWidgets.size(); ++i) {
+            PlayerWidget* widget = m_playerWidgets[i];
+            if (widget && widget->getPlayer()) {
+                qDebug() << "玩家" << i << ":" << widget->getPlayer()->getName()
+                         << "位置:" << static_cast<int>(widget->getPosition())
+                         << "是否启用:" << widget->isEnabled();
+            }
+        }
+    });
 }
 
 void GuanDan::onNewRoundStarted(int roundNumber)

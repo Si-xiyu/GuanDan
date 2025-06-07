@@ -4,6 +4,7 @@
 #include <QPixmap>
 #include <QDebug>
 #include <QTransform>
+#include <QResizeEvent>
 
 #include "Cardwidget.h"
 #include "Card.h"
@@ -17,10 +18,12 @@ CardWidget::CardWidget(QWidget* parent)
     , m_rotation(0.0)
     , m_card()
     , m_owner(nullptr)
+    , m_zValue(0)
 {
     setAttribute(Qt::WA_Hover);    // 启用悬停检测
     setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);   // 设置尺寸
     loadCardImages(); // 加载图片
+    setMouseTracking(true);
 }
 
 CardWidget::CardWidget(const Card& cardData, Player* owner, QWidget* parent)
@@ -31,10 +34,17 @@ CardWidget::CardWidget(const Card& cardData, Player* owner, QWidget* parent)
     , m_rotation(0.0)
     , m_card(cardData)
     , m_owner(owner)
+    , m_zValue(0)
 {
     setAttribute(Qt::WA_Hover); // 启用悬停事件
     setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
     loadCardImages(); // 加载图片
+    setMouseTracking(true);
+}
+
+CardWidget::~CardWidget()
+{
+    // 析构函数，清理资源
 }
 
 QPixmap CardWidget::getImage()
@@ -172,14 +182,26 @@ void CardWidget::paintEvent(QPaintEvent* event)
 
 void CardWidget::mousePressEvent(QMouseEvent* event)
 {
-    //if (!isEnabled()) return;  // 如果卡牌被禁用，不处理点击事件
+    qDebug() << "CardWidget::mousePressEvent - 点击卡牌:" 
+             << m_card.PointToString() << m_card.SuitToString()
+             << "启用状态:" << isEnabled()
+             << "Z值:" << zValue()
+             << "位置:" << pos()
+             << "父控件:" << (parentWidget() ? parentWidget()->metaObject()->className() : "无")
+             << "可见性:" << isVisible()
+             << "大小:" << size();
+             
+    if (!isEnabled()) {
+        qDebug() << "卡牌未启用，忽略点击事件";
+        return;
+    }
     
     if (event->button() == Qt::LeftButton) {
-        m_isSelect = !m_isSelect;  // 切换选中状态
-        update();  // 重绘卡牌
-        emit clicked(this);  // 发送点击信号
+        m_isSelect = !m_isSelect;
+        update();
+        qDebug() << "卡牌选中状态改变为:" << m_isSelect;
+        emit clicked(this);
     }
-    QWidget::mousePressEvent(event);
 }
 
 void CardWidget::enterEvent(QEvent* event)
@@ -234,5 +256,53 @@ void CardWidget::loadCardImages()
         }
     }
     update(); // 确保加载图片后刷新显示
+}
+
+void CardWidget::setZValue(int z)
+{
+    if (m_zValue != z) {
+        m_zValue = z;
+        // 使用raise或lower来模拟Z值变化
+        if (parentWidget()) {
+            // 先将控件移到最底层
+            lower();
+            // 然后根据需要提升
+            for (int i = 0; i < z; ++i) {
+                raise();
+            }
+        }
+        qDebug() << "CardWidget::setZValue - 设置Z值:" << z << "卡牌:" 
+                 << m_card.PointToString() << m_card.SuitToString();
+    }
+}
+
+int CardWidget::zValue() const
+{
+    return m_zValue;
+}
+
+void CardWidget::resizeEvent(QResizeEvent* event)
+{
+    QWidget::resizeEvent(event);
+    
+    // 在大小变化时重新加载和缩放图片
+    if (m_isfront) {
+        // 缩放正面图片以适应新大小
+        if (!m_front.isNull()) {
+            QPixmap scaledFront = m_front.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            // 如果需要，可以在这里更新内部存储的图片
+        }
+    } else {
+        // 缩放背面图片以适应新大小
+        if (!m_back.isNull()) {
+            QPixmap scaledBack = m_back.scaled(size(), Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            // 如果需要，可以在这里更新内部存储的图片
+        }
+    }
+    
+    // 记录调试信息
+    qDebug() << "CardWidget::resizeEvent - 卡牌:" 
+             << m_card.PointToString() << m_card.SuitToString()
+             << "新大小:" << size();
 }
 

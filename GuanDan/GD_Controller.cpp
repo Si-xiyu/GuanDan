@@ -5,6 +5,7 @@
 #include <QTextStream>
 
 #include "carddeck.h"
+#include "WildCardDialog.h"
 
 GD_Controller::GD_Controller(QObject* parent)
     : QObject(parent)
@@ -289,29 +290,31 @@ void GD_Controller::dealCardsToPlayers()
 
 void GD_Controller::determineFirstPlayerForRound()
 {
-	// 第一局，随机一名玩家开始
+    qDebug() << "GD_Controller::determineFirstPlayerForRound() - 开始确定首个出牌玩家";
+    
+    // 第一局，强制设置ID为0的玩家开始
     if (m_currentRoundNumber == 1) {
-		QVector<int> playerIds = getActivePlayerIdsSorted(); // 获取所有玩家ID
-        // 随机选择一个玩家作为首个出牌玩家
-        int randomIndex = QRandomGenerator::global()->bounded(playerIds.size());
-        m_currentPlayerId = playerIds[randomIndex];
-
-        m_circleLeaderId = m_currentPlayerId; // 首个出牌玩家也是圈主
+        // 强制设置ID为0的玩家为首个出牌玩家
+        m_currentPlayerId = 0;
+        m_circleLeaderId = m_currentPlayerId;
         Player* firstPlayer = getPlayerById(m_currentPlayerId);
 
-		// 如果找到首个出牌玩家，则发送信号
+        qDebug() << "第一局强制设置玩家ID:" << m_currentPlayerId << "作为首个出牌玩家";
+        
         if (firstPlayer) {
+            qDebug() << "发送设置当前玩家信号:" << m_currentPlayerId << firstPlayer->getName();
             emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
+            
+            qDebug() << "发送启用玩家控制信号:" << m_currentPlayerId << "可出牌:true 可跳过:false";
             emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-            emit sigBroadcastMessage(QString("第%1局开始，随机选择%2先出牌！")
+            
+            emit sigBroadcastMessage(QString("第%1局开始，玩家%2先出牌！")
                 .arg(m_currentRoundNumber)
-                .arg(firstPlayer ? firstPlayer->getName() : "未知玩家"));
-		}
-        else
-        {
-	        qWarning() << "错误：首个出牌玩家ID" << m_currentPlayerId << "不存在，无法开始游戏";
+                .arg(firstPlayer->getName()));
         }
-       
+        else {
+            qWarning() << "错误：首个出牌玩家ID" << m_currentPlayerId << "不存在，无法开始游戏";
+        }
     }
     // 其他局，由上一局最后一名玩家开始
     else {
@@ -319,15 +322,22 @@ void GD_Controller::determineFirstPlayerForRound()
         if (!m_roundFinishOrder.isEmpty()) {
             m_currentPlayerId = m_roundFinishOrder.last();
             m_circleLeaderId = m_currentPlayerId;
+            qDebug() << "非第一局，选择上一局最后一名玩家ID:" << m_currentPlayerId << "作为首个出牌玩家";
         }
     }
+    
 	// 如果当前玩家ID有效，则设置当前玩家为出牌玩家
     if (m_currentPlayerId != -1) {
         Player* firstPlayer = getPlayerById(m_currentPlayerId);
         if (firstPlayer) {
+            qDebug() << "最终设置当前玩家:" << m_currentPlayerId << firstPlayer->getName();
             emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
             emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+        } else {
+            qWarning() << "错误：无法找到ID为" << m_currentPlayerId << "的玩家";
         }
+    } else {
+        qWarning() << "错误：当前玩家ID无效";
     }
 }
 
@@ -399,8 +409,51 @@ bool GD_Controller::PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, C
 		if (possibleCombos.size() > 1)
 		{
             qDebug() << "GD_Controller::PlayerPlay： 玩家" << player->getName() << "选择的牌有多种可出牌型，共 " << possibleCombos.size() << " 种。正在弹出选择对话框...";
-            // 待实现!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            return true;
+            
+            // 测试代码开始
+            qDebug() << "测试：显示所有可能的组合";
+            for (int i = 0; i < possibleCombos.size(); ++i) {
+                const CardCombo::ComboInfo& combo = possibleCombos[i];
+                qDebug() << "组合" << i + 1 << ":";
+                qDebug() << "  类型:" << combo.type;
+                qDebug() << "  描述:" << combo.getDescription();
+                qDebug() << "  使用的牌:";
+                for (const Card& card : combo.cards_in_combo) {
+                    qDebug() << "    " << card.PointToString() << card.SuitToString();
+                }
+                qDebug() << "  使用癞子数:" << combo.wild_cards_used;
+                qDebug() << "  是否同花顺炸弹:" << combo.is_flush_straight_bomb;
+                qDebug() << "-------------------";
+            }
+
+            // 创建并显示WildCardDialog
+            WildCardDialog dialog(possibleCombos, nullptr);
+            if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
+                // 获取用户选择的组合
+                outPlayedCombo = dialog.getSelectedCombo();
+                qDebug() << "测试：用户选择了组合";
+                qDebug() << "  类型:" << outPlayedCombo.type;
+                qDebug() << "  描述:" << outPlayedCombo.getDescription();
+                qDebug() << "  使用的牌:";
+                for (const Card& card : outPlayedCombo.cards_in_combo) {
+                    qDebug() << "    " << card.PointToString() << card.SuitToString();
+                }
+                return true;
+            }
+            qDebug() << "测试：用户取消了选择";
+            return false;
+            // 测试代码结束
+
+            /* 原有代码
+            // 创建并显示WildCardDialog
+            WildCardDialog dialog(possibleCombos, nullptr);
+            if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
+                // 获取用户选择的组合
+                outPlayedCombo = dialog.getSelectedCombo();
+                return true;
+            }
+            return false;
+            */
 		}
     }
     else

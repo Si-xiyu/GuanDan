@@ -59,6 +59,7 @@ public:
 
     // 状态设置
     void setEnabled(bool enabled);
+    bool isEnabled() const { return m_isEnabled; }
     void setCardsVisible(bool visible);
     void setPlayerStatus(const QString& status);
     void setHighlighted(bool highlighted);
@@ -84,10 +85,12 @@ public:
 signals:
     // 当玩家选择了牌时发出信号
     void cardsSelected(const QVector<Card>& cards);
-    // 当玩家点击了某张牌时发出信号
-    void cardClicked(CardWidget* cardWidget);
     void playCardsRequested();    // 出牌信号
     void skipTurnRequested();     // 跳过信号
+
+private slots:
+    // 处理卡牌点击事件
+    void cardClicked(CardWidget* cardWidget);
 
 protected:
     virtual void resizeEvent(QResizeEvent* event) override;
@@ -156,7 +159,6 @@ private:
     // 添加按钮
     QPushButton* m_playButton;    // 出牌按钮
     QPushButton* m_skipButton;    // 跳过按钮
-    QHBoxLayout* m_buttonLayout;  // 按钮布局
 };
 
 #endif // PLAYERWIDGET_H
