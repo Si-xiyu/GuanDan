@@ -7,7 +7,7 @@
 #include <QResizeEvent>
 #include <QPropertyAnimation>
 #include <QtMath>
-#include <QDir>
+#include <QTimer>
 #include <QContextMenuEvent>
 #include <QMenu>
 
@@ -266,73 +266,83 @@ void PlayerWidget::relayoutCards()
 
 void PlayerWidget::layoutCardsForBottom()
 {
+    if (m_cardWidgets.isEmpty()) return;
+
     // 计算卡片区域
     QRect cardsArea = rect().adjusted(CARDS_MARGIN, 2 * NAME_LABEL_HEIGHT + 10,
-                                    -CARDS_MARGIN, -CARDS_MARGIN);
-    
-    // 计算每组牌的位置
-    int currentX = cardsArea.left();
-    int baseY = cardsArea.top();
-    
-    // 计算总宽度，确保居中显示
+        -CARDS_MARGIN, -CARDS_MARGIN);
+
+    if (cardsArea.width() <= 0 || cardsArea.height() <= 0) {
+        return; // 避免无效区域
+    }
+
+    // 按点数分组计算布局
+    QVector<Card::CardPoint> sortedPoints = m_cardStacks.keys().toVector();
+    std::sort(sortedPoints.begin(), sortedPoints.end());
+
+    // 计算总宽度
     int totalWidth = 0;
-    for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
-        if (!it.value().isEmpty()) {
+    for (Card::CardPoint point : sortedPoints) {
+        if (!m_cardStacks[point].isEmpty()) {
             totalWidth += CARD_WIDGET_WIDTH;
-            if (it != m_cardStacks.begin()) {
+            if (totalWidth > CARD_WIDGET_WIDTH) { // 不是第一组
                 totalWidth -= CARD_OVERLAP_HORIZONTAL;
             }
         }
     }
-    
+
+    // 如果卡片总宽度超过可用区域，调整重叠度
+    int actualOverlap = CARD_OVERLAP_HORIZONTAL;
+    if (totalWidth > cardsArea.width() && sortedPoints.size() > 1) {
+        int excessWidth = totalWidth - cardsArea.width();
+        int additionalOverlap = excessWidth / (sortedPoints.size() - 1);
+        actualOverlap = qMin(CARD_OVERLAP_HORIZONTAL + additionalOverlap,
+            CARD_WIDGET_WIDTH - 10); // 最大重叠不超过卡片宽度-10
+
+        // 重新计算总宽度
+        totalWidth = sortedPoints.size() * CARD_WIDGET_WIDTH -
+            (sortedPoints.size() - 1) * actualOverlap;
+    }
+
     // 计算起始X坐标，使卡片居中显示
-    currentX = cardsArea.left() + (cardsArea.width() - totalWidth) / 2;
-    
+    int currentX = cardsArea.left() + (cardsArea.width() - totalWidth) / 2;
+    int baseY = cardsArea.top();
+
     // 按点数顺序布局卡片
-    for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
-        QVector<CardWidget*>& stack = it.value();
+    for (Card::CardPoint point : sortedPoints) {
+        QVector<CardWidget*>& stack = m_cardStacks[point];
         if (stack.isEmpty()) continue;
-        
-        // 计算这组牌的垂直堆叠
+
+        // 布局这一组牌
         for (int i = 0; i < stack.size(); ++i) {
             CardWidget* card = stack[i];
-            
-            // 确保卡片大小正确
+
+            // 确保卡片属性正确
             card->setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
-            card->setRotation(0); // 确保卡片没有旋转
-            
-            // 计算位置
+            card->setRotation(0);
+            card->setParent(this);
+
+            // 计算位置 - 同点数的牌向上堆叠（y坐标减小）
             int x = currentX;
-            int y = baseY + i * CARD_OVERLAP_VERTICAL;
-            
-            // 如果不是最上面的牌，稍微往下移动一点
-            if (i < stack.size() - 1) {
-                y += 5; // 添加一点垂直偏移，使堆叠效果更明显
-            }
-            
-            // 创建动画移动到新位置
+            int y = baseY - i * CARD_OVERLAP_VERTICAL;
+
+            // 使用动画移动到新位置
             QPropertyAnimation* animation = new QPropertyAnimation(card, "pos");
-            animation->setDuration(200);
+            animation->setDuration(150); // 缩短动画时间
             animation->setStartValue(card->pos());
             animation->setEndValue(QPoint(x, y));
+            animation->setEasingCurve(QEasingCurve::OutCubic);
+
+            // 移除选中牌提升到最上层的逻辑
             animation->start(QAbstractAnimation::DeleteWhenStopped);
-            
-            // 确保选中的牌显示在最上面
-            if (card->isSelected()) {
-                card->raise();
-            }
         }
-        
+
         // 移动到下一组牌的位置
-        currentX += CARD_WIDGET_WIDTH - CARD_OVERLAP_HORIZONTAL;
+        currentX += CARD_WIDGET_WIDTH - actualOverlap;
     }
-    
-    // 更新所有卡片的Z顺序，确保选中的牌在最上面
-    for (CardWidget* card : m_cardWidgets) {
-        if (card->isSelected()) {
-            card->raise();
-        }
-    }
+
+    // 延迟更新Z顺序，等待动画开始
+    QTimer::singleShot(50, this, &PlayerWidget::updateCardZOrder);
 }
 
 void PlayerWidget::layoutCardsForSide()
@@ -411,25 +421,41 @@ void PlayerWidget::layoutCardsForTop()
 
 void PlayerWidget::sortCards()
 {
-    // 使用基于Card::point()的预排序，减少sort调用
-    QMap<Card::CardPoint, QVector<CardWidget*>> sortedStacks;
+    // 清空现有的堆栈
+    m_cardStacks.clear();
 
+    // 重新按点数分组
     for (CardWidget* widget : m_cardWidgets) {
         Card::CardPoint point = widget->getCard().point();
-        sortedStacks[point].append(widget);
+        m_cardStacks[point].append(widget);
     }
 
-    // 替代原有m_cardStacks
-    m_cardStacks = sortedStacks;
-
-    // 在每个堆栈内部排序
+    // 在每个堆栈内部按花色排序
     for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
         std::sort(it.value().begin(), it.value().end(),
             [](CardWidget* a, CardWidget* b) {
-                return a->getCard() > b->getCard();
+                const Card& cardA = a->getCard();
+                const Card& cardB = b->getCard();
+
+                // 首先按点数排序
+                if (cardA.point() != cardB.point()) {
+                    return cardA.point() < cardB.point();
+                }
+
+                // 点数相同则按花色排序
+                return cardA.suit() < cardB.suit();
             });
     }
+
+    // 重建m_cardWidgets数组，保持正确顺序
+    m_cardWidgets.clear();
+    for (auto it = m_cardStacks.begin(); it != m_cardStacks.end(); ++it) {
+        for (CardWidget* widget : it.value()) {
+            m_cardWidgets.append(widget);
+        }
+    }
 }
+
 
 CardWidget* PlayerWidget::createCardWidget(const Card& card)
 {
