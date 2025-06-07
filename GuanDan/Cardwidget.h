@@ -22,6 +22,7 @@ class CardWidget : public QWidget
 public:
     explicit CardWidget(QWidget* parent = nullptr);
     explicit CardWidget(const Card& cardData, Player* owner = nullptr, QWidget* parent = nullptr);
+    ~CardWidget();
 
     QPixmap getImage();
     //正反面的设置
@@ -41,12 +42,17 @@ public:
     void setRotation(qreal angle);
     qreal rotation() const;
 
+    // 自定义Z值管理
+    void setZValue(int z);
+    int zValue() const;
+
 protected:
     //重写事件处理函数
     void paintEvent(QPaintEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void enterEvent(QEvent* event) override;   // 添加悬停效果
     void leaveEvent(QEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     void loadCardImages(); // 私有辅助函数加载图片
@@ -62,6 +68,7 @@ private:
 
     Card m_card;
     Player* m_owner = nullptr;
+    int m_zValue;            // 自定义Z值
 
 signals:
     void clicked(CardWidget* widget);   //发送卡牌被选中信号

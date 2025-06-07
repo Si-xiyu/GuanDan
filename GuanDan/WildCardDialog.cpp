@@ -7,10 +7,10 @@
 // 定义静态常量样式
 const QString WildCardDialog::SELECTED_STYLE = 
     "QWidget { "
-    "   border: 2px solid #4CAF50; "
+    "   border: 2px solid #2E7D32; "  // 更深的绿色边框
     "   border-radius: 5px; "
     "   margin: 2px; "
-    "   background-color: #f0f8f0; "
+    "   background-color: #E8F5E9; "  // 更深的背景色
     "   transition: all 0.2s ease-in-out; "
     "}";
 
@@ -32,6 +32,16 @@ const QString WildCardDialog::HOVER_STYLE =
     "   transition: all 0.2s ease-in-out; "
     "}";
 
+// 添加新的悬停样式常量
+const QString WildCardDialog::SELECTED_HOVER_STYLE = 
+    "QWidget { "
+    "   border: 2px solid #1B5E20; "  // 更深的绿色边框
+    "   border-radius: 5px; "
+    "   margin: 2px; "
+    "   background-color: #C8E6C9; "  // 更深的背景色
+    "   transition: all 0.2s ease-in-out; "
+    "}";
+
 WildCardDialog::WildCardDialog(const QVector<CardCombo::ComboInfo>& validCombos,
     QWidget* parent)
     : QDialog(parent)
@@ -46,6 +56,7 @@ WildCardDialog::WildCardDialog(const QVector<CardCombo::ComboInfo>& validCombos,
     , m_radioGroup(nullptr)
     , m_validCombos(validCombos)
     , m_selectedIndex(-1)
+    , m_hoverStates(validCombos.size(), false)  // 初始化悬停状态数组
     , m_selectionAnimation(nullptr)
 {
     setupUI();
@@ -155,15 +166,40 @@ void WildCardDialog::setupUI()
     m_buttonLayout = new QHBoxLayout();
     m_buttonLayout->addStretch();
 
-    m_cancelButton = new QPushButton(tr("取消"));
-    m_cancelButton->setMinimumSize(80, 30);
-    connect(m_cancelButton, &QPushButton::clicked, this, &WildCardDialog::onCancelClicked);
-    m_buttonLayout->addWidget(m_cancelButton);
+    // 创建跳过按钮
+    QPushButton* skipButton = new QPushButton(tr("跳过"));
+    skipButton->setMinimumSize(80, 30);
+    skipButton->setStyleSheet(
+        "QPushButton {"
+        "   background-color: #FFA500;"
+        "   color: white;"
+        "   font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "   background-color: #FF8C00;"
+        "}"
+    );
+    connect(skipButton, &QPushButton::clicked, this, &QDialog::reject);
+    m_buttonLayout->addWidget(skipButton);
 
-    m_confirmButton = new QPushButton(tr("确认出牌"));
+    // 创建出牌按钮
+    m_confirmButton = new QPushButton(tr("出牌"));
     m_confirmButton->setMinimumSize(80, 30);
-    m_confirmButton->setEnabled(false); // 初始状态禁用
-    m_confirmButton->setStyleSheet("QPushButton:enabled { background-color: #4CAF50; color: white; font-weight: bold; }");
+    m_confirmButton->setEnabled(false);
+    m_confirmButton->setStyleSheet(
+        "QPushButton:enabled {"
+        "   background-color: #4CAF50;"
+        "   color: white;"
+        "   font-weight: bold;"
+        "}"
+        "QPushButton:disabled {"
+        "   background-color: #cccccc;"
+        "   color: #666666;"
+        "}"
+        "QPushButton:hover:enabled {"
+        "   background-color: #45a049;"
+        "}"
+    );
     connect(m_confirmButton, &QPushButton::clicked, this, &WildCardDialog::onConfirmClicked);
     m_buttonLayout->addWidget(m_confirmButton);
 
@@ -236,23 +272,33 @@ bool WildCardDialog::eventFilter(QObject* obj, QEvent* event)
 {
     QWidget* widget = qobject_cast<QWidget*>(obj);
     if (widget && m_comboWidgets.contains(widget)) {
+        int index = m_comboWidgets.indexOf(widget);
         if (event->type() == QEvent::MouseButtonPress) {
-            // 当点击组件时，选中对应的单选按钮
-            int index = m_comboWidgets.indexOf(widget);
-            if (QRadioButton* radio = qobject_cast<QRadioButton*>(m_radioGroup->button(index))) {
-                radio->setChecked(true);
-                onComboSelectionChanged();
+            // 当点击组件时，切换选中状态
+            if (index == m_selectedIndex) {
+                // 如果已经选中，则取消选中
+                m_radioGroup->button(index)->setChecked(false);
+                m_selectedIndex = -1;
+                widget->setStyleSheet(NORMAL_STYLE);
+            } else {
+                // 如果未选中，则选中
+                if (QRadioButton* radio = qobject_cast<QRadioButton*>(m_radioGroup->button(index))) {
+                    radio->setChecked(true);
+                    onComboSelectionChanged();
+                }
             }
-            return true; // 事件已处理
+            return true;
         }
         else if (event->type() == QEvent::Enter) {
-            if (m_comboWidgets.indexOf(widget) != m_selectedIndex) {
+            if (index != m_selectedIndex) {
+                // 只有未选中的组件才响应悬停效果
                 widget->setStyleSheet(HOVER_STYLE);
             }
             return true;
         }
         else if (event->type() == QEvent::Leave) {
-            if (m_comboWidgets.indexOf(widget) != m_selectedIndex) {
+            if (index != m_selectedIndex) {
+                // 只有未选中的组件才恢复普通样式
                 widget->setStyleSheet(NORMAL_STYLE);
             }
             return true;
@@ -263,15 +309,18 @@ bool WildCardDialog::eventFilter(QObject* obj, QEvent* event)
 
 void WildCardDialog::highlightSelection(int index)
 {
-    if (index >= 0 && index < m_comboWidgets.size()) {
-        // 更新所有组件样式
-        for (int i = 0; i < m_comboWidgets.size(); ++i) {
-            m_comboWidgets[i]->setStyleSheet(i == index ? SELECTED_STYLE : NORMAL_STYLE);
+    // 更新所有组件的样式
+    for (int i = 0; i < m_comboWidgets.size(); ++i) {
+        QWidget* widget = m_comboWidgets[i];
+        if (i == index) {
+            // 如果当前组件处于悬停状态，使用悬停样式
+            widget->setStyleSheet(m_hoverStates[i] ? SELECTED_HOVER_STYLE : SELECTED_STYLE);
+        } else {
+            widget->setStyleSheet(NORMAL_STYLE);
         }
-        
-        // 播放选择动画
-        playSelectionAnimation(m_comboWidgets[index]);
     }
+    m_selectedIndex = index;
+    updateConfirmButtonState();
 }
 
 void WildCardDialog::playSelectionAnimation(QWidget* widget)
@@ -297,9 +346,22 @@ void WildCardDialog::playSelectionAnimation(QWidget* widget)
 
 void WildCardDialog::onComboSelectionChanged()
 {
-    m_selectedIndex = m_radioGroup->checkedId();
-    updateConfirmButtonState();
-    highlightSelection(m_selectedIndex);
+    // 获取当前选中的按钮索引
+    int selectedId = m_radioGroup->checkedId();
+    if (selectedId >= 0) {
+        // 更新所有组件的样式
+        for (int i = 0; i < m_comboWidgets.size(); ++i) {
+            QWidget* widget = m_comboWidgets[i];
+            if (i == selectedId) {
+                // 选中时使用悬停样式
+                widget->setStyleSheet(HOVER_STYLE);
+            } else {
+                widget->setStyleSheet(NORMAL_STYLE);
+            }
+        }
+        m_selectedIndex = selectedId;
+        updateConfirmButtonState();
+    }
 }
 
 void WildCardDialog::updateConfirmButtonState()
