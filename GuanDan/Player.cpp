@@ -76,6 +76,7 @@ bool Player::isReady() const
     return m_isReady;
 }
 
+// 仅判断是否可以出牌，不考虑有多种牌可出的情况
 bool Player::canPlayCards(const QVector<Card>& cards, CardCombo::ComboInfo& current_table) const
 {
     // 1. 调用 getAllPossibleValidPlays 获取所有合法出牌组合

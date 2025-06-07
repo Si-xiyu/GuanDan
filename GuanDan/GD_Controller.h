@@ -33,7 +33,7 @@ public:
 public slots:
     // --- 来自UI的玩家操作 ---
     // 当玩家在UI上选择了一组牌，并点击了“出牌”按钮
-    void onPlayerAttemptPlay(int playerId, const QVector<Card>& cardsToPlay);
+    void onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay);
     // 当玩家点击了“过牌”按钮
     void onPlayerPass(int playerId);
     // 当玩家点击了“提示”按钮 (可选，如果实现提示功能)
@@ -44,10 +44,9 @@ public slots:
 
 signals:
     // --- 通知UI更新 ---
-    void sigGameStarted();
 
-	// 新一局开始信号
-    void sigNewRoundStarted(int roundNumber);
+	void sigGameStarted(); // 游戏开始信号
+    void sigNewRoundStarted(int roundNumber); 	// 新一局开始信号
     void sigCardsDealt(int playerId, const QVector<Card>& hand); // 通知玩家手牌已经发好
     void sigUpdatePlayerHand(int playerId, const QVector<Card>& newHand); // 手牌变化时更新
 
@@ -58,7 +57,7 @@ signals:
     void sigGameOver(int winningTeamId, const QString& winningTeamName, const QString& finalMessage); // 整个游戏结束
 
 	// 更新桌面牌的显示(新Round和Game开始时)
-    void sigClearTableCards(); // 清空桌面的牌（新一圈开始）
+    void sigClearTableCards(); // 清空桌面的牌（新Circle开始）
     void sigUpdateTableCards(const CardCombo::ComboInfo& lastPlayedCombo, const QString& playerName); // 更新桌面显示的牌
 
 	// 更新全局状态
@@ -117,14 +116,15 @@ private:
 	void startNewRound(); // 开始新的一局 
 	void dealCardsToPlayers(); // 给玩家发牌 Y
     void determineFirstPlayerForRound(); // 决定新一局谁先出牌 Y
-	void nextPlayerTurn(); // 轮到下一个玩家出牌 Y
+	void nextPlayerTurn(); // 找到下一个未出完牌玩家的轮次逻辑 (仅控制m_currentPlayerId）Y
+    void resetTableCombo(); // 重置桌面牌型 Y
 
-    bool canPlayerPlay(int playerId, const QVector<Card>& cardsToPlay, CardCombo::ComboInfo& outPlayedCombo);
-    bool processPlayerPlay(int playerId, const CardCombo::ComboInfo& playedCombo);
+    bool PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, CardCombo::ComboInfo& outPlayedCombo);
+	void processPlayerPlay(int playerId, const CardCombo::ComboInfo& playedCombo);
 	// 玩家是否可以跳过
     void processPlayerPass(int playerId);
 
-    void checkCircleEndAndNextAction(); // 检查一圈是否结束，以及后续动作 Y
+    void checkCircleEndAndNextAction(); // 检查一圈是否结束，以及后续动作
     void checkRoundEndAndNextAction();  // 检查一局是否结束
     void processRoundResults();         // 处理一局结束后的计分、升级等
     QString generateRoundSummary() const;
@@ -143,4 +143,3 @@ private:
 };
 
 #endif // GD_CONTROLLER_H
-// --- END OF FILE gd_controller.h ---
