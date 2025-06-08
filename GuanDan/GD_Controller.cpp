@@ -351,6 +351,7 @@ void GD_Controller::determineFirstPlayerForRound()
         else {
             qWarning() << "错误：首个出牌玩家ID" << m_currentPlayerId << "不存在，无法开始游戏";
         }
+        return;  // 第一局处理完毕后直接返回，避免重复发送信号
     }
     // 其他局，由上一局最后一名玩家开始
     else {

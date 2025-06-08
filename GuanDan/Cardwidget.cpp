@@ -214,8 +214,8 @@ void CardWidget::loadCardImages()
     QString imageName = m_card.getImageFilename();
     QString frontPath = QString(":/pic/res/%1.png").arg(imageName);
 
-    qDebug() << "Trying to load card image:" << frontPath;
-    qDebug() << "Card info - Suit:" << m_card.SuitToString() << "Point:" << m_card.PointToString();
+    //qDebug() << "Trying to load card image:" << frontPath;
+    //qDebug() << "Card info - Suit:" << m_card.SuitToString() << "Point:" << m_card.PointToString();
 
     //加载正面图片
     if (!m_front.load(frontPath)) {
@@ -233,7 +233,7 @@ void CardWidget::loadCardImages()
     // 加载背面图片
     if (m_back.isNull()) {
         QString backPath = ":/pic/res/Back.png";
-        qDebug() << "Trying to load back image:" << backPath;
+        //qDebug() << "Trying to load back image:" << backPath;
         if (!m_back.load(backPath)) {
             qWarning() << "CardWidget: Failed to load back image";
             // 创建一个默认的背面图片
@@ -257,8 +257,6 @@ void CardWidget::setZValue(int z)
                 raise();
             }
         }
-        qDebug() << "CardWidget::setZValue - 设置Z值:" << z << "卡牌:" 
-                 << m_card.PointToString() << m_card.SuitToString();
     }
 }
 
@@ -287,8 +285,8 @@ void CardWidget::resizeEvent(QResizeEvent* event)
     }
     
     // 记录调试信息
-    qDebug() << "CardWidget::resizeEvent - 卡牌:" 
-             << m_card.PointToString() << m_card.SuitToString()
-             << "新大小:" << size();
+    //qDebug() << "CardWidget::resizeEvent - 卡牌:" 
+    //         << m_card.PointToString() << m_card.SuitToString()
+    //         << "新大小:" << size();
 }
 

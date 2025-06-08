@@ -102,7 +102,7 @@ void GuanDan::createPlayers()
     // 创建四个玩家界面
     for (int i = 0; i < 4; ++i) {
         // 创建玩家对象
-        Player* player = new Player(QString("玩家%1").arg(i + 1), i);
+        Player* player = new Player(QString("玩家%1").arg(i), i);
         m_players.append(player);
         qDebug() << "创建玩家:" << player->getName() << "ID:" << player->getID();
         
