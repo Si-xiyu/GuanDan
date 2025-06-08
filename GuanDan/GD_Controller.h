@@ -33,11 +33,11 @@ public:
 public slots:
     // --- 来自UI的玩家操作槽函数 ---
 
-    // 当玩家在UI上选择了一组牌，并点击了“出牌”按钮(槽函数)
+    // 当玩家在UI上选择了一组牌，并点击了"出牌"按钮(槽函数)
     void onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay);
-    // 当玩家点击了“过牌”按钮(槽函数)
+    // 当玩家点击了"过牌"按钮(槽函数)
     void onPlayerPass(int playerId);
-    // 当玩家点击了“提示”按钮 (槽函数)
+    // 当玩家点击了"提示"按钮 (槽函数)
     void onPlayerRequestHint(int playerId);
     // 当玩家完成了进贡/还贡操作 (槽函数)
     void onPlayerTributeCardSelected(int tributingPlayerId, const Card& tributeCard);
@@ -84,7 +84,7 @@ private:
     int m_currentPlayerId;                 // 当前轮到出牌的玩家ID
     CardCombo::ComboInfo m_currentTableCombo; // 当前桌面上最后一手合法的牌
     int m_circleLeaderId;                  // 本圈第一个出牌的玩家ID (即m_currentTableCombo的所有者)
-    QSet<int> m_passedPlayersInCircle;     // 本圈已经选择“不出”的玩家ID
+    QSet<int> m_passedPlayersInCircle;     // 本圈已经选择"不出"的玩家ID
     QVector<int> m_roundFinishOrder;       // 按顺序记录本局完成出牌的玩家ID
     int m_activePlayersInRound;            // 本局还剩多少玩家没打完牌
 
@@ -125,7 +125,19 @@ private:
 	// 玩家是否可以跳过
     void processPlayerPass(int playerId);
 
-    bool checkCircleEnd(); // 检查一圈是否结束，以及后续动作
+    bool checkCircleEnd();
+    // 扫描并更新已完成出牌的玩家状态，并发送广播
+    void updateFinishedPlayers();
+    // 判断只剩一个玩家
+    bool isLastPlayerStanding() const;
+    // 将最后一名玩家加入完成顺序
+    void appendLastPlayer();
+
+    // 重置桌面状态，开始新一圈（仅更新状态，不发送信号）
+    void resetCircleState();
+    // 发送新一圈开始的UI信号
+    void emitCircleResetSignals();
+
     bool checkRoundEnd();  // 检查一局是否结束
     void processRoundResults();         // 处理一局结束后的计分、升级等
     QString generateRoundSummary() const;
@@ -141,6 +153,22 @@ private:
     bool isPlayerInGame(int playerId) const; // 玩家是否还未出完牌
     QVector<int> getActivePlayerIdsSorted() const; // 获取当前还未出完牌的玩家ID, 按座位顺序
     bool allOtherActivePlayersPassed(int currentPlayerId) const;
+
+    // 验证当前操作阶段和执行者是否合法, 返回是否合法, 同时通过errorMsg输出提示
+    bool canPerformAction(int playerId, QString& errorMsg);
+
+    // 处理玩家出牌后的流程: 更新手牌、广播消息、记录出牌信息并切换下一个玩家
+    void executePlay(int playerId, const CardCombo::ComboInfo& playedCombo);
+
+    // 处理玩家过牌后的流程: 广播消息、记录过牌信息并切换下一个玩家
+    void executePass(int playerId);
+
+    // 检查回合结束, 如结束则处理相关逻辑并返回true
+    bool handleRoundEnd();
+    void handleCircleEnd();
+
+    // 切换到下一个玩家并发出控制信号
+    void nextPlayer();
 };
 
 #endif // GD_CONTROLLER_H
