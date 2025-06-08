@@ -3,9 +3,11 @@
 #include <QDebug>
 #include <algorithm>
 #include <QTextStream>
+#include <QTimer>
 
 #include "carddeck.h"
 #include "WildCardDialog.h"
+#include "NPCPlayer.h"
 
 GD_Controller::GD_Controller(QObject* parent)
     : QObject(parent)
@@ -344,6 +346,13 @@ void GD_Controller::determineFirstPlayerForRound()
             qDebug() << "发送启用玩家控制信号:" << m_currentPlayerId << "可出牌:true 可跳过:false";
             emit sigEnablePlayerControls(m_currentPlayerId, true, false);
             
+            // AI玩家回合自动处理
+            QTimer::singleShot(0, [this]() {
+                if (Player* p = getPlayerById(m_currentPlayerId)) {
+                    p->autoPlay(this, m_currentTableCombo);
+                }
+            });
+            
             emit sigBroadcastMessage(QString("第%1局开始，玩家%2先出牌！")
                 .arg(m_currentRoundNumber)
                 .arg(firstPlayer->getName()));
@@ -370,6 +379,13 @@ void GD_Controller::determineFirstPlayerForRound()
             qDebug() << "最终设置当前玩家:" << m_currentPlayerId << firstPlayer->getName();
             emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
             emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+            
+            // AI玩家回合自动处理
+            QTimer::singleShot(0, [this]() {
+                if (Player* p = getPlayerById(m_currentPlayerId)) {
+                    p->autoPlay(this, m_currentTableCombo);
+                }
+            });
         } else {
             qWarning() << "错误：无法找到ID为" << m_currentPlayerId << "的玩家";
         }
@@ -973,6 +989,13 @@ void GD_Controller::nextPlayer()
     if (m_currentPlayerId >= 0) {
         emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
         qDebug() << "GD_Controller::nextPlayer： 当前玩家ID=" << m_currentPlayerId;
+        
+        // AI玩家回合自动处理
+        QTimer::singleShot(0, [this]() {
+            if (Player* p = getPlayerById(m_currentPlayerId)) {
+                p->autoPlay(this, m_currentTableCombo);
+            }
+        });
     }
 }
 
@@ -1009,7 +1032,7 @@ void GD_Controller::appendLastPlayer()
     }
 }
 
-// 新增：重置桌面状态，开始新一圈（仅更新状态，不发送信号）
+// 重置桌面状态，开始新一圈（仅更新状态，不发送信号）
 void GD_Controller::resetCircleState()
 {
     resetTableCombo();

@@ -20,8 +20,6 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     , m_isHighlighted(false)
     , m_isCurrentTurn(false)
     , m_useCustomBackground(false)
-    , m_playButton(nullptr)
-    , m_skipButton(nullptr)
 {
     // 加载默认资源
     loadDefaultResources();
@@ -62,11 +60,6 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     infoLayout->addStretch();
     
     m_mainLayout->addLayout(infoLayout);
-    
-    // 如果是当前玩家（底部位置），添加按钮
-    if (m_position == PlayerPosition::Bottom) {
-        setupButtons();
-    }
     
     // 更新玩家信息
     updatePlayerInfo();
@@ -190,9 +183,6 @@ void PlayerWidget::setEnabled(bool enabled)
         widget->setEnabled(enabled);
     }
     
-    // 更新按钮状态
-    updateButtonsState();
-    
     // 更新整个控件的外观
     if (enabled) {
         // 当前玩家回合时的高亮样式
@@ -246,13 +236,6 @@ void PlayerWidget::resizeEvent(QResizeEvent* event)
     
     // 重新布局卡片
     relayoutCards();
-    
-    // 在大小变化时重新布局按钮
-    if (m_playButton && m_skipButton) {
-        int buttonY = height() - m_playButton->height() - 10;
-        m_playButton->move((width() / 2) - m_playButton->width() - 10, buttonY);
-        m_skipButton->move((width() / 2) + 10, buttonY);
-    }
 }
 
 void PlayerWidget::paintEvent(QPaintEvent* event)
@@ -298,12 +281,6 @@ void PlayerWidget::relayoutCards()
     
     // 更新所有卡片的Z顺序
     updateCardZOrder();
-    
-    // 确保按钮在最上层
-    if (m_playButton && m_skipButton) {
-        m_playButton->raise();
-        m_skipButton->raise();
-    }
     
     qDebug() << "卡牌布局完成 - 总计:" << m_cardWidgets.size() << "张牌";
 }
@@ -536,9 +513,6 @@ void PlayerWidget::updatePlayerInfo()
                  << "剩余牌数:" << handCardCount;
     }
     
-    // 更新按钮状态
-    updateButtonsState();
-    
     // 清空选择状态（因为手牌发生了变化）
     clearSelection();
 }
@@ -752,13 +726,6 @@ void PlayerWidget::highlightTurn(bool isCurrentTurn)
     if (isCurrentTurn) {
         // 当前回合的高亮样式
         setStyleSheet("PlayerWidget { background-color: rgba(0, 180, 0, 220); border: 2px solid gold; border-radius: 10px; }");
-        
-        // 如果是当前玩家且是当前回合，确保按钮可见
-        if (m_position == PlayerPosition::Bottom) {
-            if (m_playButton) m_playButton->show();
-            if (m_skipButton) m_skipButton->show();
-            updateButtonsState();
-        }
     } else {
         // 非当前回合的样式
         setStyleSheet("PlayerWidget { background-color: rgba(0, 100, 0, 180); border-radius: 10px; }");
@@ -917,201 +884,6 @@ void PlayerWidget::setDefaultBackground()
     update();
 }
 
-void PlayerWidget::setupButtons()
-{
-    qDebug() << "PlayerWidget::setupButtons - 设置按钮 玩家:" << (m_player ? m_player->getName() : "无名");
-    
-    // 如果已经有按钮，先删除它们
-    if (m_playButton) {
-        delete m_playButton;
-        m_playButton = nullptr;
-    }
-    
-    if (m_skipButton) {
-        delete m_skipButton;
-        m_skipButton = nullptr;
-    }
-    
-    // 创建新按钮
-    m_playButton = new QPushButton("出牌", this);
-    m_playButton->setFixedSize(80, 30);
-    m_playButton->setStyleSheet(
-        "QPushButton {"
-        "    background-color: #4CAF50;"
-        "    color: white;"
-        "    border: none;"
-        "    border-radius: 4px;"
-        "    font-size: 14px;"
-        "}"
-        "QPushButton:hover { background-color: #45a049; }"
-        "QPushButton:disabled { background-color: #cccccc; }"
-    );
-    m_playButton->setShortcut(Qt::Key_Return);
-    connect(m_playButton, &QPushButton::clicked, this, &PlayerWidget::playCardsRequested);
-    
-    m_skipButton = new QPushButton("跳过", this);
-    m_skipButton->setFixedSize(80, 30);
-    m_skipButton->setStyleSheet(m_playButton->styleSheet());
-    m_skipButton->setShortcut(Qt::Key_Space);
-    connect(m_skipButton, &QPushButton::clicked, this, &PlayerWidget::skipTurnRequested);
-    
-    // 设置按钮位置
-    int buttonY = height() - m_playButton->height() - 10;
-    m_playButton->move((width() / 2) - m_playButton->width() - 10, buttonY);
-    m_skipButton->move((width() / 2) + 10, buttonY);
-    
-    // 确保按钮在最上层
-    m_playButton->raise();
-    m_skipButton->raise();
-    
-    // 初始状态
-    updateButtonsState();
-    
-    qDebug() << "按钮设置完成 - 出牌按钮位置:" << m_playButton->pos() 
-             << "跳过按钮位置:" << m_skipButton->pos();
-}
-
-void PlayerWidget::updateButtonsState()
-{
-    if (m_playButton && m_skipButton) {
-        bool hasSelectedCards = !getSelectedCards().isEmpty();
-        bool shouldShowButtons = m_position == PlayerPosition::Bottom && m_isEnabled;
-        
-        qDebug() << "PlayerWidget::updateButtonsState - 玩家:" << (m_player ? m_player->getName() : "无名")
-                 << "位置:" << static_cast<int>(m_position)
-                 << "启用状态:" << m_isEnabled
-                 << "有选中牌:" << hasSelectedCards;
-        
-        // 设置按钮状态
-        m_playButton->setEnabled(shouldShowButtons && hasSelectedCards);
-        m_skipButton->setEnabled(shouldShowButtons);
-        
-        // 设置按钮可见性
-        m_playButton->setVisible(shouldShowButtons);
-        m_skipButton->setVisible(shouldShowButtons);
-        
-        // 确保按钮在最上层
-        if (shouldShowButtons) {
-            m_playButton->raise();
-            m_skipButton->raise();
-            
-            // 更新按钮位置（确保在窗口大小变化时仍然正确）
-            int buttonY = height() - m_playButton->height() - 10;
-            m_playButton->move((width() / 2) - m_playButton->width() - 10, buttonY);
-            m_skipButton->move((width() / 2) + 10, buttonY);
-        }
-        
-        qDebug() << "按钮状态更新 - 出牌按钮可见:" << m_playButton->isVisible()
-                 << "启用:" << m_playButton->isEnabled()
-                 << "位置:" << m_playButton->pos()
-                 << "跳过按钮可见:" << m_skipButton->isVisible()
-                 << "启用:" << m_skipButton->isEnabled()
-                 << "位置:" << m_skipButton->pos();
-    }
-}
-
-void PlayerWidget::contextMenuEvent(QContextMenuEvent* event)
-{
-    if (m_position == PlayerPosition::Bottom && m_isEnabled) {
-        QMenu menu(this);
-        QAction* playAction = menu.addAction("出牌");
-        QAction* skipAction = menu.addAction("跳过");
-        
-        // 如果没有选中的牌，禁用出牌选项
-        playAction->setEnabled(!getSelectedCards().isEmpty());
-        
-        QAction* selectedAction = menu.exec(event->globalPos());
-        if (selectedAction == playAction) {
-            emit playCardsRequested();
-        } else if (selectedAction == skipAction) {
-            emit skipTurnRequested();
-        }
-    }
-}
-
-// 新增：停止所有动画的方法
-void PlayerWidget::stopAllAnimations()
-{
-    // 停止所有卡片的位置动画
-    for (CardWidget* widget : m_cardWidgets) {
-        QPropertyAnimation* animation = widget->findChild<QPropertyAnimation*>();
-        if (animation) {
-            animation->stop();
-        }
-    }
-
-    // 取消所有延迟的定时器
-    for (QTimer* timer : findChildren<QTimer*>()) {
-        if (timer->isSingleShot()) {
-            timer->stop();
-        }
-    }
-}
-
-// 新增：卡片移除动画
-void PlayerWidget::animateCardsRemoval(const QVector<CardWidget*>& widgets)
-{
-    for (CardWidget* widget : widgets) {
-        // 创建淡出动画
-        QPropertyAnimation* fadeOut = new QPropertyAnimation(widget, "windowOpacity");
-        fadeOut->setDuration(200);
-        fadeOut->setStartValue(1.0);
-        fadeOut->setEndValue(0.0);
-
-        // 创建缩放动画
-        QPropertyAnimation* scaleOut = new QPropertyAnimation(widget, "geometry");
-        scaleOut->setDuration(200);
-        QRect currentGeometry = widget->geometry();
-        QRect targetGeometry = QRect(
-            currentGeometry.center().x() - 5,
-            currentGeometry.center().y() - 5,
-            10, 10
-        );
-        scaleOut->setStartValue(currentGeometry);
-        scaleOut->setEndValue(targetGeometry);
-
-        // 动画完成后删除widget
-        connect(fadeOut, &QPropertyAnimation::finished, [widget]() {
-            widget->deleteLater();
-            });
-
-        fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
-        scaleOut->start(QAbstractAnimation::DeleteWhenStopped);
-    }
-}
-
-// 新增：卡片添加动画
-void PlayerWidget::animateCardsAddition(const QVector<CardWidget*>& widgets)
-{
-    for (CardWidget* widget : widgets) {
-        widget->show();
-
-        // 创建淡入动画
-        QPropertyAnimation* fadeIn = new QPropertyAnimation(widget, "windowOpacity");
-        fadeIn->setDuration(300);
-        fadeIn->setStartValue(0.0);
-        fadeIn->setEndValue(1.0);
-
-        // 创建从小到大的缩放动画
-        QPropertyAnimation* scaleIn = new QPropertyAnimation(widget, "geometry");
-        scaleIn->setDuration(300);
-        QRect targetGeometry = QRect(
-            widget->x(), widget->y(),
-            CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT
-        );
-        QRect startGeometry = QRect(
-            targetGeometry.center().x() - 5,
-            targetGeometry.center().y() - 5,
-            10, 10
-        );
-        scaleIn->setStartValue(startGeometry);
-        scaleIn->setEndValue(targetGeometry);
-
-        fadeIn->start(QAbstractAnimation::DeleteWhenStopped);
-        scaleIn->start(QAbstractAnimation::DeleteWhenStopped);
-    }
-}
-
 void PlayerWidget::cardClicked(CardWidget* clickedWidget)
 {
     qDebug() << "PlayerWidget::cardClicked - 玩家:" << (m_player ? m_player->getName() : "无名")
@@ -1146,11 +918,98 @@ void PlayerWidget::cardClicked(CardWidget* clickedWidget)
         return;
     }
 
-    // 更新按钮状态
-    updateButtonsState();
-
     // 发送选中卡牌信号
     QVector<Card> selectedCards = getSelectedCards();
     qDebug() << "发送选中卡牌信号 - 选中数量:" << selectedCards.size();
     emit cardsSelected(selectedCards);
+}
+
+// 保留右键菜单事件处理，以便无按钮时仍可通过菜单出牌或过牌
+void PlayerWidget::contextMenuEvent(QContextMenuEvent* event)
+{
+    if (m_position == PlayerPosition::Bottom && m_isEnabled) {
+        QMenu menu(this);
+        QAction* playAction = menu.addAction("出牌");
+        QAction* skipAction = menu.addAction("跳过");
+        
+        // 如果没有选中的牌，禁用出牌选项
+        playAction->setEnabled(!getSelectedCards().isEmpty());
+        
+        QAction* selectedAction = menu.exec(event->globalPos());
+        if (selectedAction == playAction) {
+            emit playCardsRequested();
+        } else if (selectedAction == skipAction) {
+            emit skipTurnRequested();
+        }
+    }
+}
+
+// 停止所有动画的方法
+void PlayerWidget::stopAllAnimations()
+{
+    // 停止所有卡片的位置动画
+    for (CardWidget* widget : m_cardWidgets) {
+        QPropertyAnimation* animation = widget->findChild<QPropertyAnimation*>();
+        if (animation) {
+            animation->stop();
+        }
+    }
+    // 取消所有延迟的定时器
+    for (QTimer* timer : findChildren<QTimer*>()) {
+        if (timer->isSingleShot()) {
+            timer->stop();
+        }
+    }
+}
+
+// 新增：卡片移除动画
+void PlayerWidget::animateCardsRemoval(const QVector<CardWidget*>& widgets)
+{
+    for (CardWidget* widget : widgets) {
+        // 创建淡出动画
+        QPropertyAnimation* fadeOut = new QPropertyAnimation(widget, "windowOpacity");
+        fadeOut->setDuration(200);
+        fadeOut->setStartValue(1.0);
+        fadeOut->setEndValue(0.0);
+
+        // 创建缩放动画
+        QPropertyAnimation* scaleOut = new QPropertyAnimation(widget, "geometry");
+        scaleOut->setDuration(200);
+        QRect currentGeometry = widget->geometry();
+        QRect targetGeometry(currentGeometry.center().x() - 5,
+                              currentGeometry.center().y() - 5,
+                              10, 10);
+        scaleOut->setStartValue(currentGeometry);
+        scaleOut->setEndValue(targetGeometry);
+        connect(fadeOut, &QPropertyAnimation::finished, [widget]() { widget->deleteLater(); });
+        fadeOut->start(QAbstractAnimation::DeleteWhenStopped);
+        scaleOut->start(QAbstractAnimation::DeleteWhenStopped);
+    }
+}
+
+// 新增：卡片添加动画
+void PlayerWidget::animateCardsAddition(const QVector<CardWidget*>& widgets)
+{
+    for (CardWidget* widget : widgets) {
+        widget->show();
+
+        // 创建淡入动画
+        QPropertyAnimation* fadeIn = new QPropertyAnimation(widget, "windowOpacity");
+        fadeIn->setDuration(300);
+        fadeIn->setStartValue(0.0);
+        fadeIn->setEndValue(1.0);
+
+        // 创建从小到大的缩放动画
+        QPropertyAnimation* scaleIn = new QPropertyAnimation(widget, "geometry");
+        scaleIn->setDuration(300);
+        QRect targetGeometry(widget->x(), widget->y(), CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
+        QRect startGeometry(targetGeometry.center().x() - 5,
+                            targetGeometry.center().y() - 5,
+                            10, 10);
+        scaleIn->setStartValue(startGeometry);
+        scaleIn->setEndValue(targetGeometry);
+
+        fadeIn->start(QAbstractAnimation::DeleteWhenStopped);
+        scaleIn->start(QAbstractAnimation::DeleteWhenStopped);
+    }
 }

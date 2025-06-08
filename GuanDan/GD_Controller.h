@@ -125,7 +125,9 @@ private:
 	// 玩家是否可以跳过
     void processPlayerPass(int playerId);
 
-    bool checkCircleEnd();
+	bool checkCircleEnd(); // 检查一圈是否结束
+    bool checkRoundEnd();  // 检查一局是否结束
+
     // 扫描并更新已完成出牌的玩家状态，并发送广播
     void updateFinishedPlayers();
     // 判断只剩一个玩家
@@ -138,7 +140,6 @@ private:
     // 发送新一圈开始的UI信号
     void emitCircleResetSignals();
 
-    bool checkRoundEnd();  // 检查一局是否结束
     void processRoundResults();         // 处理一局结束后的计分、升级等
     QString generateRoundSummary() const;
 

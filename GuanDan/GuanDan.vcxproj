@@ -119,7 +119,7 @@
     <ClInclude Include="HMPlayer.h" />
     <ClInclude Include="Levelstatus.h" />
     <QtMoc Include="PlayerWidget.h" />
-    <ClInclude Include="NPCPlayer.h" />
+    <QtMoc Include="NPCPlayer.h" />
     <ClInclude Include="Team.h" />
     <QtMoc Include="CardWidget.h" />
     <QtMoc Include="Player.h" />
