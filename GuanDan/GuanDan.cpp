@@ -158,6 +158,17 @@ void GuanDan::setupConnections()
                 }
             }
         });
+    // 当玩家出牌或过牌后更新手牌显示
+    connect(m_gameController, &GD_Controller::sigUpdatePlayerHand,
+        this, [this](int playerId, const QVector<Card>& cards) {
+            qDebug() << "收到玩家手牌更新信号(无动画) - 玩家ID:" << playerId << "牌数:" << cards.size();
+            for (PlayerWidget* widget : m_playerWidgets) {
+                if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
+                    widget->updateHandDisplayNoAnimation(cards, widget->getPlayer()->getID() == 0);
+                    break;
+                }
+            }
+        });
 
     // 连接玩家界面信号
     for (PlayerWidget* widget : m_playerWidgets) {
