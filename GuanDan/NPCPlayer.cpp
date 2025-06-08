@@ -1,5 +1,6 @@
 #include "NPCPlayer.h"
 #include "Cardcombo.h"
+#include "GD_Controller.h"
 #include <algorithm>
 
 // 构造函数
@@ -44,4 +45,15 @@ QVector<Card> NPCPlayer::choosePlay(const CardCombo::ComboInfo& currentTableComb
     }
     // 否则选择第一个合法组合
     return possible.first().cards_in_combo;
+}
+
+// AI玩家自动行为：在回合开始时由控制器调用
+void NPCPlayer::autoPlay(GD_Controller* controller, const CardCombo::ComboInfo& currentTableCombo)
+{
+    QVector<Card> choice = choosePlay(currentTableCombo);
+    if (choice.isEmpty()) {
+        controller->onPlayerPass(getID());
+    } else {
+        controller->onPlayerPlay(getID(), choice);
+    }
 }

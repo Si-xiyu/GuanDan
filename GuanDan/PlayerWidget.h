@@ -10,7 +10,6 @@
 #include <QVector>
 #include <QMap>
 #include <QPixmap>
-#include <QPushButton>
 
 #include "Player.h"     // 玩家数据类
 #include "Card.h"       // 卡牌数据类
@@ -66,8 +65,6 @@ public:
     void highlightTurn(bool isCurrentTurn);
     void setPosition(PlayerPosition position);
     PlayerPosition getPosition() const { return m_position; }
-    void updateButtonsState();
-    void setupButtons();
 
     // 显示更新
     void updateHandDisplay(const QVector<Card>& handCards, bool showCardFronts);
@@ -157,10 +154,6 @@ private:
 
     // 新增：加载默认资源
     void loadDefaultResources();
-
-    // 添加按钮
-    QPushButton* m_playButton;    // 出牌按钮
-    QPushButton* m_skipButton;    // 跳过按钮
 };
 
 #endif // PLAYERWIDGET_H

@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QTimer>
 #include <QDebug>
+#include "NPCPlayer.h"
 
 GuanDan::GuanDan(QWidget* parent)
     : QMainWindow(parent)
@@ -112,8 +113,15 @@ void GuanDan::createPlayers()
 
     // 创建四个玩家界面
     for (int i = 0; i < 4; ++i) {
-        // 创建玩家对象
-        Player* player = new Player(QString("玩家%1").arg(i), i);
+        // 创建玩家对象，底部玩家为人类，其他玩家为 AI
+        Player* player = nullptr;
+        if (i == 0) {
+            player = new Player(QString("玩家%1").arg(i), i);
+            player->setType(Player::Human);
+        } else {
+            player = new NPCPlayer(QString("AI%1").arg(i), i);
+            player->setType(Player::AI);
+        }
         m_players.append(player);
         qDebug() << "创建玩家:" << player->getName() << "ID:" << player->getID();
         
@@ -213,9 +221,6 @@ void GuanDan::setupConnections()
             [this, widget](const QVector<Card>& cards) {
                 qDebug() << "收到卡牌选择信号 - 玩家:" << widget->getPlayer()->getName()
                          << "选中卡牌数量:" << cards.size();
-                
-                // 只更新按钮状态，不重新显示所有卡牌
-                widget->updateButtonsState();
             });
         
         // 当玩家选择卡牌时通知游戏控制器
@@ -248,7 +253,6 @@ void GuanDan::setupConnections()
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
                     found = true;
                     widget->setEnabled(canPlay);
-                    widget->updateButtonsState();
                     widget->highlightTurn(true); // 高亮显示当前玩家
                     qDebug() << "已更新玩家UI状态:" << widget->getPlayer()->getName();
                 } else if (widget->getPlayer()) {
@@ -379,12 +383,6 @@ void GuanDan::onGameStarted()
 {
     qDebug() << "GuanDan::onGameStarted - 游戏开始";
     updateGameStatus();
-    // 确保底部玩家（第一个）初始化按钮并显示
-    if (!m_playerWidgets.isEmpty()) {
-        PlayerWidget* bottomWidget = m_playerWidgets[0];
-        bottomWidget->setupButtons();
-        bottomWidget->updateButtonsState();
-    }
     
     // 添加调试代码，检查所有玩家控件的状态
     QTimer::singleShot(500, this, [this]() {
