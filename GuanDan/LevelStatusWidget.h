@@ -52,8 +52,6 @@ private:
     QWidget* createSeparator();
     void setupAnimations();
     QString levelToString(Card::CardPoint level) const;
-    QString getLevelIcon(Card::CardPoint level) const;
-    QString getLevelColor(Card::CardPoint level) const;
     void playLevelChangeAnimation(int teamId);
     void updateTeamDisplay(int teamId, Card::CardPoint level);
 };

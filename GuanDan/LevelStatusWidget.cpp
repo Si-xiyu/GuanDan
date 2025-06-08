@@ -146,9 +146,10 @@ void LevelStatusWidget::updateTeamLevel(int teamId, Card::CardPoint newLevel)
 
 void LevelStatusWidget::updateTeamDisplay(int teamId, Card::CardPoint level)
 {
-    QString levelText = getLevelIcon(level) + levelToString(level);
-    QString color = getLevelColor(level);
-
+    // 只显示级牌点数，移除花色图标映射
+    QString levelText = levelToString(level);
+    // 使用队伍名称颜色：队伍0为蓝，队伍1为红
+    QString color = (teamId == 0 ? QString("#2E86C1") : QString("#E74C3C"));
     if (teamId == 0) {
         m_team0LevelLabel->setText(levelText);
         m_team0LevelLabel->setStyleSheet(QString("color: %1; background-color: rgba(255, 255, 255, 180); "
@@ -184,54 +185,6 @@ QString LevelStatusWidget::levelToString(Card::CardPoint level) const
     case Card::Card_LJ: return "小王";
     case Card::Card_BJ: return "大王";
     default: return QString::number(static_cast<int>(level));
-    }
-}
-
-QString LevelStatusWidget::getLevelIcon(Card::CardPoint level) const
-{
-    // 根据级牌显示不同的花色图标
-    switch (level) {
-    case Card::Card_2:
-    case Card::Card_6:
-    case Card::Card_10:
-    case Card::Card_A:
-        return "♠"; // 黑桃
-    case Card::Card_3:
-    case Card::Card_7:
-    case Card::Card_J:
-        return "♣"; // 梅花
-    case Card::Card_4:
-    case Card::Card_8:
-    case Card::Card_Q:
-        return "♦"; // 方块
-    case Card::Card_5:
-    case Card::Card_9:
-    case Card::Card_K:
-        return "♥"; // 红桃
-    case Card::Card_LJ:
-    case Card::Card_BJ:
-        return "★"; // 王牌用星号
-    default:
-        return "♠";
-    }
-}
-
-QString LevelStatusWidget::getLevelColor(Card::CardPoint level) const
-{
-    // 红色花色使用红色，黑色花色使用黑色，王牌使用金色
-    switch (level) {
-    case Card::Card_4:  // 方块
-    case Card::Card_8:
-    case Card::Card_Q:
-    case Card::Card_5:  // 红桃
-    case Card::Card_9:
-    case Card::Card_K:
-        return "#E74C3C"; // 红色
-    case Card::Card_LJ: // 小王
-    case Card::Card_BJ: // 大王
-        return "#F39C12"; // 金色
-    default:
-        return "#2C3E50"; // 黑色
     }
 }
 
