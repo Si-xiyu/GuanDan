@@ -88,6 +88,7 @@ private:
     QVector<int> m_roundFinishOrder;       // 按顺序记录本局完成出牌的玩家ID
     int m_activePlayersInRound;            // 本局还剩多少玩家没打完牌
 
+    QVector<Card> m_lastPlayedCards;       // 记录上次出牌时玩家选中的原始卡牌，用于正确移除手牌
     int m_currentRoundNumber;              // 当前是第几局
 
     // --游戏阶段管理--
@@ -111,7 +112,6 @@ private:
     };
     QVector<TributeInfo> m_pendingTributes; // 需要处理的进贡/还贡列表
     int m_currentTributeIndex;
-
 
     // --- 内部游戏流程方法 ---
 	void startNewRound(); // 开始新的一局 

@@ -341,6 +341,12 @@ void GuanDan::onGameStarted()
 {
     qDebug() << "GuanDan::onGameStarted - 游戏开始";
     updateGameStatus();
+    // 确保底部玩家（第一个）初始化按钮并显示
+    if (!m_playerWidgets.isEmpty()) {
+        PlayerWidget* bottomWidget = m_playerWidgets[0];
+        bottomWidget->setupButtons();
+        bottomWidget->updateButtonsState();
+    }
     
     // 添加调试代码，检查所有玩家控件的状态
     QTimer::singleShot(500, this, [this]() {
