@@ -472,32 +472,37 @@ bool GD_Controller::PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, C
 		// 如果有多个可能的组合，则需要WildCardDialog处理
 		if (possibleCombos.size() > 1)
 		{
-            qDebug() << "GD_Controller::PlayerPlay： 玩家" << player->getName() << "选择的牌有多种可出牌型，共 " << possibleCombos.size() << " 种。正在弹出选择对话框...";
-
-            // 创建并显示WildCardDialog
-            WildCardDialog dialog(possibleCombos, nullptr);
-            if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
-                // 获取用户选择的组合
-                outPlayedCombo = dialog.getSelectedCombo();
-                qDebug() << "测试：用户选择了组合";
-                qDebug() << "  类型:" << outPlayedCombo.type;
-                qDebug() << "  描述:" << outPlayedCombo.getDescription();
-                qDebug() << "  使用的牌:";
-                for (const Card& card : outPlayedCombo.cards_in_combo) {
-                    qDebug() << "    " << card.PointToString() << card.SuitToString();
-                }
+            // 多种可能组合处理：AI直接取第一，玩家仅在包含癞子时弹窗，否则也取第一
+            if (player->getType() == Player::AI) {
+                outPlayedCombo = possibleCombos.first();
                 return true;
             }
-            qDebug() << "测试：用户取消了选择";
+            bool hasWild = false;
+            for (const Card& card : cardsToPlay) {
+                if (card.isWildCard()) { hasWild = true; break; }
+            }
+            if (!hasWild) {
+                outPlayedCombo = possibleCombos.first();
+                return true;
+            }
+            // 包含癞子，弹框让玩家选择具体牌型
+            WildCardDialog dialog(possibleCombos, nullptr);
+            if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
+                outPlayedCombo = dialog.getSelectedCombo();
+                return true;
+            }
             return false;
 		}
     }
     // 不能出牌，返回false
     else
     {
+        qDebug() << "当前场上牌型为 " << m_currentTableCombo.type << " ，当前牌型等级为 " << m_currentTableCombo.level;
         qDebug() << "GD_Controller::PlayerPlay： 玩家" << player->getName() << "选择的牌不符合出牌规则";
         return false;
 	}
+	qDebug() << "GD_Controller::PlayerPlay： 错误错误错误！！！";
+    return false;
 }
 
 // 玩家选择手牌后出牌处理函数
@@ -843,6 +848,20 @@ void GD_Controller::processNextTributeAction()
          } else {
 			 qDebug("GD_Controller::processNextTributeAction(): 请选择一张牌还贡给对手");
          }
+        // AI 自动还贡：只还手中最小的一张牌
+        if (fromPlayer->getType() == Player::AI) {
+            QVector<Card> hand = fromPlayer->getHandCards();
+            std::sort(hand.begin(), hand.end());
+            if (!hand.isEmpty()) {
+                Card smallest = hand.first();
+                int fid = currentTribute.fromPlayerId;
+                // 延迟调用以安全执行槽函数
+                QTimer::singleShot(0, [this, fid, smallest]() {
+                    this->onPlayerTributeCardSelected(fid, smallest);
+                });
+            }
+            return;
+        }
     }
     else {
         // 进贡阶段：让玩家选择牌
