@@ -9,6 +9,8 @@ GuanDan::GuanDan(QWidget* parent)
     : QMainWindow(parent)
     , m_gameController(nullptr)
     , m_startButton(nullptr)
+    , m_globalPlayButton(nullptr)
+    , m_globalSkipButton(nullptr)
     , m_centralWidget(nullptr)
     , m_mainLayout(nullptr)
     , m_gameInProgress(false)
@@ -72,6 +74,15 @@ void GuanDan::initializeUI()
     // 为控制区域创建布局
     QHBoxLayout* controlLayout = new QHBoxLayout(controlArea);
     controlLayout->addWidget(m_startButton, 0, Qt::AlignCenter);
+    // 全局出牌/跳过按钮，仅在玩家0回合可见
+    m_globalPlayButton = new QPushButton(tr("出牌"), controlArea);
+    m_globalPlayButton->setFixedSize(100, 40);
+    m_globalPlayButton->hide();
+    controlLayout->addWidget(m_globalPlayButton, 0, Qt::AlignCenter);
+    m_globalSkipButton = new QPushButton(tr("跳过"), controlArea);
+    m_globalSkipButton->setFixedSize(100, 40);
+    m_globalSkipButton->hide();
+    controlLayout->addWidget(m_globalSkipButton, 0, Qt::AlignCenter);
 
     // 将控制区域添加到主布局
     m_mainLayout->addWidget(controlArea);
@@ -138,6 +149,31 @@ void GuanDan::setupConnections()
 {
     // 连接开始游戏按钮
     connect(m_startButton, &QPushButton::clicked, this, &GuanDan::startGame);
+
+    // 连接全局出牌/跳过按钮
+    connect(m_globalPlayButton, &QPushButton::clicked, this, [this]() {
+        // 从底部玩家获取选中牌
+        QVector<Card> cards = m_playerWidgets[0]->getSelectedCards();
+        if (!cards.isEmpty()) {
+            m_gameController->onPlayerPlay(0, cards);
+        }
+    });
+    connect(m_globalSkipButton, &QPushButton::clicked, this, [this]() {
+        m_gameController->onPlayerPass(0);
+    });
+    // 根据控制器启用信号控制全局按钮显示
+    connect(m_gameController, &GD_Controller::sigEnablePlayerControls,
+        this, [this](int playerId, bool canPlay, bool canPass) {
+            if (playerId == 0) {
+                m_globalPlayButton->setVisible(canPlay);
+                m_globalPlayButton->setEnabled(canPlay);
+                m_globalSkipButton->setVisible(canPass);
+                m_globalSkipButton->setEnabled(canPass);
+            } else {
+                m_globalPlayButton->hide();
+                m_globalSkipButton->hide();
+            }
+        });
 
     // 连接游戏控制器信号
     connect(m_gameController, &GD_Controller::sigGameStarted,
@@ -248,10 +284,12 @@ void GuanDan::arrangePlayerWidgets()
     int margin = 20;
     
     // 计算玩家区域的大小
-    int horizontalWidth = qMin(800, gameSize.width() - 2 * margin);
+    // 底部/顶部玩家区域使用全宽度以容纳更多卡牌
+    int horizontalWidth = gameSize.width() - 2 * margin;
     int verticalWidth = 180;
     int verticalHeight = qMin(600, gameSize.height() - 2 * margin);
-    int horizontalHeight = 180;
+    // 增加底部/顶部玩家区域高度
+    int horizontalHeight = 240;
 
     // 设置玩家界面位置和大小
     // 底部玩家

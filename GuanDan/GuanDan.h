@@ -38,6 +38,8 @@ private:
     QVector<PlayerWidget*> m_playerWidgets; // 玩家界面
     QVector<Player*> m_players;         // 玩家对象
     QPushButton* m_startButton;         // 开始游戏按钮
+    QPushButton* m_globalPlayButton;    // 全局出牌按钮
+    QPushButton* m_globalSkipButton;    // 全局跳过按钮
     QWidget* m_centralWidget;           // 中央窗口部件
     QVBoxLayout* m_mainLayout;          // 主布局
     
