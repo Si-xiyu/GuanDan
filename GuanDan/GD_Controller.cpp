@@ -3,11 +3,9 @@
 #include <QDebug>
 #include <algorithm>
 #include <QTextStream>
-#include <QTimer>
 
 #include "carddeck.h"
 #include "WildCardDialog.h"
-#include "NPCPlayer.h"
 
 GD_Controller::GD_Controller(QObject* parent)
     : QObject(parent)
@@ -961,22 +959,6 @@ void GD_Controller::handleCircleEnd()
     qDebug() << "GD_Controller::handleCircleEnd： 发送启用控制信号 for playerId=" << m_currentPlayerId;
     // 重新启用玩家控制
     emit sigEnablePlayerControls(m_currentPlayerId, true, true);
-
-    // 如果当前玩家是 AI，自动出牌
-    NPCPlayer* aiPlayer = qobject_cast<NPCPlayer*>(getPlayerById(m_currentPlayerId));
-    if (aiPlayer) {
-        // 获取AI选择的牌
-        QVector<Card> aiCards = aiPlayer->choosePlay(m_currentTableCombo);
-        int playerId = m_currentPlayerId;
-        // 延迟调用以让UI更新
-        QTimer::singleShot(500, this, [this, playerId, aiCards]() {
-            if (aiCards.isEmpty()) {
-                this->onPlayerPass(playerId);
-            } else {
-                this->onPlayerPlay(playerId, aiCards);
-            }
-        });
-    }
 }
 
 void GD_Controller::nextPlayer()
