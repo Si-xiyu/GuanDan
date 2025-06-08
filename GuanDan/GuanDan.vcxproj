@@ -98,6 +98,7 @@
     <ClCompile Include="GD_Controller.cpp" />
     <ClCompile Include="HMPlayer.cpp" />
     <ClCompile Include="Levelstatus.cpp" />
+    <ClCompile Include="LevelStatusWidget.cpp" />
     <ClCompile Include="NPCPlayer.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="PlayerWidget.cpp" />
@@ -116,9 +117,10 @@
     <ClInclude Include="Carddeck.h" />
     <QtMoc Include="WildCardDialog.h" />
     <QtMoc Include="GD_Controller.h" />
-    <ClInclude Include="HMPlayer.h" />
+    <QtMoc Include="HMPlayer.h" />
     <ClInclude Include="Levelstatus.h" />
     <QtMoc Include="PlayerWidget.h" />
+    <QtMoc Include="LevelStatusWidget.h" />
     <ClInclude Include="NPCPlayer.h" />
     <ClInclude Include="Team.h" />
     <QtMoc Include="CardWidget.h" />

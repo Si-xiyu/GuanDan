@@ -4,6 +4,9 @@
 #include <QApplication>
 #include <QTimer>
 #include <QDebug>
+#include "NPCPlayer.h"
+#include "HMPlayer.h"
+#include "Cardcombo.h"
 
 GuanDan::GuanDan(QWidget* parent)
     : QMainWindow(parent)
@@ -112,8 +115,15 @@ void GuanDan::createPlayers()
 
     // 创建四个玩家界面
     for (int i = 0; i < 4; ++i) {
-        // 创建玩家对象
-        Player* player = new Player(QString("玩家%1").arg(i), i);
+        // 创建玩家对象：ID为0的玩家使用HMPlayer，其余使用NPCPlayer
+        Player* player;
+        if (i == 0) {
+            // 人类玩家
+            player = new Player(QString("玩家%1").arg(i), i);
+        } else {
+            // AI 玩家
+            player = new NPCPlayer(QString("玩家%1").arg(i), i);
+        }
         m_players.append(player);
         qDebug() << "创建玩家:" << player->getName() << "ID:" << player->getID();
         
@@ -208,34 +218,53 @@ void GuanDan::setupConnections()
 
     // 连接玩家界面信号
     for (PlayerWidget* widget : m_playerWidgets) {
-        // 当玩家选择卡牌时更新按钮状态，但不重新显示所有卡牌
+        // 当玩家选择卡牌时更新按钮状态，并转发给HMPlayer缓存选牌
         connect(widget, &PlayerWidget::cardsSelected,
             [this, widget](const QVector<Card>& cards) {
                 qDebug() << "收到卡牌选择信号 - 玩家:" << widget->getPlayer()->getName()
                          << "选中卡牌数量:" << cards.size();
-                
-                // 只更新按钮状态，不重新显示所有卡牌
                 widget->updateButtonsState();
+                if (auto hm = qobject_cast<HMPlayer*>(widget->getPlayer())) {
+                    hm->onCardsSelected(cards);
+                }
             });
-        
-        // 当玩家选择卡牌时通知游戏控制器
+        // 当玩家请求出牌时，根据玩家类型选择处理方式
         connect(widget, &PlayerWidget::playCardsRequested,
             [this, widget]() {
-                if (widget->getPlayer()) {
+                Player* p = widget->getPlayer();
+                if (!p) return;
+                if (auto hm = qobject_cast<HMPlayer*>(p)) {
+                    hm->onPlayButtonClicked();
+                } else {
                     QVector<Card> selectedCards = widget->getSelectedCards();
                     if (!selectedCards.isEmpty()) {
-                        m_gameController->onPlayerPlay(widget->getPlayer()->getID(), selectedCards);
+                        m_gameController->onPlayerPlay(p->getID(), selectedCards);
                     }
                 }
             });
-            
-        // 当玩家点击跳过按钮时通知游戏控制器
+        // 当玩家点击跳过按钮时，根据玩家类型选择处理方式
         connect(widget, &PlayerWidget::skipTurnRequested,
             [this, widget]() {
-                if (widget->getPlayer()) {
-                    m_gameController->onPlayerPass(widget->getPlayer()->getID());
+                Player* p = widget->getPlayer();
+                if (!p) return;
+                if (auto hm = qobject_cast<HMPlayer*>(p)) {
+                    hm->onPassButtonClicked();
+                } else {
+                    m_gameController->onPlayerPass(p->getID());
                 }
             });
+    }
+
+    // 将HMPlayer的提交信号连接到游戏控制器
+    for (Player* p : m_players) {
+        if (auto hm = qobject_cast<HMPlayer*>(p)) {
+            connect(hm, &HMPlayer::playCardsSubmitted,
+                m_gameController, &GD_Controller::onPlayerPlay);
+            connect(hm, &HMPlayer::passSubmitted,
+                m_gameController, &GD_Controller::onPlayerPass);
+            connect(hm, &HMPlayer::requestHint,
+                m_gameController, &GD_Controller::onPlayerRequestHint);
+        }
     }
 
     // 连接游戏控制器的玩家控制信号
@@ -272,6 +301,22 @@ void GuanDan::setupConnections()
                 }
             }
         });
+
+    // 连接桌面牌显示信号
+    connect(m_gameController, &GD_Controller::sigClearTableCards,
+        this, [this]() {
+            for (PlayerWidget* widget : m_playerWidgets) {
+                widget->clearPlayedCardsArea();
+            }
+        });
+    connect(m_gameController, &GD_Controller::sigUpdateTableCards,
+        this, [this](const CardCombo::ComboInfo& combo, const QString& playerName) {
+            for (PlayerWidget* widget : m_playerWidgets) {
+                if (widget->getPlayer() && widget->getPlayer()->getName() == playerName) {
+                    widget->displayPlayedCombo(combo.cards_in_combo);
+                }
+            }
+        });
 }
 
 void GuanDan::arrangePlayerWidgets()
@@ -284,8 +329,7 @@ void GuanDan::arrangePlayerWidgets()
     int margin = 20;
     
     // 计算玩家区域的大小
-    // 底部/顶部玩家区域使用全宽度以容纳更多卡牌
-    int horizontalWidth = gameSize.width() - 2 * margin;
+    int horizontalWidth = qMin(800, gameSize.width() - 2 * margin);
     int verticalWidth = 180;
     int verticalHeight = qMin(600, gameSize.height() - 2 * margin);
     // 增加底部/顶部玩家区域高度

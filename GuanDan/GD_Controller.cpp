@@ -3,9 +3,11 @@
 #include <QDebug>
 #include <algorithm>
 #include <QTextStream>
+#include <QTimer>
 
 #include "carddeck.h"
 #include "WildCardDialog.h"
+#include "NPCPlayer.h"
 
 GD_Controller::GD_Controller(QObject* parent)
     : QObject(parent)
@@ -471,16 +473,16 @@ bool GD_Controller::PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, C
     {
         qDebug() << "GD_Controller::PlayerPlay： 玩家" << player->getName() << "选择的牌不符合出牌规则";
         return false;
-	}
+    }
 }
 
 // 玩家选择手牌后出牌处理函数
 void GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& playedCombo)
 {
-    // 如果出牌不合法
+	// 如果出牌不合法
     if (playedCombo.type == CardComboType::Invalid) {
         return;
-    }
+	}
     // 从玩家手牌中移除玩家选中的原始卡牌
     Player* player = getPlayerById(playerId);
     player->removeCards(m_lastPlayedCards);
@@ -959,6 +961,22 @@ void GD_Controller::handleCircleEnd()
     qDebug() << "GD_Controller::handleCircleEnd： 发送启用控制信号 for playerId=" << m_currentPlayerId;
     // 重新启用玩家控制
     emit sigEnablePlayerControls(m_currentPlayerId, true, true);
+
+    // 如果当前玩家是 AI，自动出牌
+    NPCPlayer* aiPlayer = qobject_cast<NPCPlayer*>(getPlayerById(m_currentPlayerId));
+    if (aiPlayer) {
+        // 获取AI选择的牌
+        QVector<Card> aiCards = aiPlayer->choosePlay(m_currentTableCombo);
+        int playerId = m_currentPlayerId;
+        // 延迟调用以让UI更新
+        QTimer::singleShot(500, this, [this, playerId, aiCards]() {
+            if (aiCards.isEmpty()) {
+                this->onPlayerPass(playerId);
+            } else {
+                this->onPlayerPlay(playerId, aiCards);
+            }
+        });
+    }
 }
 
 void GD_Controller::nextPlayer()
