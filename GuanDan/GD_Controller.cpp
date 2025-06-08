@@ -90,57 +90,46 @@ void GD_Controller::startGame()
 // 只进行了判断合法性和处理玩家手牌，信号部分没有处理
 void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
 {
-    // 1. 处理部分
-    if (m_currentPhase != GamePhase::Playing) {
-        emit sigShowPlayerMessage(playerId, "当前不是出牌阶段", true);
+    qDebug() << "GD_Controller::onPlayerPlay： playerId=" << playerId << " cardsToPlay=" << cardsToPlay.size();
+    QString errorMsg;
+    if (!canPerformAction(playerId, errorMsg)) {
+        emit sigShowPlayerMessage(playerId, errorMsg, true);
         return;
     }
 
-    if (playerId != m_currentPlayerId) {
-        emit sigShowPlayerMessage(playerId, "还没轮到您出牌", true);
-        return;
-    }
-    // 默认Combo是非法
-    CardCombo::ComboInfo out_played_combo;
-	// 验证玩家出牌是否合法，并返回所出的牌型信息playedCombo
-    if (!PlayerPlay(playerId, cardsToPlay, out_played_combo)) { // 如果出牌合法，会返回确定的牌组，反之不变
+    CardCombo::ComboInfo playedCombo;
+    if (!PlayerPlay(playerId, cardsToPlay, playedCombo)) {
         emit sigShowPlayerMessage(playerId, "出牌不符合规则", true);
         return;
     }
-    // 处理玩家手牌
-    processPlayerPlay(playerId, out_played_combo);
+    executePlay(playerId, playedCombo);
 
-    // 2. 全局更新部分
-
-    // 先检查是否有人出完牌（可能直接结束回合）
-    if (checkRoundEnd()) { // 更新m_roundFinishOrder和m_activePlayersInRound
-        
+    if (handleRoundEnd()) {
+        return;
     }
-
-    // 再检查一圈是否结束
-    checkCircleEnd();
+    handleCircleEnd();
 }
 
 // 处理玩家过牌操作(总方法)
 void GD_Controller::onPlayerPass(int playerId)
 {
-    // 1. 实现玩家的过牌操作和全局逻辑
-    if (m_currentPhase != GamePhase::Playing) {
-        emit sigShowPlayerMessage(playerId, "当前不是出牌阶段", true);
+    qDebug() << "GD_Controller::onPlayerPass： playerId=" << playerId;
+    QString errorMsg;
+    if (!canPerformAction(playerId, errorMsg)) {
+        emit sigShowPlayerMessage(playerId, errorMsg, true);
         return;
     }
-
-    if (playerId != m_currentPlayerId) {
-        emit sigShowPlayerMessage(playerId, "还没轮到您操作", true);
-        return;
-    }
-
-    // 检查是否可以过牌（第一个出牌的人不能过牌）
+    // 第一个出牌的人不能过牌的检查留在canPerformAction或executePass前
     if (m_currentTableCombo.type == CardComboType::Invalid) {
         emit sigShowPlayerMessage(playerId, "您是第一个出牌，不能过牌", true);
         return;
     }
-    processPlayerPass(playerId);
+    executePass(playerId);
+
+    if (handleRoundEnd()) {
+        return;
+    }
+    handleCircleEnd();
 }
 
 // 实现提示功能
@@ -553,64 +542,37 @@ void GD_Controller::processPlayerPass(int playerId)
 // 当玩家跳过时进行判定
 bool GD_Controller::checkCircleEnd()
 {
+    qDebug() << "GD_Controller::checkCircleEnd： 调用";
     // 1. 赢家开始新的一圈：检查是否所有其他活跃玩家都已过牌
     if (allOtherActivePlayersPassed(m_circleLeaderId)) {
+        qDebug() << "GD_Controller::checkCircleEnd： 所有其他玩家已过, leaderId=" << m_circleLeaderId;
         // 一圈结束，赢家开始新一圈，重置桌面牌型
+        resetCircleState();
+        // 发送重置信号
+        emitCircleResetSignals();
+        return true;
+    } else if (m_roundFinishOrder.size() <= 2) {
+        qDebug() << "GD_Controller::checkCircleEnd： 第一或第二玩家出完牌, 清空桌面";
         resetTableCombo();
-        m_passedPlayersInCircle.clear();
         emit sigClearTableCards();
-
-        // 重置当前玩家ID为这小轮的赢家（没人大过他）
-        m_currentPlayerId = m_circleLeaderId;
-        emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
-        emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-
-		return true; // 返回true表示一圈结束
     }
-	// 2. 出完牌,下家开始新的一圈：检查是否把手里的牌出完了
-    else if (m_roundFinishOrder.size() <= 2) {
-            // 如果这是第一、二个出完牌的玩家，清空桌面开始新一圈
-             
-                resetTableCombo();
-                emit sigClearTableCards();
-            }
+    qDebug() << "GD_Controller::checkCircleEnd： 未触发圈结束";
+    return false;
 }
 
 // 当玩家出完牌时判定
 bool GD_Controller::checkRoundEnd()
 {
-    // 检查是否有玩家出完牌
-    for (auto it = m_players.begin(); it != m_players.end(); ++it) {
-        Player* player = it.value();
-        if (player && player->getHandCards().isEmpty() && !m_roundFinishOrder.contains(it.key())) {
-            // 更新m_roundFinishOrder和m_activePlayersInRound
-        	m_roundFinishOrder.append(it.key());
-            m_activePlayersInRound--;
-
-            QString message = QString("%1 出完了所有牌，获得第%2名！")
-                .arg(player->getName())
-                .arg(5 - m_activePlayersInRound);
-            emit sigBroadcastMessage(message);
-        }
-    }
-
-    // 如果只剩一个玩家，本局结束
-    if (m_activePlayersInRound <= 1) {
-        // 将最后一名玩家加入排名
-        for (auto it2 = m_players.begin(); it2 != m_players.end(); ++it2) {
-            if (!m_roundFinishOrder.contains(it2.key())) {
-                m_roundFinishOrder.append(it2.key());
-                break;
-            }
-        }
+    qDebug() << "GD_Controller::checkRoundEnd： 调用";
+    updateFinishedPlayers();
+    if (isLastPlayerStanding()) {
+        qDebug() << "GD_Controller::checkRoundEnd： 仅剩一名玩家";
+        appendLastPlayer();
         processRoundResults();
-        return true; // 回合结束
+        return true;
     }
-
-    else
-    {
-		return false; // 回合未结束
-    } 
+    qDebug() << "GD_Controller::checkRoundEnd： 回合继续";
+    return false;
 }
 
 void GD_Controller::processRoundResults()
@@ -950,4 +912,139 @@ bool GD_Controller::allOtherActivePlayersPassed(int currentPlayerId) const
         }
     }
     return true;
+}
+
+bool GD_Controller::canPerformAction(int playerId, QString& errorMsg)
+{
+    if (m_currentPhase != GamePhase::Playing) {
+        errorMsg = "当前不是出牌阶段";
+        return false;
+    }
+    if (playerId != m_currentPlayerId) {
+        errorMsg = "还没轮到您操作";
+        return false;
+    }
+    return true;
+}
+
+void GD_Controller::executePlay(int playerId, const CardCombo::ComboInfo& playedCombo)
+{
+    // 更新手牌并广播出牌信息
+    processPlayerPlay(playerId, playedCombo);
+    QString message = QString("%1 出牌: %2").arg(getPlayerById(playerId)->getName()).arg(playedCombo.getDescription());
+    emit sigBroadcastMessage(message);
+    qDebug() << "GD_Controller::executePlay： 出牌处理完成, playerId=" << playerId;
+    // 切换到下一个玩家
+    nextPlayer();
+}
+
+void GD_Controller::executePass(int playerId)
+{
+    // 处理过牌并广播信息
+    processPlayerPass(playerId);
+    QString message = QString("%1 选择过牌").arg(getPlayerById(playerId)->getName());
+    emit sigBroadcastMessage(message);
+    qDebug() << "GD_Controller::executePass： 过牌处理完成, playerId=" << playerId;
+    // 切换到下一个玩家
+    nextPlayer();
+}
+
+bool GD_Controller::handleRoundEnd()
+{
+    qDebug() << "GD_Controller::handleRoundEnd： 开始判断";
+    if (checkRoundEnd()) {
+        qDebug() << "GD_Controller::handleRoundEnd： 回合结束";
+        // 构建回合结束摘要
+        QStringList summary;
+        for (int id : m_roundFinishOrder) {
+            summary << getPlayerById(id)->getName();
+        }
+        emit sigRoundOver(summary.join(", "), m_roundFinishOrder);
+        return true;
+    }
+    qDebug() << "GD_Controller::handleRoundEnd： 回合未结束";
+    return false;
+}
+
+void GD_Controller::handleCircleEnd()
+{
+    qDebug() << "GD_Controller::handleCircleEnd： 开始判断圈结束";
+    if (allOtherActivePlayersPassed(m_currentPlayerId)) {
+        qDebug() << "GD_Controller::handleCircleEnd： 圈结束, leaderId=" << m_currentPlayerId;
+        // 开始新一圈
+        m_circleLeaderId = m_currentPlayerId;
+        m_currentTableCombo.type = CardComboType::Invalid;
+        m_currentTableCombo.cards_in_combo.clear();
+        m_passedPlayersInCircle.clear();
+        emit sigClearTableCards();
+    }
+    qDebug() << "GD_Controller::handleCircleEnd： 发送启用控制信号 for playerId=" << m_currentPlayerId;
+    // 重新启用玩家控制
+    emit sigEnablePlayerControls(m_currentPlayerId, true, true);
+}
+
+void GD_Controller::nextPlayer()
+{
+    QVector<int> activeIds = getActivePlayerIdsSorted();
+    auto it = std::find(activeIds.begin(), activeIds.end(), m_currentPlayerId);
+    if (it != activeIds.end() && ++it != activeIds.end()) {
+        m_currentPlayerId = *it;
+    } else {
+        m_currentPlayerId = activeIds.isEmpty() ? -1 : activeIds.front();
+    }
+    if (m_currentPlayerId >= 0) {
+        emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
+        qDebug() << "GD_Controller::nextPlayer： 当前玩家ID=" << m_currentPlayerId;
+    }
+}
+
+// 新增：扫描并更新已完成出牌的玩家状态，并发送广播
+void GD_Controller::updateFinishedPlayers()
+{
+    for (auto it = m_players.begin(); it != m_players.end(); ++it) {
+        Player* player = it.value();
+        if (player && player->getHandCards().isEmpty() && !m_roundFinishOrder.contains(it.key())) {
+            m_roundFinishOrder.append(it.key());
+            m_activePlayersInRound--;
+            QString message = QString("%1 出完了所有牌，获得第%2名！")
+                .arg(player->getName())
+                .arg(5 - m_activePlayersInRound);
+            emit sigBroadcastMessage(message);
+            qDebug() << "GD_Controller::updateFinishedPlayers： 玩家" << it.key() << "出完牌";
+        }
+    }
+}
+
+bool GD_Controller::isLastPlayerStanding() const
+{
+    return m_activePlayersInRound <= 1;
+}
+
+void GD_Controller::appendLastPlayer()
+{
+    for (auto it = m_players.begin(); it != m_players.end(); ++it) {
+        if (!m_roundFinishOrder.contains(it.key())) {
+            m_roundFinishOrder.append(it.key());
+            qDebug() << "GD_Controller::appendLastPlayer： 最后一名玩家ID=" << it.key();
+            break;
+        }
+    }
+}
+
+// 新增：重置桌面状态，开始新一圈（仅更新状态，不发送信号）
+void GD_Controller::resetCircleState()
+{
+    resetTableCombo();
+    m_passedPlayersInCircle.clear();
+    m_currentPlayerId = m_circleLeaderId;
+    qDebug() << "GD_Controller::resetCircleState： 圈状态已重置, leaderId=" << m_circleLeaderId;
+}
+
+// 新增：发送新一圈开始的UI信号
+void GD_Controller::emitCircleResetSignals()
+{
+    emit sigClearTableCards();
+    emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
+    emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+    qDebug() << "GD_Controller::emitCircleResetSignals： 信号发送完成, currentPlayerId=" << m_currentPlayerId;
 }
