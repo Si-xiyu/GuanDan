@@ -831,12 +831,7 @@ void PlayerWidget::updateCardZOrder()
 
             int totalZLevel = baseZLevel + inGroupZLevel;
             cardZOrders.append(qMakePair(card, totalZLevel));
-            
-            qDebug() << "卡牌Z顺序计算 - 卡牌:" << card->getCard().PointToString()
-                     << card->getCard().SuitToString()
-                     << "组索引:" << groupIndex
-                     << "组内索引:" << cardIndex
-                     << "计算Z值:" << totalZLevel;
+
         }
     }
 
@@ -854,9 +849,6 @@ void PlayerWidget::updateCardZOrder()
     // 按照计算的顺序逐个提升
     for (const auto& pair : cardZOrders) {
         pair.first->raise();
-        qDebug() << "设置卡牌Z顺序 - 卡牌:" << pair.first->getCard().PointToString()
-                 << pair.first->getCard().SuitToString()
-                 << "Z值:" << pair.second;
     }
 }
 
