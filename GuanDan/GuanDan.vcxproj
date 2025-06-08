@@ -102,6 +102,7 @@
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="PlayerWidget.cpp" />
     <ClCompile Include="Team.cpp" />
+    <ClCompile Include="TributeDialog.cpp" />
     <ClCompile Include="WildCardDialog.cpp" />
     <QtRcc Include="GuanDan.qrc" />
     <QtUic Include="GuanDan.ui" />
@@ -114,6 +115,7 @@
     <ClInclude Include="Card.h" />
     <ClInclude Include="Cardcombo.h" />
     <ClInclude Include="Carddeck.h" />
+    <QtMoc Include="TributeDialog.h" />
     <QtMoc Include="WildCardDialog.h" />
     <QtMoc Include="GD_Controller.h" />
     <ClInclude Include="HMPlayer.h" />

@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QDebug>
 #include "NPCPlayer.h"
+#include "TributeDialog.h"
 
 GuanDan::GuanDan(QWidget* parent)
     : QMainWindow(parent)
@@ -276,6 +277,10 @@ void GuanDan::setupConnections()
                 }
             }
         });
+
+    // 连接进贡/还贡请求，弹出TributeDialog
+    connect(m_gameController, &GD_Controller::sigAskForTribute,
+        this, &GuanDan::onAskForTribute);
 }
 
 void GuanDan::arrangePlayerWidgets()
@@ -438,5 +443,19 @@ void GuanDan::updateGameStatus()
                 );
             }
         }
+    }
+}
+
+// 处理进贡/还贡对话框
+void GuanDan::onAskForTribute(int fromPlayerId, const QString& fromPlayerName, int toPlayerId, const QString& toPlayerName, bool isReturn)
+{
+    // 仅对人类玩家弹窗
+    if (fromPlayerId != m_players[0]->getID()) return;
+    // 获取手牌
+    QVector<Card> hand = m_players[0]->getHandCards();
+    TributeDialog dialog(hand, isReturn, this);
+    if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
+        Card sel = dialog.getSelectedCard();
+        m_gameController->onPlayerTributeCardSelected(fromPlayerId, sel);
     }
 }

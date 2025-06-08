@@ -25,6 +25,7 @@ private slots:
     void onNewRoundStarted(int roundNumber); // 新一轮开始
     void onRoundOver(const QString& summary, const QVector<int>& playerRanks); // 一局结束
     void onGameOver(int winningTeamId, const QString& winningTeamName, const QString& finalMessage); // 游戏结束
+    void onAskForTribute(int fromPlayerId, const QString& fromPlayerName, int toPlayerId, const QString& toPlayerName, bool isReturn);
 
 private:
     void initializeUI();                // 初始化界面
