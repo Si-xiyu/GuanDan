@@ -352,6 +352,10 @@ void PlayerWidget::layoutCardsForBottom()
     int currentX = cardsArea.left() + (cardsArea.width() - totalWidth) / 2;
     int baseY = cardsArea.top();
 
+    // 获取窗口中心点在本控件坐标系中的起始位置
+    QPoint globalCenter = window()->geometry().center();
+    QPoint startPos = mapFromGlobal(globalCenter);
+
     // 按点数顺序布局卡片
     for (Card::CardPoint point : sortedPoints) {
         QVector<CardWidget*>& stack = m_cardStacks[point];
@@ -366,9 +370,12 @@ void PlayerWidget::layoutCardsForBottom()
             card->setRotation(0);
             card->setParent(this);
 
-            // 计算位置 - 同点数的牌向上堆叠（y坐标减小）
+            // 计算目标位置 - 同点数的牌向上堆叠（y坐标减小）
             int x = currentX;
             int y = baseY - i * CARD_OVERLAP_VERTICAL;
+
+            // 初始移动到窗口中心位置
+            card->move(startPos);
 
             // 使用动画移动到新位置
             QPropertyAnimation* animation = new QPropertyAnimation(card, "pos");
@@ -591,7 +598,6 @@ void PlayerWidget::updateHandDisplay(const QVector<Card>& handCards, bool showCa
     qDebug() << "PlayerWidget::updateHandDisplay - 玩家:" << (m_player ? m_player->getName() : "无名")
              << "卡牌数量:" << handCards.size()
              << "显示正面:" << showCardFronts;
-             
     // 停止所有动画
     stopAllAnimations();
 
@@ -618,6 +624,116 @@ void PlayerWidget::updateHandDisplay(const QVector<Card>& handCards, bool showCa
     relayoutCards();
 
     qDebug() << "手牌显示更新完成 - 创建了" << m_cardWidgets.size() << "个卡片控件";
+}
+
+void PlayerWidget::updateHandDisplayNoAnimation(const QVector<Card>& handCards, bool showCardFronts)
+{
+    qDebug() << "PlayerWidget::updateHandDisplayNoAnimation - 玩家:" << (m_player ? m_player->getName() : "无名")
+             << "卡牌数量:" << handCards.size()
+             << "显示正面:" << showCardFronts;
+    // 停止所有动画
+    stopAllAnimations();
+
+    // 清理现有卡片
+    qDeleteAll(m_cardWidgets);
+    m_cardWidgets.clear();
+    m_cardStacks.clear();
+
+    // 创建新的卡片视图
+    for (const Card& card : handCards) {
+        CardWidget* cardWidget = createCardWidget(card);
+        cardWidget->setFrontSide(showCardFronts);
+        cardWidget->setEnabled(m_isEnabled && showCardFronts);
+        m_cardWidgets.append(cardWidget);
+        m_cardStacks[card.point()].append(cardWidget);
+    }
+
+    // 对卡片进行排序并静态布局
+    sortCards();
+    relayoutCardsStatic();
+
+    qDebug() << "手牌静态更新完成 - 总计:" << m_cardWidgets.size() << "张牌";
+}
+
+// 添加静态布局函数，无动画
+void PlayerWidget::relayoutCardsStatic()
+{
+    switch (m_position) {
+    case PlayerPosition::Bottom: {
+        QRect cardsArea = rect().adjusted(CARDS_MARGIN, 2 * NAME_LABEL_HEIGHT + 10,
+            -CARDS_MARGIN, -CARDS_MARGIN);
+        if (cardsArea.width() <= 0 || cardsArea.height() <= 0) return;
+        QVector<Card::CardPoint> sortedPoints = m_cardStacks.keys().toVector();
+        std::sort(sortedPoints.begin(), sortedPoints.end());
+        int totalWidth = 0;
+        for (auto point : sortedPoints) {
+            if (!m_cardStacks[point].isEmpty()) {
+                totalWidth += CARD_WIDGET_WIDTH;
+                if (totalWidth > CARD_WIDGET_WIDTH)
+                    totalWidth -= CARD_OVERLAP_HORIZONTAL;
+            }
+        }
+        int actualOverlap = CARD_OVERLAP_HORIZONTAL;
+        if (totalWidth > cardsArea.width() && sortedPoints.size() > 1) {
+            int excessWidth = totalWidth - cardsArea.width();
+            int additionalOverlap = excessWidth / (sortedPoints.size() - 1);
+            actualOverlap = qMin(CARD_OVERLAP_HORIZONTAL + additionalOverlap,
+                CARD_WIDGET_WIDTH - 10);
+        }
+        int currentX = cardsArea.left() + (cardsArea.width() - totalWidth) / 2;
+        int baseY = cardsArea.top();
+        for (auto point : sortedPoints) {
+            auto& stack = m_cardStacks[point];
+            for (int i = 0; i < stack.size(); ++i) {
+                CardWidget* card = stack[i];
+                card->setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
+                card->setRotation(0);
+                card->setParent(this);
+                int x = currentX;
+                int y = baseY - i * CARD_OVERLAP_VERTICAL;
+                card->move(x, y);
+            }
+            currentX += CARD_WIDGET_WIDTH - actualOverlap;
+        }
+        break;
+    }
+    case PlayerPosition::Left:
+    case PlayerPosition::Right: {
+        QRect cardsArea = rect().adjusted(CARDS_MARGIN, NAME_LABEL_HEIGHT * 2 + 10,
+                                          -CARDS_MARGIN, -CARDS_MARGIN);
+        int totalHeight = (m_cardWidgets.size() - 1) * SIDE_CARD_OVERLAP + CARD_WIDGET_HEIGHT;
+        int startY = cardsArea.top() + (cardsArea.height() - totalHeight) / 2;
+        int centerX = width() / 2;
+        if (m_position == PlayerPosition::Left)
+            centerX = CARDS_MARGIN + CARD_WIDGET_HEIGHT / 2;
+        else
+            centerX = width() - CARDS_MARGIN - CARD_WIDGET_HEIGHT / 2;
+        for (int i = 0; i < m_cardWidgets.size(); ++i) {
+            CardWidget* card = m_cardWidgets[i];
+            card->setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
+            card->setRotation(m_position == PlayerPosition::Left ? -90 : 90);
+            int y = startY + i * SIDE_CARD_OVERLAP;
+            card->move(centerX - CARD_WIDGET_HEIGHT/2, y);
+        }
+        break;
+    }
+    case PlayerPosition::Top: {
+        QRect cardsArea = rect().adjusted(CARDS_MARGIN, NAME_LABEL_HEIGHT * 2 + 10,
+                                          -CARDS_MARGIN, -CARDS_MARGIN);
+        int totalWidth = (m_cardWidgets.size() - 1) * (CARD_WIDGET_WIDTH - CARD_OVERLAP_HORIZONTAL) + CARD_WIDGET_WIDTH;
+        int startX = cardsArea.left() + (cardsArea.width() - totalWidth) / 2;
+        int centerY = cardsArea.top() + (cardsArea.height() - CARD_WIDGET_HEIGHT) / 2;
+        for (int i = 0; i < m_cardWidgets.size(); ++i) {
+            CardWidget* card = m_cardWidgets[i];
+            card->setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
+            card->setRotation(0);
+            int x = startX + i * (CARD_WIDGET_WIDTH - CARD_OVERLAP_HORIZONTAL);
+            card->move(x, centerY);
+        }
+        break;
+    }
+    }
+    updateCardZOrder();
 }
 
 void PlayerWidget::setPlayerName(const QString& name)

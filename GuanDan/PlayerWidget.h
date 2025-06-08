@@ -71,6 +71,7 @@ public:
 
     // 显示更新
     void updateHandDisplay(const QVector<Card>& handCards, bool showCardFronts);
+    void updateHandDisplayNoAnimation(const QVector<Card>& handCards, bool showCardFronts);
     void displayPlayedCombo(const QVector<Card>& cards);
     void clearPlayedCardsArea();
 
@@ -103,6 +104,7 @@ protected:
 private:
     // 重新布局所有卡片
     void relayoutCards();
+    void relayoutCardsStatic();
     // 根据牌的大小顺序对卡片进行排序
     void sortCards();
     // 创建新的卡片视图
