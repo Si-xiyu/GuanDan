@@ -222,6 +222,23 @@ void RankWidget::updateRanking(const QVector<int>& finishedOrder)
 
     qDebug() << "RankWidget::updateRanking - 更新排名，已完成玩家：" << finishedOrder;
 
+    // 重新排列玩家框架顺序：先完成的，再未完成的
+    // 移除所有玩家框架
+    for (auto it = m_playerInfos.begin(); it != m_playerInfos.end(); ++it) {
+        m_mainLayout->removeWidget(it.value().frame);
+    }
+    // 构建新的顺序：已完成->未完成
+    QVector<int> orderedIds = m_finishedOrder;
+    for (auto it = m_playerInfos.begin(); it != m_playerInfos.end(); ++it) {
+        if (!m_finishedOrder.contains(it.key())) {
+            orderedIds.append(it.key());
+        }
+    }
+    // 依次插入框架
+    for (int playerId : orderedIds) {
+        m_mainLayout->insertWidget(m_mainLayout->count() - 1, m_playerInfos[playerId].frame);
+    }
+
     // 首先重置所有玩家状态
     for (auto& info : m_playerInfos) {
         info.isFinished = false;

@@ -202,7 +202,4 @@ void LevelStatusWidget::playLevelChangeAnimation(int teamId)
 
     // 启动动画
     animation->start();
-
-    // 添加音效提示（如果需要）
-    qDebug() << "LevelStatusWidget::playLevelChangeAnimation - 队伍" << teamId << "级牌变化动画播放";
 }

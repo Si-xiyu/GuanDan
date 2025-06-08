@@ -10,6 +10,7 @@
 #include <QVector>
 #include <QPropertyAnimation>
 #include <QGraphicsEffect>
+#include <QGraphicsDropShadowEffect>
 
 class Player;
 
@@ -74,7 +75,7 @@ private:
 
     // 动画相关
     QPropertyAnimation* m_currentAnimation;
-    QGraphicsEffect* m_glowEffect;
+    QGraphicsDropShadowEffect* m_glowEffect;
 
     // 样式常量
     static const QString STYLE_FRAME_NORMAL;
