@@ -96,6 +96,7 @@
     <ClCompile Include="Carddeck.cpp" />
     <ClCompile Include="CardWidget.cpp" />
     <ClCompile Include="GD_Controller.cpp" />
+    <ClCompile Include="HMPlayer.cpp" />
     <ClCompile Include="Levelstatus.cpp" />
     <ClCompile Include="NPCPlayer.cpp" />
     <ClCompile Include="Player.cpp" />
@@ -115,6 +116,7 @@
     <ClInclude Include="Carddeck.h" />
     <QtMoc Include="WildCardDialog.h" />
     <QtMoc Include="GD_Controller.h" />
+    <ClInclude Include="HMPlayer.h" />
     <ClInclude Include="Levelstatus.h" />
     <QtMoc Include="PlayerWidget.h" />
     <ClInclude Include="NPCPlayer.h" />

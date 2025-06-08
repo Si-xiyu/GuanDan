@@ -90,12 +90,14 @@ void GD_Controller::startGame()
 // 只进行了判断合法性和处理玩家手牌，信号部分没有处理
 void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
 {
-    qDebug() << "GD_Controller::onPlayerPlay： playerId=" << playerId << " cardsToPlay=" << cardsToPlay.size();
     QString errorMsg;
     if (!canPerformAction(playerId, errorMsg)) {
         emit sigShowPlayerMessage(playerId, errorMsg, true);
         return;
     }
+
+    // 记录玩家选中的原始卡牌，用于正确移除手牌
+    m_lastPlayedCards = cardsToPlay;
 
     CardCombo::ComboInfo playedCombo;
     if (!PlayerPlay(playerId, cardsToPlay, playedCombo)) {
@@ -113,7 +115,6 @@ void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
 // 处理玩家过牌操作(总方法)
 void GD_Controller::onPlayerPass(int playerId)
 {
-    qDebug() << "GD_Controller::onPlayerPass： playerId=" << playerId;
     QString errorMsg;
     if (!canPerformAction(playerId, errorMsg)) {
         emit sigShowPlayerMessage(playerId, errorMsg, true);
@@ -426,7 +427,8 @@ bool GD_Controller::PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, C
     Card::CardPoint currentLevel = m_levelStatus.getTeamPlayingLevel(getTeamOfPlayer(playerId)->getId());
     // 使用Player的canPlayCards方法验证牌型
     if (player->canPlayCards(cardsToPlay, m_currentTableCombo)) {
-        // 可以出牌，则outPlayedCombo数组为玩家选中的牌的合法牌型
+
+		// 可以出牌，则outPlayedCombo数组为玩家选中的牌的合法牌型 (处理癞子牌的情况)
         QVector<CardCombo::ComboInfo> possibleCombos = CardCombo::getAllPossibleValidPlays(
             cardsToPlay,           // 玩家选择要打出的这些牌
             player,
@@ -444,22 +446,6 @@ bool GD_Controller::PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, C
 		if (possibleCombos.size() > 1)
 		{
             qDebug() << "GD_Controller::PlayerPlay： 玩家" << player->getName() << "选择的牌有多种可出牌型，共 " << possibleCombos.size() << " 种。正在弹出选择对话框...";
-            
-            // 测试代码开始
-            qDebug() << "测试：显示所有可能的组合";
-            for (int i = 0; i < possibleCombos.size(); ++i) {
-                const CardCombo::ComboInfo& combo = possibleCombos[i];
-                qDebug() << "组合" << i + 1 << ":";
-                qDebug() << "  类型:" << combo.type;
-                qDebug() << "  描述:" << combo.getDescription();
-                qDebug() << "  使用的牌:";
-                for (const Card& card : combo.cards_in_combo) {
-                    qDebug() << "    " << card.PointToString() << card.SuitToString();
-                }
-                qDebug() << "  使用癞子数:" << combo.wild_cards_used;
-                qDebug() << "  是否同花顺炸弹:" << combo.is_flush_straight_bomb;
-                qDebug() << "-------------------";
-            }
 
             // 创建并显示WildCardDialog
             WildCardDialog dialog(possibleCombos, nullptr);
@@ -477,36 +463,27 @@ bool GD_Controller::PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, C
             }
             qDebug() << "测试：用户取消了选择";
             return false;
-            // 测试代码结束
-
-            /* 原有代码
-            // 创建并显示WildCardDialog
-            WildCardDialog dialog(possibleCombos, nullptr);
-            if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
-                // 获取用户选择的组合
-                outPlayedCombo = dialog.getSelectedCombo();
-                return true;
-            }
-            return false;
-            */
 		}
     }
+    // 不能出牌，返回false
     else
     {
+        qDebug() << "GD_Controller::PlayerPlay： 玩家" << player->getName() << "选择的牌不符合出牌规则";
         return false;
-    }
+	}
 }
 
 // 玩家选择手牌后出牌处理函数
 void GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& playedCombo)
 {
-	// 如果出牌不合法
+    // 如果出牌不合法
     if (playedCombo.type == CardComboType::Invalid) {
         return;
-	}
-    // 从玩家手牌中移除牌
+    }
+    // 从玩家手牌中移除玩家选中的原始卡牌
     Player* player = getPlayerById(playerId);
-	player->removeCards(playedCombo.cards_in_combo);
+    player->removeCards(m_lastPlayedCards);
+    m_lastPlayedCards.clear();
 
     // 更新桌面牌型
     m_currentTableCombo = playedCombo;
