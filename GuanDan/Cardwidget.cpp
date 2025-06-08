@@ -154,29 +154,17 @@ void CardWidget::paintEvent(QPaintEvent* event)
 
     // 5. 如果是级牌，添加特殊标识
     if (m_isfront && m_card.isWildCard()) {
-        // 在右上角绘制一个金色星星标记
-        painter.setPen(Qt::NoPen);
-        painter.setBrush(QColor(255, 215, 0)); // 金色
-
-        int starSize = targetRect.width() / 4; // 星星大小为卡片宽度的1/4
-        QRect starRect(targetRect.right() - starSize - 2, 2, starSize, starSize);
-
-        // 绘制一个简单的五角星
-        QPolygonF star;
-        const double PI = 3.14159265358979323846;
-        for (int i = 0; i < 5; ++i) {
-            double angle = -PI / 2 + i * 4 * PI / 5;
-            star << QPointF(
-                starRect.center().x() + starRect.width() / 2 * cos(angle),
-                starRect.center().y() + starRect.height() / 2 * sin(angle)
-            );
-            angle += 2 * PI / 5;
-            star << QPointF(
-                starRect.center().x() + starRect.width() / 4 * cos(angle),
-                starRect.center().y() + starRect.height() / 4 * sin(angle)
-            );
-        }
-        painter.drawPolygon(star);
+        // 级牌特殊：绘制金色边框
+        QPen pen(QColor(255, 215, 0)); // 金色
+        pen.setWidth(5);
+        painter.setPen(pen);
+        painter.setBrush(Qt::NoBrush);
+        // 在卡片边缘绘制边框
+        QRect borderRect = targetRect.adjusted(pen.width()/2,
+                                               pen.width()/2,
+                                               -pen.width()/2,
+                                               -pen.width()/2);
+        painter.drawRect(borderRect);
     }
 }
 
