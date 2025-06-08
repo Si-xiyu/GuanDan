@@ -114,7 +114,7 @@ void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
 
     // 先检查是否有人出完牌（可能直接结束回合）
     if (checkRoundEnd()) { // 更新m_roundFinishOrder和m_activePlayersInRound
-        return; // 如果回合结束，直接返回
+        
     }
 
     // 再检查一圈是否结束
@@ -175,56 +175,89 @@ void GD_Controller::onPlayerRequestHint(int playerId)
 
 void GD_Controller::onPlayerTributeCardSelected(int tributingPlayerId, const Card& tributeCard)
 {
-    if (m_currentPhase != GamePhase::TributeInput) {
-        emit sigShowPlayerMessage(tributingPlayerId, "当前不是进贡阶段", true);
-        return;
-    }
-
     if (m_currentTributeIndex >= m_pendingTributes.size()) {
         return;
     }
 
-    TributeInfo& currentTribute = m_pendingTributes[m_currentTributeIndex];
-    if (currentTribute.fromPlayerId != tributingPlayerId) {
-        emit sigShowPlayerMessage(tributingPlayerId, "现在不是您进贡的时候", true);
+    const TributeInfo& currentTribute = m_pendingTributes[m_currentTributeIndex];
+    if (tributingPlayerId != currentTribute.fromPlayerId) {
         return;
     }
 
-    Player* player = getPlayerById(tributingPlayerId);
-    if (!player || !player->getHandCards().contains(tributeCard)) {
-        emit sigShowPlayerMessage(tributingPlayerId, "您没有这张牌", true);
+    Player* fromPlayer = getPlayerById(currentTribute.fromPlayerId);
+    Player* toPlayer = getPlayerById(currentTribute.toPlayerId);
+    if (!fromPlayer || !toPlayer) {
         return;
     }
 
-    // 验证进贡的牌
-    bool isValidTribute = true;
-    Card::CardPoint currentLevel = m_levelStatus.getTeamPlayingLevel(player->getTeam()->getId());
+    bool isValid = false;
+    QString errorMessage;
 
-    // 获取玩家手牌中的最大牌
-    Card maxCard = tributeCard;
-    for (const Card& card : player->getHandCards()) {
-        // 跳过红桃级牌
-        if (card.suit() == Card::Heart && card.point() == currentLevel) {
-            continue;
+    if (currentTribute.isReturn) {
+        // 还贡规则检查
+        Team* fromTeam = getTeamOfPlayer(currentTribute.fromPlayerId);
+        Team* toTeam = getTeamOfPlayer(currentTribute.toPlayerId);
+        bool isTeammate = (fromTeam == toTeam);
+
+        if (isTeammate && tributeCard.point() > Card::Card_10) {
+            errorMessage = "还贡给队友的牌必须是10或以下的牌！";
         }
-        // 比较大小，使用Card的比较方法
-        if (card > maxCard) {
-            maxCard = card;
+        else {
+            isValid = true;
+        }
+    }
+    else {
+        // 进贡规则检查：必须是最大的牌
+        QVector<Card> handCards = fromPlayer->getHandCards();
+        bool isLargest = true;
+        for (const Card& card : handCards) {
+            if (card > tributeCard) {
+                isLargest = false;
+                break;
+            }
+        }
+
+        if (!isLargest) {
+            errorMessage = "进贡必须选择手牌中最大的牌！";
+        }
+        else {
+            isValid = true;
         }
     }
 
-    // 验证是否是最大的牌
-    if (tributeCard != maxCard) {
-        emit sigShowPlayerMessage(tributingPlayerId, "必须进贡您手中最大的牌（红桃级牌除外）", true);
-        return;
+    if (isValid) {
+        // 执行进贡/还贡
+        TributeInfo tribute = currentTribute;
+        tribute.card = tributeCard;
+        
+        // 更改牌的所有者
+        tribute.card.setOwner(getPlayerById(toPlayer->getID()));
+        
+        // 转移牌
+        QVector<Card> cards;
+        cards.append(tribute.card);
+        fromPlayer->removeCards(cards);
+        toPlayer->addCards(cards);
+
+        // 更新UI
+        emit sigUpdatePlayerHand(tribute.fromPlayerId, fromPlayer->getHandCards());
+        emit sigUpdatePlayerHand(tribute.toPlayerId, toPlayer->getHandCards());
+
+        QString actionName = tribute.isReturn ? "还贡" : "进贡";
+        QString cardDesc = QString("%1%2").arg(tribute.card.SuitToString()).arg(tribute.card.PointToString());
+        emit sigBroadcastMessage(QString("%1 向 %2 %3：%4")
+            .arg(fromPlayer->getName())
+            .arg(toPlayer->getName())
+            .arg(actionName)
+            .arg(cardDesc));
+
+        m_currentTributeIndex++;
+        processNextTributeAction();
     }
-
-    // 执行进贡
-    currentTribute.card = tributeCard;
-    completeTribute(currentTribute);
-
-    m_currentTributeIndex++;
-    processNextTributeAction();
+    else {
+        // 显示错误消息并让玩家重新选择
+        emit sigShowPlayerMessage(tributingPlayerId, errorMessage, true);
+    }
 }
 
 // ==================== 内部游戏流程方法 ====================
@@ -250,6 +283,7 @@ void GD_Controller::startNewRound()
 
     // 处理进贡还贡阶段
     if (m_currentRoundNumber > 1) {
+        dealCardsToPlayers();
         startTributePhaseLogic();
     }
     else {
@@ -623,10 +657,11 @@ void GD_Controller::processRoundResults()
     else {
         // 准备开始新的一局
         m_currentRoundNumber++;
-            startNewRound();
+    	startNewRound();
     }
 }
 
+// 生成一局总结
 QString GD_Controller::generateRoundSummary() const
 {
     QString summary;
@@ -705,11 +740,11 @@ void GD_Controller::startTributePhaseLogic()
     }
     else {
         // 单下情况：末游有两张大王
-        int redJokers = 0;
+        int BigJokers = 0;
         for (const Card& card : fourthPlayer->getHandCards()) {
-            if (card.point() == Card::Card_BJ) redJokers++;
+            if (card.point() == Card::Card_BJ) BigJokers++;
         }
-        canResistTribute = (redJokers >= 2);
+        canResistTribute = (BigJokers >= 2);
     }
 
     if (canResistTribute) {
@@ -780,111 +815,76 @@ void GD_Controller::processNextTributeAction()
         emit sigTributePhaseEnded();
 
         // 确定首出玩家
-        if (m_pendingTributes.size() >= 2) {
+        QVector<TributeInfo> tributes;
+        // 只收集进贡（非还贡）操作
+        for (const TributeInfo& tribute : m_pendingTributes) {
+            if (!tribute.isReturn) {
+                tributes.append(tribute);
+            }
+        }
+        if (tributes.size() >= 2) {
             // 双下情况：进贡大者先出牌
-            if (m_pendingTributes[0].card > m_pendingTributes[1].card) {
-                m_currentPlayerId = m_pendingTributes[0].fromPlayerId;
+            if (tributes[0].card > tributes[1].card) {
+                m_currentPlayerId = tributes[0].fromPlayerId;
             }
             else {
-                m_currentPlayerId = m_pendingTributes[1].fromPlayerId;
+                m_currentPlayerId = tributes[1].fromPlayerId;
             }
         }
-        else {
+        else if (tributes.size() == 1) {
             // 单下情况：进贡者先出牌
-            m_currentPlayerId = m_pendingTributes[0].fromPlayerId;
+            m_currentPlayerId = tributes[0].fromPlayerId;
         }
-
+        else {
+            // 异常情况，使用头游先出牌
+            if (!m_roundFinishOrder.isEmpty()) {
+                m_currentPlayerId = m_roundFinishOrder.first();
+            }
+        }
         m_currentPhase = GamePhase::Playing;
-        emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
-        emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+        Player* firstPlayer = getPlayerById(m_currentPlayerId);
+        if (firstPlayer) {
+            emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
+            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+        }
         return;
     }
 
     const TributeInfo& currentTribute = m_pendingTributes[m_currentTributeIndex];
-
-    if (currentTribute.isReturn) {
-        // 还贡阶段：自动选择合适的牌
-        Player* returnPlayer = getPlayerById(currentTribute.fromPlayerId);
-        Player* receivePlayer = getPlayerById(currentTribute.toPlayerId);
-
-        if (returnPlayer && receivePlayer) {
-            // 选择还贡的牌（给队友还小牌，给对手可以还任意牌）
-            Team* returnTeam = getTeamOfPlayer(currentTribute.fromPlayerId);
-            Team* receiveTeam = getTeamOfPlayer(currentTribute.toPlayerId);
-
-            QVector<Card> hand = returnPlayer->getHandCards();
-            Card returnCard;
-
-            if (returnTeam == receiveTeam) {
-                // 给队友：还10以下的牌
-                for (const Card& card : hand) {
-                    if (card.point() <= Card::Card_10) {
-                        returnCard = card;
-                        break;
-                    }
-                }
-            }
-            else {
-                // 给对手：可以还任意牌，这里选择最小的
-                if (!hand.isEmpty()) {
-                    returnCard = hand[0];
-                    for (const Card& card : hand) {
-                        if (card < returnCard) {
-                            returnCard = card;
-                        }
-                    }
-                }
-            }
-
-            // 执行还贡
-            TributeInfo tribute = currentTribute;
-            tribute.card = returnCard;
-            this->completeTribute(tribute);
-
-            m_currentTributeIndex++;
-            processNextTributeAction();
-        }
-    }
-    else {
-        // 进贡阶段：等待玩家选择
-        m_currentPhase = GamePhase::TributeInput;
-
-        Player* tributingPlayer = getPlayerById(currentTribute.fromPlayerId);
-        Player* receivingPlayer = getPlayerById(currentTribute.toPlayerId);
-
-        if (tributingPlayer && receivingPlayer) {
-            emit sigAskForTribute(currentTribute.fromPlayerId, tributingPlayer->getName(),
-                currentTribute.toPlayerId, receivingPlayer->getName(), false);
-        }
-    }
-}
-
-void GD_Controller::completeTribute(const TributeInfo& tribute)
-{
-    Player* fromPlayer = getPlayerById(tribute.fromPlayerId);
-    Player* toPlayer = getPlayerById(tribute.toPlayerId);
+    Player* fromPlayer = getPlayerById(currentTribute.fromPlayerId);
+    Player* toPlayer = getPlayerById(currentTribute.toPlayerId);
 
     if (!fromPlayer || !toPlayer) {
         return;
     }
 
-    // 转移牌
-    QVector<Card> cards;
-    cards.append(tribute.card);
-    fromPlayer->removeCards(cards);
-    toPlayer->addCards(cards);
+    if (currentTribute.isReturn) {
+        // 还贡阶段：让玩家选择牌
+        m_currentPhase = GamePhase::TributeProcess;
+        Team* fromTeam = getTeamOfPlayer(currentTribute.fromPlayerId);
+        Team* toTeam = getTeamOfPlayer(currentTribute.toPlayerId);
+        bool isTeammate = (fromTeam == toTeam);
 
-    // 更新UI
-    emit sigUpdatePlayerHand(tribute.fromPlayerId, fromPlayer->getHandCards());
-    emit sigUpdatePlayerHand(tribute.toPlayerId, toPlayer->getHandCards());
-
-    QString actionName = tribute.isReturn ? "还贡" : "进贡";
-    QString cardDesc = QString("%1%2").arg(tribute.card.SuitToString()).arg(tribute.card.PointToString());
-    emit sigBroadcastMessage(QString("%1 向 %2 %3：%4")
-        .arg(fromPlayer->getName())
-        .arg(toPlayer->getName())
-        .arg(actionName)
-        .arg(cardDesc));
+        // 发送信号，通知UI显示还贡选择界面
+        emit sigAskForTribute(currentTribute.fromPlayerId, fromPlayer->getName(),
+            currentTribute.toPlayerId, toPlayer->getName(), true);
+            
+        // 在消息中提示规则
+         if (isTeammate) {
+             qDebug("GD_Controller::processNextTributeAction(): 请选择一张10或以下的牌还贡给队友");
+         } else {
+			 qDebug("GD_Controller::processNextTributeAction(): 请选择一张牌还贡给对手");
+         }
+    }
+    else {
+        // 进贡阶段：让玩家选择牌
+        m_currentPhase = GamePhase::TributeInput;
+        emit sigAskForTribute(currentTribute.fromPlayerId, fromPlayer->getName(),
+            currentTribute.toPlayerId, toPlayer->getName(), false);
+            
+         // 提示玩家选择最大的牌
+		qDebug("GD_Controller::processNextTributeAction(): 请选择手牌中最大的牌进贡给对手");
+    }
 }
 
 // ==================== 辅助方法 ====================
@@ -944,6 +944,7 @@ bool GD_Controller::allOtherActivePlayersPassed(int currentPlayerId) const
     QVector<int> activeIds = getActivePlayerIdsSorted();
 
     for (int playerId : activeIds) {
+        // 如果除了当前玩家之外的玩家还有未跳过的，返回false
         if (playerId != currentPlayerId && !m_passedPlayersInCircle.contains(playerId)) {
             return false;
         }
