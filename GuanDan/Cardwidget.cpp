@@ -170,14 +170,14 @@ void CardWidget::paintEvent(QPaintEvent* event)
 
 void CardWidget::mousePressEvent(QMouseEvent* event)
 {
-    qDebug() << "CardWidget::mousePressEvent - 点击卡牌:" 
-             << m_card.PointToString() << m_card.SuitToString()
-             << "启用状态:" << isEnabled()
-             << "Z值:" << zValue()
-             << "位置:" << pos()
-             << "父控件:" << (parentWidget() ? parentWidget()->metaObject()->className() : "无")
-             << "可见性:" << isVisible()
-             << "大小:" << size();
+    //qDebug() << "CardWidget::mousePressEvent - 点击卡牌:" 
+    //         << m_card.PointToString() << m_card.SuitToString()
+    //         << "启用状态:" << isEnabled()
+    //         << "Z值:" << zValue()
+    //         << "位置:" << pos()
+    //         << "父控件:" << (parentWidget() ? parentWidget()->metaObject()->className() : "无")
+    //         << "可见性:" << isVisible()
+    //         << "大小:" << size();
              
     if (!isEnabled()) {
         qDebug() << "卡牌未启用，忽略点击事件";
