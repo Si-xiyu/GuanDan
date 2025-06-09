@@ -66,9 +66,16 @@ void TributeDialog::onCardClicked(CardWidget* widget)
 {
     // 清除之前的选择
     for (CardWidget* cw : m_cardWidgets) {
-        cw->setSelected(false);
+        if (cw != widget) {
+            cw->setSelected(false);
+            cw->update(); // 强制更新视图
+        }
     }
+    
+    // 设置当前选中的卡片
     widget->setSelected(true);
+    widget->update(); // 强制更新视图
+    
     m_selectedCard = widget->getCard();
     m_hasSelection = true;
     m_confirmButton->setEnabled(true);

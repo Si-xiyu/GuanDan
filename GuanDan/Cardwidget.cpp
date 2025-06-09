@@ -69,6 +69,9 @@ void CardWidget::setSelected(bool flag)
         if (m_isSelect) {
             // 如果被选中，保持当前的悬停效果
             m_isHovered = true;
+        } else {
+            // 如果取消选中，也取消悬停效果
+            m_isHovered = false;
         }
         update(); // 选中状态改变，请求重绘
     }
@@ -185,7 +188,8 @@ void CardWidget::mousePressEvent(QMouseEvent* event)
     }
     
     if (event->button() == Qt::LeftButton) {
-        setSelected(!m_isSelect);  // 使用setSelected方法来改变状态
+        // 不在这里切换选择状态，而是由外部控制
+        // setSelected(!m_isSelect);  // 移除这行
         emit clicked(this);
     }
 }
