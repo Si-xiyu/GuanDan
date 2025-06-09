@@ -61,6 +61,7 @@ private:
     QVector<CardCombo::ComboInfo> m_validCombos;
     QVector<QWidget*> m_comboWidgets;
     int m_selectedIndex;
+    QVector<QString> m_selectedStyles;
 
     // 动画相关
     QPropertyAnimation* m_selectionAnimation;
@@ -75,6 +76,7 @@ private:
     static const QString SELECTED_STYLE;
     static const QString NORMAL_STYLE;
     static const QString HOVER_STYLE;
+    static const QString SELECTED_HOVER_STYLE;
 };
 
 #endif // WILDCARDDIALOG_H

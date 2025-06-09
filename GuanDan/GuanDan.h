@@ -25,6 +25,7 @@ private slots:
     void onNewRoundStarted(int roundNumber); // 新一轮开始
     void onRoundOver(const QString& summary, const QVector<int>& playerRanks); // 一局结束
     void onGameOver(int winningTeamId, const QString& winningTeamName, const QString& finalMessage); // 游戏结束
+    void onAskForTribute(int fromPlayerId, const QString& fromPlayerName, int toPlayerId, const QString& toPlayerName, bool isReturn);
 
 private:
     void initializeUI();                // 初始化界面
@@ -35,14 +36,14 @@ private:
 
     Ui::GuanDanClass ui;
     GD_Controller* m_gameController;    // 游戏控制器
+    QVector<PlayerWidget*> m_playerWidgets; // 玩家界面
+    QVector<Player*> m_players;         // 玩家对象
     QPushButton* m_startButton;         // 开始游戏按钮
-    QPushButton* m_playButton;    // 出牌按钮
-    QPushButton* m_skipButton;    // 跳过按钮
+    QPushButton* m_globalPlayButton;    // 全局出牌按钮
+    QPushButton* m_globalSkipButton;    // 全局跳过按钮
     QWidget* m_centralWidget;           // 中央窗口部件
     QVBoxLayout* m_mainLayout;          // 主布局
     
     bool m_gameInProgress;              // 游戏进行状态
-    QVector<PlayerWidget*> m_playerWidgets; // 玩家界面
-    QVector<Player*> m_players;         // 玩家对象
 };
 

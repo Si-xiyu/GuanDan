@@ -4,16 +4,18 @@
 #include <QApplication>
 #include <QTimer>
 #include <QDebug>
+#include "NPCPlayer.h"
+#include "TributeDialog.h"
 
 GuanDan::GuanDan(QWidget* parent)
     : QMainWindow(parent)
     , m_gameController(nullptr)
     , m_startButton(nullptr)
+    , m_globalPlayButton(nullptr)
+    , m_globalSkipButton(nullptr)
     , m_centralWidget(nullptr)
     , m_mainLayout(nullptr)
     , m_gameInProgress(false)
-    , m_playButton(nullptr)
-    , m_skipButton(nullptr)
 {
     ui.setupUi(this);
     initializeUI();
@@ -71,63 +73,18 @@ void GuanDan::initializeUI()
         "}"
     );
 
-    // 创建出牌按钮
-    m_playButton = new QPushButton(tr("出牌"), controlArea);
-    m_playButton->setFixedSize(120, 50);
-    m_playButton->setStyleSheet(
-        "QPushButton {"
-        "   background-color: #2196F3;"
-        "   color: white;"
-        "   border: none;"
-        "   border-radius: 25px;"
-        "   font-size: 18px;"
-        "   font-weight: bold;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: #1E88E5;"
-        "}"
-        "QPushButton:pressed {"
-        "   background-color: #1976D2;"
-        "}"
-        "QPushButton:disabled {"
-        "   background-color: #BBDEFB;"
-        "   color: #78909C;"
-        "}"
-    );
-    m_playButton->setEnabled(false);
-    m_playButton->setVisible(false);
-
-    // 创建跳过按钮
-    m_skipButton = new QPushButton(tr("跳过"), controlArea);
-    m_skipButton->setFixedSize(120, 50);
-    m_skipButton->setStyleSheet(
-        "QPushButton {"
-        "   background-color: #FF9800;"
-        "   color: white;"
-        "   border: none;"
-        "   border-radius: 25px;"
-        "   font-size: 18px;"
-        "   font-weight: bold;"
-        "}"
-        "QPushButton:hover {"
-        "   background-color: #FB8C00;"
-        "}"
-        "QPushButton:pressed {"
-        "   background-color: #F57C00;"
-        "}"
-        "QPushButton:disabled {"
-        "   background-color: #FFE0B2;"
-        "   color: #78909C;"
-        "}"
-    );
-    m_skipButton->setEnabled(false);
-    m_skipButton->setVisible(false);
-
     // 为控制区域创建布局
     QHBoxLayout* controlLayout = new QHBoxLayout(controlArea);
     controlLayout->addWidget(m_startButton, 0, Qt::AlignCenter);
-    controlLayout->addWidget(m_playButton, 0, Qt::AlignCenter);
-    controlLayout->addWidget(m_skipButton, 0, Qt::AlignCenter);
+    // 全局出牌/跳过按钮，仅在玩家0回合可见
+    m_globalPlayButton = new QPushButton(tr("出牌"), controlArea);
+    m_globalPlayButton->setFixedSize(100, 40);
+    m_globalPlayButton->hide();
+    controlLayout->addWidget(m_globalPlayButton, 0, Qt::AlignCenter);
+    m_globalSkipButton = new QPushButton(tr("跳过"), controlArea);
+    m_globalSkipButton->setFixedSize(100, 40);
+    m_globalSkipButton->hide();
+    controlLayout->addWidget(m_globalSkipButton, 0, Qt::AlignCenter);
 
     // 将控制区域添加到主布局
     m_mainLayout->addWidget(controlArea);
@@ -157,8 +114,15 @@ void GuanDan::createPlayers()
 
     // 创建四个玩家界面
     for (int i = 0; i < 4; ++i) {
-        // 创建玩家对象
-        Player* player = new Player(QString("玩家%1").arg(i + 1), i);
+        // 创建玩家对象，底部玩家为人类，其他玩家为 AI
+        Player* player = nullptr;
+        if (i == 0) {
+            player = new Player(QString("玩家%1").arg(i), i);
+            player->setType(Player::Human);
+        } else {
+            player = new NPCPlayer(QString("AI%1").arg(i), i);
+            player->setType(Player::AI);
+        }
         m_players.append(player);
         qDebug() << "创建玩家:" << player->getName() << "ID:" << player->getID();
         
@@ -195,39 +159,30 @@ void GuanDan::setupConnections()
     // 连接开始游戏按钮
     connect(m_startButton, &QPushButton::clicked, this, &GuanDan::startGame);
 
-    // 连接出牌和跳过按钮
-    connect(m_playButton, &QPushButton::clicked, [this]() {
-        // 获取当前玩家
-        PlayerWidget* currentPlayerWidget = nullptr;
-        for (PlayerWidget* widget : m_playerWidgets) {
-            if (widget->getPosition() == PlayerPosition::Bottom) {
-                currentPlayerWidget = widget;
-                break;
-            }
-        }
-
-        if (currentPlayerWidget && currentPlayerWidget->isEnabled()) {
-            QVector<Card> selectedCards = currentPlayerWidget->getSelectedCards();
-            if (!selectedCards.isEmpty()) {
-                m_gameController->onPlayerPlay(currentPlayerWidget->getPlayer()->getID(), selectedCards);
-            }
+    // 连接全局出牌/跳过按钮
+    connect(m_globalPlayButton, &QPushButton::clicked, this, [this]() {
+        // 从底部玩家获取选中牌
+        QVector<Card> cards = m_playerWidgets[0]->getSelectedCards();
+        if (!cards.isEmpty()) {
+            m_gameController->onPlayerPlay(0, cards);
         }
     });
-
-    connect(m_skipButton, &QPushButton::clicked, [this]() {
-        // 获取当前玩家
-        PlayerWidget* currentPlayerWidget = nullptr;
-        for (PlayerWidget* widget : m_playerWidgets) {
-            if (widget->getPosition() == PlayerPosition::Bottom) {
-                currentPlayerWidget = widget;
-                break;
-            }
-        }
-
-        if (currentPlayerWidget && currentPlayerWidget->isEnabled()) {
-            m_gameController->onPlayerPass(currentPlayerWidget->getPlayer()->getID());
-        }
+    connect(m_globalSkipButton, &QPushButton::clicked, this, [this]() {
+        m_gameController->onPlayerPass(0);
     });
+    // 根据控制器启用信号控制全局按钮显示
+    connect(m_gameController, &GD_Controller::sigEnablePlayerControls,
+        this, [this](int playerId, bool canPlay, bool canPass) {
+            if (playerId == 0) {
+                m_globalPlayButton->setVisible(canPlay);
+                m_globalPlayButton->setEnabled(canPlay);
+                m_globalSkipButton->setVisible(canPass);
+                m_globalSkipButton->setEnabled(canPass);
+            } else {
+                m_globalPlayButton->hide();
+                m_globalSkipButton->hide();
+            }
+        });
 
     // 连接游戏控制器信号
     connect(m_gameController, &GD_Controller::sigGameStarted,
@@ -248,22 +203,25 @@ void GuanDan::setupConnections()
                 }
             }
         });
+    // 当玩家出牌或过牌后更新手牌显示
+    connect(m_gameController, &GD_Controller::sigUpdatePlayerHand,
+        this, [this](int playerId, const QVector<Card>& cards) {
+            qDebug() << "收到玩家手牌更新信号(无动画) - 玩家ID:" << playerId << "牌数:" << cards.size();
+            for (PlayerWidget* widget : m_playerWidgets) {
+                if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
+                    widget->updateHandDisplayNoAnimation(cards, widget->getPlayer()->getID() == 0);
+                    break;
+                }
+            }
+        });
 
     // 连接玩家界面信号
     for (PlayerWidget* widget : m_playerWidgets) {
-        // 当玩家选择卡牌时更新按钮状态
+        // 当玩家选择卡牌时更新按钮状态，但不重新显示所有卡牌
         connect(widget, &PlayerWidget::cardsSelected,
             [this, widget](const QVector<Card>& cards) {
                 qDebug() << "收到卡牌选择信号 - 玩家:" << widget->getPlayer()->getName()
                          << "选中卡牌数量:" << cards.size();
-                
-                // 更新按钮状态
-                widget->updateButtonsState();
-                
-                // 如果是底部玩家（当前玩家），更新主界面出牌按钮状态
-                if (widget->getPosition() == PlayerPosition::Bottom && widget->isEnabled()) {
-                    m_playButton->setEnabled(!cards.isEmpty());
-                }
             });
         
         // 当玩家选择卡牌时通知游戏控制器
@@ -296,21 +254,7 @@ void GuanDan::setupConnections()
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
                     found = true;
                     widget->setEnabled(canPlay);
-                    widget->updateButtonsState();
-                    widget->highlightTurn(true); // 高亮显示当前玩家
-                    
-                    // 如果是底部玩家（当前玩家），更新主界面按钮状态
-                    if (widget->getPosition() == PlayerPosition::Bottom) {
-                        m_playButton->setEnabled(canPlay && !widget->getSelectedCards().isEmpty());
-                        m_playButton->setVisible(canPlay);
-                        m_skipButton->setEnabled(canPass);
-                        m_skipButton->setVisible(canPass);
-                    }
-                    
                     qDebug() << "已更新玩家UI状态:" << widget->getPlayer()->getName();
-                } else if (widget->getPlayer()) {
-                    // 其他玩家设置为非高亮
-                    widget->highlightTurn(false);
                 }
             }
             
@@ -324,11 +268,13 @@ void GuanDan::setupConnections()
         this, [this](int playerId, const QString& playerName) {
             for (PlayerWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer()) {
-                    bool isCurrentPlayer = (widget->getPlayer()->getID() == playerId);
-                    widget->highlightTurn(isCurrentPlayer);
                 }
             }
         });
+
+    // 连接进贡/还贡请求，弹出TributeDialog
+    connect(m_gameController, &GD_Controller::sigAskForTribute,
+        this, &GuanDan::onAskForTribute);
 }
 
 void GuanDan::arrangePlayerWidgets()
@@ -341,10 +287,12 @@ void GuanDan::arrangePlayerWidgets()
     int margin = 20;
     
     // 计算玩家区域的大小
-    int horizontalWidth = qMin(800, gameSize.width() - 2 * margin);
+    // 底部/顶部玩家区域使用全宽度以容纳更多卡牌
+    int horizontalWidth = gameSize.width() - 2 * margin;
     int verticalWidth = 180;
     int verticalHeight = qMin(600, gameSize.height() - 2 * margin);
-    int horizontalHeight = 180;
+    // 增加底部/顶部玩家区域高度
+    int horizontalHeight = 240;
 
     // 设置玩家界面位置和大小
     // 底部玩家
@@ -453,6 +401,7 @@ void GuanDan::onNewRoundStarted(int roundNumber)
 {
     // 更新界面显示
     updateGameStatus();
+	qDebug() << "GuanDan::onNewRoundStarted：新一轮QMessageBox被调用,第" << roundNumber << "轮开始";
     QMessageBox::information(this, tr("新一轮"),
         tr("第 %1 轮开始").arg(roundNumber));
 }
@@ -463,6 +412,7 @@ void GuanDan::onRoundOver(const QString& summary, const QVector<int>& playerRank
     updateGameStatus();
     
     // 显示本局结果
+    qDebug() << "GuanDan::onRoundOver：本局结束QMessageBox被调用";
     QMessageBox::information(this, tr("本局结束"), summary);
 }
 
@@ -473,6 +423,7 @@ void GuanDan::onGameOver(int winningTeamId, const QString& winningTeamName, cons
     
     // 显示游戏结果
     QString message = tr("获胜队伍: %1\n%2").arg(winningTeamName).arg(finalMessage);
+    qDebug() << "GuanDan::onGameOver：游戏结束QMessageBox被调用";
     QMessageBox::information(this, tr("游戏结束"), message);
 }
 
@@ -489,5 +440,20 @@ void GuanDan::updateGameStatus()
                 );
             }
         }
+    }
+}
+
+// 处理进贡/还贡对话框
+void GuanDan::onAskForTribute(int fromPlayerId, const QString& fromPlayerName, int toPlayerId, const QString& toPlayerName, bool isReturn)
+{
+    // 仅对人类玩家弹窗
+    if (fromPlayerId != m_players[0]->getID()) return;
+    // 获取手牌
+    QVector<Card> hand = m_players[0]->getHandCards();
+    qDebug() << "GuanDan::onAskForTribute：TributeDialog被调用";
+    TributeDialog dialog(hand, isReturn, this);
+    if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
+        Card sel = dialog.getSelectedCard();
+        m_gameController->onPlayerTributeCardSelected(fromPlayerId, sel);
     }
 }

@@ -10,7 +10,6 @@
 #include <QVector>
 #include <QMap>
 #include <QPixmap>
-#include <QPushButton>
 
 #include "Player.h"     // 玩家数据类
 #include "Card.h"       // 卡牌数据类
@@ -58,45 +57,49 @@ public:
     QVector<Card> getSelectedCards() const;
 
     // 状态设置
-    void setEnabled(bool enabled);
     void setCardsVisible(bool visible);
-    void setPlayerStatus(const QString& status);
     void setHighlighted(bool highlighted);
-    void highlightTurn(bool isCurrentTurn);
+    void setEnabled(bool enabled);
+    void setPlayerStatus(const QString& status);
     void setPosition(PlayerPosition position);
     PlayerPosition getPosition() const { return m_position; }
-    void updateButtonsState();
-    void setupButtons();
 
     // 显示更新
     void updateHandDisplay(const QVector<Card>& handCards, bool showCardFronts);
+    void updateHandDisplayNoAnimation(const QVector<Card>& handCards, bool showCardFronts);
     void displayPlayedCombo(const QVector<Card>& cards);
     void clearPlayedCardsArea();
 
-    // 新增：设置玩家头像
+    // 设置玩家头像
     void setPlayerAvatar(const QString& avatarPath);
     void setDefaultAvatar();
     
-    // 新增：设置玩家背景
+    // 设置玩家背景
     void setPlayerBackground(const QString& backgroundPath);
     void setDefaultBackground();
 
 signals:
     // 当玩家选择了牌时发出信号
     void cardsSelected(const QVector<Card>& cards);
-    // 当玩家点击了某张牌时发出信号
-    void cardClicked(CardWidget* cardWidget);
     void playCardsRequested();    // 出牌信号
     void skipTurnRequested();     // 跳过信号
+
+private slots:
+    // 处理卡牌点击事件
+    void cardClicked(CardWidget* cardWidget);
 
 protected:
     virtual void resizeEvent(QResizeEvent* event) override;
     virtual void paintEvent(QPaintEvent* event) override;
     virtual void contextMenuEvent(QContextMenuEvent* event) override;  // 添加右键菜单事件处理
+    void stopAllAnimations();
+    void animateCardsRemoval(const QVector<CardWidget*>& widgets);
+    void animateCardsAddition(const QVector<CardWidget*>& widgets);
 
 private:
     // 重新布局所有卡片
     void relayoutCards();
+    void relayoutCardsStatic();
     // 根据牌的大小顺序对卡片进行排序
     void sortCards();
     // 创建新的卡片视图
@@ -133,7 +136,6 @@ private:
 
     QVector<CardWidget*> m_playedCardWidgets; // 用于显示在"牌桌"上组合的 CardWidget
 
-    bool m_isCurrentTurn; // 用于样式控制，标记是否轮到此玩家
     PlayerPosition m_position;            // 玩家位置
 
     // 新增：玩家头像相关
@@ -149,11 +151,6 @@ private:
 
     // 新增：加载默认资源
     void loadDefaultResources();
-
-    // 添加按钮
-    QPushButton* m_playButton;    // 出牌按钮
-    QPushButton* m_skipButton;    // 跳过按钮
-    QHBoxLayout* m_buttonLayout;  // 按钮布局
 };
 
 #endif // PLAYERWIDGET_H

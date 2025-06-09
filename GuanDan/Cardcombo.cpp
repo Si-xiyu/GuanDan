@@ -371,7 +371,7 @@ CardCombo::ComboInfo CardCombo::evaluateConcreteCombo(const QVector<Card>& concr
     } // 空牌组返回非法
 
     QVector<Card> cards_with_context = concrete_cards;
-    // 确保每张牌都有玩家上下文(即使该逻辑在发牌模块Deck中已经处理过)
+    // 确保每张牌都有玩家上下文(
     for (auto& card : cards_with_context) {
         if (!card.getOwner() || card.getOwner() != current_player_context) {
             card.setOwner(current_player_context);
