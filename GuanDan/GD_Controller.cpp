@@ -92,6 +92,7 @@ void GD_Controller::startGame()
 // 只进行了判断合法性和处理玩家手牌，信号部分没有处理
 void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
 {
+    qDebug() << "GD_Controller::onPlayerPlay: 玩家" << playerId << "尝试出牌，牌数:" << cardsToPlay.size();
     QString errorMsg;
     if (!canPerformAction(playerId, errorMsg)) {
         emit sigShowPlayerMessage(playerId, errorMsg, true);
@@ -104,6 +105,9 @@ void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
     CardCombo::ComboInfo playedCombo;
     if (!PlayerPlay(playerId, cardsToPlay, playedCombo)) {
         emit sigShowPlayerMessage(playerId, "出牌不符合规则", true);
+        qDebug() << "GD_Controller::onPlayerPlay: 玩家" << playerId << "出牌不符合规则 "
+			<< "当前桌面牌型为" << m_currentTableCombo.type
+			<< ",当前牌型等级为" << m_currentTableCombo.level;
         return;
     }
     executePlay(playerId, playedCombo);
@@ -365,10 +369,8 @@ void GD_Controller::dealCardsToPlayers()
         }
     }
 
-    // 设置游戏阶段为出牌阶段
-    // m_currentPhase = GamePhase::Playing;
     // 通过状态机进入游戏阶段
-    enterState(GamePhase::Playing);
+    // enterState(GamePhase::Playing);
 }
 
 void GD_Controller::determineFirstPlayerForRound()
@@ -1070,10 +1072,15 @@ bool GD_Controller::canPerformAction(int playerId, QString& errorMsg)
 {
     if (m_currentPhase != GamePhase::Playing) {
         errorMsg = "当前不是出牌阶段";
+        qDebug() << "Action failed for player" << playerId
+            << ". Reason: Invalid Phase. Current:" << static_cast<int>(m_currentPhase)
+            << ", Expected: Playing (" << static_cast<int>(GamePhase::Playing) << ")";
         return false;
     }
     if (playerId != m_currentPlayerId) {
         errorMsg = "还没轮到您操作";
+        qDebug() << "Action failed for player" << playerId
+            << ". Reason: Not current player. Current turn:" << m_currentPlayerId;
         return false;
     }
     return true;
@@ -1199,50 +1206,105 @@ void GD_Controller::enterState(GamePhase newPhase)
 {
     if (m_currentPhase == newPhase) return;
 
+    qDebug() << "状态转换：从" << static_cast<int>(m_currentPhase) << "到" << static_cast<int>(newPhase);
     m_currentPhase = newPhase;
-    qDebug() << "进入状态：" << static_cast<int>(newPhase);
 
     switch (newPhase) {
+        case GamePhase::NotStarted:
+            // 重置所有游戏状态
+            m_currentPlayerId = -1;
+            m_circleLeaderId = -1;
+            m_activePlayersInRound = 0;
+            m_currentRoundNumber = 0;
+            m_currentTableCombo.type = CardComboType::Invalid;
+            m_currentTableCombo.cards_in_combo.clear();
+            m_passedPlayersInCircle.clear();
+            break;
+
         case GamePhase::Dealing:
-            // 进入发牌阶段，调用发牌函数
+            // 进入发牌阶段，重置本轮状态
+            m_passedPlayersInCircle.clear();
+            m_activePlayersInRound = 4;
+            m_currentTableCombo.type = CardComboType::Invalid;
+            m_currentTableCombo.cards_in_combo.clear();
+            m_circleLeaderId = -1;
+            
+            // 发送新一轮开始的信号
+            emit sigNewRoundStarted(m_currentRoundNumber);
+            
+            // 获取当前级牌信息并广播
+            {
+                Card currentLevel_card;
+                currentLevel_card.setPoint(m_levelStatus.getTeamPlayingLevel(0));
+                QString levelStr = currentLevel_card.PointToString();
+                emit sigBroadcastMessage(QString("第%1局开始！当前级牌：%2").arg(m_currentRoundNumber).arg(levelStr));
+            }
+            
+            // 调用发牌函数
             dealCardsToPlayers();
             break;
 
         case GamePhase::Playing:
-            // 首次进入Playing状态，什么也不做，等待出牌
+            {
+                // 确保当前玩家已设置
+                if (m_currentPlayerId == -1) {
+                    qWarning() << "错误：进入Playing状态时currentPlayerId未设置";
+                    return;
+                }
+
+                Player* currentPlayer = getPlayerById(m_currentPlayerId);
+                if (!currentPlayer) {
+                    qWarning() << "错误：找不到当前玩家，ID:" << m_currentPlayerId;
+                    return;
+                }
+
+                // 设置当前玩家并启用其控制
+                emit sigSetCurrentTurnPlayer(m_currentPlayerId, currentPlayer->getName());
+                
+                // 如果是新的一圈开始，不能过牌
+                bool canPass = (m_currentTableCombo.type != CardComboType::Invalid);
+                emit sigEnablePlayerControls(m_currentPlayerId, true, canPass);
+
+                // 广播轮到谁出牌
+                emit sigBroadcastMessage(QString("轮到 %1 出牌！").arg(currentPlayer->getName()));
+
+                // 如果是AI玩家，触发自动出牌
+                QTimer::singleShot(0, [this]() {
+                    if (Player* p = getPlayerById(m_currentPlayerId)) {
+                        p->autoPlay(this, m_currentTableCombo);
+                    }
+                });
+            }
             break;
-        
+
         case GamePhase::TributeInput:
-            // 由 processNextTributeAction 内部管理，这里主要用于状态记录
+            // 进入进贡输入阶段，由processNextTributeAction管理具体流程
             break;
 
         case GamePhase::TributeProcess:
-            // 由 processNextTributeAction 内部管理，这里主要用于状态记录
+            // 进入进贡处理阶段，由processNextTributeAction管理具体流程
             break;
 
         case GamePhase::RoundOver:
             // 回合结束，调度结果处理
-             QTimer::singleShot(0, this, &GD_Controller::processRoundResults);
+            QTimer::singleShot(0, this, &GD_Controller::processRoundResults);
             break;
 
         case GamePhase::GameOver:
-        {
-            // 游戏结束，处理最终逻辑
-             int winnerTeamId = m_levelStatus.getGameWinnerTeamId();
-             Team* finalWinner = m_teams[winnerTeamId];
-             if (finalWinner) {
-                 QString finalMessage = QString("恭喜%1队获得最终胜利！").arg(winnerTeamId + 1);
-                 try {
-                     emit sigGameOver(winnerTeamId, QString("队伍%1").arg(winnerTeamId + 1), finalMessage);
-                 }
-                 catch (...) {
-                     qDebug() << "警告：发送游戏结束信号时发生异常";
-                 }
-             }
-            break;
-        }
-        
-        case GamePhase::NotStarted:
+            {
+                // 游戏结束，处理最终逻辑
+                int winnerTeamId = m_levelStatus.getGameWinnerTeamId();
+                Team* finalWinner = m_teams[winnerTeamId];
+                if (finalWinner) {
+                    QString finalMessage = QString("恭喜%1队获得最终胜利！").arg(winnerTeamId + 1);
+                    try {
+                        emit sigGameOver(winnerTeamId, QString("队伍%1").arg(winnerTeamId + 1), finalMessage);
+                    }
+                    catch (...) {
+                        qDebug() << "警告：发送游戏结束信号时发生异常";
+                    }
+                }
+            }
             break;
     }
 }
