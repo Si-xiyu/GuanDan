@@ -8,11 +8,11 @@
 #include <QMap>
 #include <QSet> // 用于记录已pass的玩家
 
-#include "card.h"
-#include "player.h"
-#include "team.h"
-#include "levelstatus.h"
-#include "cardcombo.h" // 包含 CardCombo::ComboInfo 和 CardComboType
+#include "Card.h"
+#include "Player.h"
+#include "Team.h"
+#include "Levelstatus.h"
+#include "Cardcombo.h" // 包含 CardCombo::ComboInfo 和 CardComboType
 
 // 前向声明UI类，如果Controller需要直接与之交互（通常通过信号槽）
 class GameWindow;
@@ -31,23 +31,23 @@ public:
     void startGame(); // 开始整个游戏（第一局）
 
 public slots:
-    // --- 来自UI的玩家操作 ---
-    // 当玩家在UI上选择了一组牌，并点击了“出牌”按钮
-    void onPlayerAttemptPlay(int playerId, const QVector<Card>& cardsToPlay);
-    // 当玩家点击了“过牌”按钮
+    // --- 来自UI的玩家操作槽函数 ---
+
+    // 当玩家在UI上选择了一组牌，并点击了"出牌"按钮(槽函数)
+    void onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay);
+    // 当玩家点击了"过牌"按钮(槽函数)
     void onPlayerPass(int playerId);
-    // 当玩家点击了“提示”按钮 (可选，如果实现提示功能)
+    // 当玩家点击了"提示"按钮 (槽函数)
     void onPlayerRequestHint(int playerId);
-    // 当玩家完成了进贡/还贡操作
+    // 当玩家完成了进贡/还贡操作 (槽函数)
     void onPlayerTributeCardSelected(int tributingPlayerId, const Card& tributeCard);
 
 
 signals:
     // --- 通知UI更新 ---
-    void sigGameStarted();
 
-	// 新一局开始信号
-    void sigNewRoundStarted(int roundNumber);
+	void sigGameStarted(); // 游戏开始信号
+    void sigNewRoundStarted(int roundNumber); 	// 新一局开始信号
     void sigCardsDealt(int playerId, const QVector<Card>& hand); // 通知玩家手牌已经发好
     void sigUpdatePlayerHand(int playerId, const QVector<Card>& newHand); // 手牌变化时更新
 
@@ -58,7 +58,7 @@ signals:
     void sigGameOver(int winningTeamId, const QString& winningTeamName, const QString& finalMessage); // 整个游戏结束
 
 	// 更新桌面牌的显示(新Round和Game开始时)
-    void sigClearTableCards(); // 清空桌面的牌（新一圈开始）
+    void sigClearTableCards(); // 清空桌面的牌（新Circle开始）
     void sigUpdateTableCards(const CardCombo::ComboInfo& lastPlayedCombo, const QString& playerName); // 更新桌面显示的牌
 
 	// 更新全局状态
@@ -84,10 +84,12 @@ private:
     int m_currentPlayerId;                 // 当前轮到出牌的玩家ID
     CardCombo::ComboInfo m_currentTableCombo; // 当前桌面上最后一手合法的牌
     int m_circleLeaderId;                  // 本圈第一个出牌的玩家ID (即m_currentTableCombo的所有者)
-    QSet<int> m_passedPlayersInCircle;     // 本圈已经选择“不出”的玩家ID
+    QSet<int> m_passedPlayersInCircle;     // 本圈已经选择"不出"的玩家ID
     QVector<int> m_roundFinishOrder;       // 按顺序记录本局完成出牌的玩家ID
+    QVector<int> m_lastRoundFinishOrder;   // 存储上一局的玩家获胜顺序，用于进贡判断
     int m_activePlayersInRound;            // 本局还剩多少玩家没打完牌
 
+    QVector<Card> m_lastPlayedCards;       // 记录上次出牌时玩家选中的原始卡牌，用于正确移除手牌
     int m_currentRoundNumber;              // 当前是第几局
 
     // --游戏阶段管理--
@@ -112,20 +114,32 @@ private:
     QVector<TributeInfo> m_pendingTributes; // 需要处理的进贡/还贡列表
     int m_currentTributeIndex;
 
-
     // --- 内部游戏流程方法 ---
+    void enterState(GamePhase newPhase); // 状态机核心：进入新状态
 	void startNewRound(); // 开始新的一局 
-	void dealCardsToPlayers(); // 给玩家发牌 Y
-    void determineFirstPlayerForRound(); // 决定新一局谁先出牌 Y
-	void nextPlayerTurn(); // 轮到下一个玩家出牌 Y
+	void dealCardsToPlayers(); // 给玩家发牌
+    void determineFirstPlayerForRound(); // 决定新一局谁先出牌
+	void nextPlayerTurn(); // 找到下一个未出完牌玩家的轮次逻辑 (仅控制m_currentPlayerId）
+    void resetTableCombo(); // 重置桌面牌型
 
-    bool canPlayerPlay(int playerId, const QVector<Card>& cardsToPlay, CardCombo::ComboInfo& outPlayedCombo);
-    bool processPlayerPlay(int playerId, const CardCombo::ComboInfo& playedCombo);
+    bool PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, CardCombo::ComboInfo& outPlayedCombo);
+	void processPlayerPlay(int playerId, const CardCombo::ComboInfo& playedCombo);
 	// 玩家是否可以跳过
     void processPlayerPass(int playerId);
+    bool checkCircleEnd();
 
-    void checkCircleEndAndNextAction(); // 检查一圈是否结束，以及后续动作 Y
-    void checkRoundEndAndNextAction();  // 检查一局是否结束
+    // 扫描并更新已完成出牌的玩家状态，并发送广播
+    void updateFinishedPlayers();
+    // 判断只剩一个玩家
+    bool isLastPlayerStanding() const;
+    // 将最后一名玩家加入完成顺序
+    void appendLastPlayer();
+
+    // 重置桌面状态，开始新一圈（仅更新状态，不发送信号）
+    void resetCircleState();
+    // 发送新一圈开始的UI信号
+    void emitCircleResetSignals();
+
     void processRoundResults();         // 处理一局结束后的计分、升级等
     QString generateRoundSummary() const;
 
@@ -140,7 +154,22 @@ private:
     bool isPlayerInGame(int playerId) const; // 玩家是否还未出完牌
     QVector<int> getActivePlayerIdsSorted() const; // 获取当前还未出完牌的玩家ID, 按座位顺序
     bool allOtherActivePlayersPassed(int currentPlayerId) const;
+
+    // 验证当前操作阶段和执行者是否合法, 返回是否合法, 同时通过errorMsg输出提示
+    bool canPerformAction(int playerId, QString& errorMsg);
+
+    // 处理玩家出牌后的流程: 更新手牌、广播消息、记录出牌信息并切换下一个玩家
+    void executePlay(int playerId, const CardCombo::ComboInfo& playedCombo);
+
+    // 处理玩家过牌后的流程: 广播消息、记录过牌信息并切换下一个玩家
+    void executePass(int playerId);
+
+    // 检查回合结束, 如结束则处理相关逻辑并返回true
+    bool handleRoundEnd();
+    void handleCircleEnd();
+
+    // 切换到下一个玩家并发出控制信号
+    void nextPlayer();
 };
 
 #endif // GD_CONTROLLER_H
-// --- END OF FILE gd_controller.h ---

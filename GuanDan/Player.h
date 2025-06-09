@@ -7,6 +7,7 @@
 #include "Cardcombo.h"
 
 class Team;
+class GD_Controller;
 
 class Player : public QObject
 {
@@ -31,6 +32,7 @@ public:
     // 手牌管理
     void addCards(const QVector<Card>& cards);
     void removeCards(const QVector<Card>& cards);
+    void clearHandCards(); // 清空所有手牌
     QVector<Card> getHandCards() const;
     void setHandCards(const QVector<Card>& cards);  // 设置手牌
 
@@ -44,6 +46,9 @@ public:
 
     // 出牌验证（调用CardCombo类）
     bool canPlayCards(const QVector<Card>& cards, CardCombo::ComboInfo& current_table) const;
+
+    // 玩家回合自动行为：默认无操作，人类等待UI，AI在子类中重写出牌逻辑
+    virtual void autoPlay(GD_Controller* controller, const CardCombo::ComboInfo& currentTableCombo) { }
 
 signals:
     void cardsUpdated(); // 手牌变化信号
