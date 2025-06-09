@@ -401,6 +401,7 @@ void GuanDan::onNewRoundStarted(int roundNumber)
 {
     // 更新界面显示
     updateGameStatus();
+	qDebug() << "GuanDan::onNewRoundStarted：新一轮QMessageBox被调用,第" << roundNumber << "轮开始";
     QMessageBox::information(this, tr("新一轮"),
         tr("第 %1 轮开始").arg(roundNumber));
 }
@@ -411,6 +412,7 @@ void GuanDan::onRoundOver(const QString& summary, const QVector<int>& playerRank
     updateGameStatus();
     
     // 显示本局结果
+    qDebug() << "GuanDan::onRoundOver：本局结束QMessageBox被调用";
     QMessageBox::information(this, tr("本局结束"), summary);
 }
 
@@ -421,6 +423,7 @@ void GuanDan::onGameOver(int winningTeamId, const QString& winningTeamName, cons
     
     // 显示游戏结果
     QString message = tr("获胜队伍: %1\n%2").arg(winningTeamName).arg(finalMessage);
+    qDebug() << "GuanDan::onGameOver：游戏结束QMessageBox被调用";
     QMessageBox::information(this, tr("游戏结束"), message);
 }
 
@@ -447,6 +450,7 @@ void GuanDan::onAskForTribute(int fromPlayerId, const QString& fromPlayerName, i
     if (fromPlayerId != m_players[0]->getID()) return;
     // 获取手牌
     QVector<Card> hand = m_players[0]->getHandCards();
+    qDebug() << "GuanDan::onAskForTribute：TributeDialog被调用";
     TributeDialog dialog(hand, isReturn, this);
     if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
         Card sel = dialog.getSelectedCard();
