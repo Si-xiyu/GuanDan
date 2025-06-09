@@ -56,6 +56,12 @@ QVector<Card> Player::getHandCards() const
     return m_handCards;
 }
 
+void Player::clearHandCards()
+{
+    m_handCards.clear();
+    emit cardsUpdated();
+}
+
 void Player::setTeam(Team* team)
 {
     m_team = team;

@@ -16,10 +16,9 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     , m_player(player)
     , m_position(position)
     , m_isCurrentPlayer(isCurrentPlayer)
-    , m_isEnabled(false)
+    , m_isEnabled(true)
     , m_isHighlighted(false)
-    , m_isCurrentTurn(false)
-    , m_useCustomBackground(false)
+    , m_useCustomBackground(true)
 {
     // 加载默认资源
     loadDefaultResources();
@@ -713,25 +712,6 @@ void PlayerWidget::relayoutCardsStatic()
 void PlayerWidget::setPlayerName(const QString& name)
 {
     m_nameLabel->setText(name);
-}
-
-void PlayerWidget::highlightTurn(bool isCurrentTurn)
-{
-    qDebug() << "PlayerWidget::highlightTurn - 玩家:" << (m_player ? m_player->getName() : "无名") 
-             << "高亮状态改变:" << m_isCurrentTurn << "->" << isCurrentTurn;
-             
-    m_isCurrentTurn = isCurrentTurn;
-    
-    // 根据是否是当前回合设置不同的样式
-    if (isCurrentTurn) {
-        // 当前回合的高亮样式
-        setStyleSheet("PlayerWidget { background-color: rgba(0, 180, 0, 220); border: 2px solid gold; border-radius: 10px; }");
-    } else {
-        // 非当前回合的样式
-        setStyleSheet("PlayerWidget { background-color: rgba(0, 100, 0, 180); border-radius: 10px; }");
-    }
-    
-    update();
 }
 
 void PlayerWidget::setPosition(PlayerPosition position)

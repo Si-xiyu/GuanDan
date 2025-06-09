@@ -256,31 +256,71 @@ void GD_Controller::onPlayerTributeCardSelected(int tributingPlayerId, const Car
 
 void GD_Controller::startNewRound()
 {
-    m_currentPhase = GamePhase::Dealing;
-    // m_roundFinishOrder 在 processRoundResults 中清空，保留上一局结果以便确定首发玩家
-    m_passedPlayersInCircle.clear();
-    m_activePlayersInRound = 4;
-    m_currentTableCombo.type = CardComboType::Invalid;
-    m_currentTableCombo.cards_in_combo.clear();
-    m_circleLeaderId = -1;
+    try {
+        qDebug() << "GD_Controller::startNewRound - 开始新一局";
+        qDebug() << "当前局数: " << m_currentRoundNumber;
+        
+        // 重置状态
+        m_currentPhase = GamePhase::Dealing;
+        m_passedPlayersInCircle.clear();
+        m_activePlayersInRound = 4;
+        m_currentTableCombo.type = CardComboType::Invalid;
+        m_currentTableCombo.cards_in_combo.clear();
+        m_circleLeaderId = -1;
 
-    // 发送新一轮开始的信号
-    emit sigNewRoundStarted(m_currentRoundNumber);
+        // 发送新一轮开始的信号
+        emit sigNewRoundStarted(m_currentRoundNumber);
 
-    // 获取当前级牌信息
-    Card currentLevel_card;
-    currentLevel_card.setPoint(m_levelStatus.getTeamPlayingLevel(0)); // 两队级牌相同
-    QString levelStr = currentLevel_card.PointToString();
-    emit sigBroadcastMessage(QString("第%1局开始！当前级牌：%2").arg(m_currentRoundNumber).arg(levelStr));
+        // 获取当前级牌信息
+        Card currentLevel_card;
+        currentLevel_card.setPoint(m_levelStatus.getTeamPlayingLevel(0)); // 两队级牌相同
+        QString levelStr = currentLevel_card.PointToString();
+        emit sigBroadcastMessage(QString("第%1局开始！当前级牌：%2").arg(m_currentRoundNumber).arg(levelStr));
 
-    // 处理进贡还贡阶段
-    if (m_currentRoundNumber > 1 && m_roundFinishOrder.size() == 4) {
-        startTributePhaseLogic();
-    } else {
+        // 先给所有玩家发牌
         dealCardsToPlayers();
+
+        // 暂时注释掉进贡还贡相关逻辑
+        /*
+        if (m_currentRoundNumber > 1 && m_lastRoundFinishOrder.size() == 4) {
+            qDebug() << "开始进贡阶段 - 上局排名:";
+            for (int i = 0; i < m_lastRoundFinishOrder.size(); ++i) {
+                Player* player = getPlayerById(m_lastRoundFinishOrder[i]);
+                if (player) {
+                    qDebug() << QString("第%1名: %2").arg(i + 1).arg(player->getName());
+                }
+            }
+            startTributePhaseLogic();
+        } else {
+            qDebug() << "跳过进贡阶段 - 当前局数:" << m_currentRoundNumber 
+                    << "上局排名数量:" << m_lastRoundFinishOrder.size();
+            determineFirstPlayerForRound();
+        }
+        */
+
+        // 直接确定首个出牌玩家
+        determineFirstPlayerForRound();
     }
-    // 统一确定本局首个出牌玩家
-    determineFirstPlayerForRound();
+    catch (const std::exception& e) {
+        qDebug() << "GD_Controller::startNewRound 发生异常:" << e.what();
+        // 错误恢复：设置玩家0为首个出牌玩家
+        m_currentPlayerId = 0;
+        m_circleLeaderId = m_currentPlayerId;
+        if (Player* p = getPlayerById(m_currentPlayerId)) {
+            emit sigSetCurrentTurnPlayer(m_currentPlayerId, p->getName());
+            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+        }
+    }
+    catch (...) {
+        qDebug() << "GD_Controller::startNewRound 发生未知异常";
+        // 错误恢复：设置玩家0为首个出牌玩家
+        m_currentPlayerId = 0;
+        m_circleLeaderId = m_currentPlayerId;
+        if (Player* p = getPlayerById(m_currentPlayerId)) {
+            emit sigSetCurrentTurnPlayer(m_currentPlayerId, p->getName());
+            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+        }
+    }
 }
 
 void GD_Controller::dealCardsToPlayers()
@@ -290,8 +330,8 @@ void GD_Controller::dealCardsToPlayers()
     QVector<Card> allCards = deck.getDeckCards(); // 得到乱序的牌组（注意，是无所有者的牌组！）
 
     // 检查牌组大小是否足够
-    // 调试：每人发7张
-    const int cardsPerPlayer = 7;
+    // 调试：每人发3张
+    const int cardsPerPlayer = 3;
     //const int cardsPerPlayer = 27;
     const int totalPlayers = 4;
     if (allCards.size() < cardsPerPlayer * totalPlayers) {
@@ -299,16 +339,9 @@ void GD_Controller::dealCardsToPlayers()
         return;
     }
 
-    // 发牌
-    QVector<int> playerIds = getActivePlayerIdsSorted(); // 获取未出完牌的玩家ID
-    // 如果可用玩家ID不足4个，退回到所有玩家（新一轮发牌需要所有玩家）
-    if (playerIds.size() < totalPlayers) {
-        playerIds.clear();
-        for (auto it = m_players.begin(); it != m_players.end(); ++it) {
-            playerIds.append(it.key());
-        }
-        std::sort(playerIds.begin(), playerIds.end());
-    }
+    // 直接从m_players获取所有玩家ID
+    QVector<int> playerIds = m_players.keys().toVector();
+    std::sort(playerIds.begin(), playerIds.end()); // 确保ID按顺序排列
 
     // 给四个玩家发牌
     for (int i = 0; i < playerIds.size() && i < totalPlayers; ++i) {
@@ -316,19 +349,21 @@ void GD_Controller::dealCardsToPlayers()
         for (int j = 0; j < cardsPerPlayer; ++j) {
             playerCards.append(allCards[i * cardsPerPlayer + j]);
         }
-        // 获取玩家对象的映射
+        
+        // 获取玩家对象
         Player* player = getPlayerById(playerIds[i]);
 
         // 给playerCards找主人
         for (Card& card : playerCards) {
             card.setOwner(player); // 设置牌的所有者ID
         }
+        
         // 如果玩家存在，则清空原有手牌并添加新牌
         if (player) {
-            // 清空原有手牌并添加新牌
-            player->getHandCards().clear();
+            player->clearHandCards();  // 使用专门的清空方法，确保完全清空
             player->addCards(playerCards);
             emit sigCardsDealt(playerIds[i], playerCards); // 发送发牌完成信号
+            qDebug() << "发牌完成 - 玩家:" << player->getName() << "牌数:" << playerCards.size();
         }
         else {
             qDebug() << "错误：玩家ID" << playerIds[i] << "不存在，无法发牌";
@@ -337,14 +372,13 @@ void GD_Controller::dealCardsToPlayers()
 
     // 设置游戏阶段为出牌阶段
     m_currentPhase = GamePhase::Playing;
-
-    // 确定首个出牌玩家
-    determineFirstPlayerForRound();
 }
 
 void GD_Controller::determineFirstPlayerForRound()
 {
     qDebug() << "GD_Controller::determineFirstPlayerForRound() - 开始确定首个出牌玩家";
+    qDebug() << "当前局数:" << m_currentRoundNumber;
+    qDebug() << "上局排名数量:" << m_lastRoundFinishOrder.size();
 
     if (m_currentRoundNumber == 1) {
         m_currentPlayerId = 0;
@@ -361,7 +395,7 @@ void GD_Controller::determineFirstPlayerForRound()
                     if (Player* p = getPlayerById(m_currentPlayerId)) {
                         p->autoPlay(this, m_currentTableCombo);
                     }
-                    });
+                });
                 emit sigBroadcastMessage(QString("第%1局开始，玩家%2先出牌！")
                     .arg(m_currentRoundNumber)
                     .arg(firstPlayer->getName()));
@@ -376,10 +410,17 @@ void GD_Controller::determineFirstPlayerForRound()
         return;  // 第一局处理完毕后直接返回，避免重复发送信号
     }
     else {
-        if (!m_roundFinishOrder.isEmpty()) {
-            m_currentPlayerId = m_roundFinishOrder.last();
+        if (!m_lastRoundFinishOrder.isEmpty()) {
+            // 使用上一局最后一名作为首出玩家
+            m_currentPlayerId = m_lastRoundFinishOrder.last();
             m_circleLeaderId = m_currentPlayerId;
             qDebug() << "非第一局，选择上一局最后一名玩家ID:" << m_currentPlayerId << "作为首个出牌玩家";
+        }
+        else {
+            qWarning() << "错误：非第一局但没有上一局的排名信息";
+            // 如果没有上一局排名信息，使用默认玩家
+            m_currentPlayerId = 0;
+            m_circleLeaderId = m_currentPlayerId;
         }
     }
 
@@ -387,13 +428,17 @@ void GD_Controller::determineFirstPlayerForRound()
         Player* firstPlayer = getPlayerById(m_currentPlayerId);
         if (firstPlayer) {
             qDebug() << "最终设置当前玩家:" << m_currentPlayerId << firstPlayer->getName();
+
             emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
             emit sigEnablePlayerControls(m_currentPlayerId, true, false);
             QTimer::singleShot(0, [this]() {
                 if (Player* p = getPlayerById(m_currentPlayerId)) {
                     p->autoPlay(this, m_currentTableCombo);
                 }
-                });
+            });
+            emit sigBroadcastMessage(QString("第%1局开始，玩家%2先出牌！")
+                .arg(m_currentRoundNumber)
+                .arg(firstPlayer->getName()));
         }
         else {
             qWarning() << "错误：无法找到ID为" << m_currentPlayerId << "的玩家";
@@ -401,6 +446,19 @@ void GD_Controller::determineFirstPlayerForRound()
     }
     else {
         qWarning() << "错误：当前玩家ID无效";
+        // 错误恢复：设置为玩家0
+        m_currentPlayerId = 0;
+        m_circleLeaderId = m_currentPlayerId;
+        Player* defaultPlayer = getPlayerById(m_currentPlayerId);
+        if (defaultPlayer) {
+            emit sigSetCurrentTurnPlayer(m_currentPlayerId, defaultPlayer->getName());
+            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+            QTimer::singleShot(0, [this]() {
+                if (Player* p = getPlayerById(m_currentPlayerId)) {
+                    p->autoPlay(this, m_currentTableCombo);
+                }
+            });
+        }
     }
 }
 
@@ -570,68 +628,130 @@ bool GD_Controller::checkCircleEnd()
 }
 
 // 当玩家出完牌时判定
-bool GD_Controller::checkRoundEnd()
+bool GD_Controller::handleRoundEnd()
 {
-    qDebug() << "GD_Controller::checkRoundEnd： 调用";
+    qDebug() << "GD_Controller::handleRoundEnd： 开始判断";
+    
+    // 先更新已完成出牌的玩家
     updateFinishedPlayers();
+    
+    // 检查是否只剩最后一名玩家
     if (isLastPlayerStanding()) {
-        qDebug() << "GD_Controller::checkRoundEnd： 仅剩一名玩家";
+        qDebug() << "GD_Controller::handleRoundEnd： 仅剩一名玩家";
+        
+        // 将最后一名玩家添加到完成顺序中
         appendLastPlayer();
-        processRoundResults();
+        
+        qDebug() << "GD_Controller::handleRoundEnd： 回合确认结束，将调度处理结果";
+        
+        // 使用QTimer::singleShot来调度processRoundResults，确保它在下一个事件循环中执行
+        QTimer::singleShot(0, this, &GD_Controller::processRoundResults);
+        
         return true;
     }
-    qDebug() << "GD_Controller::checkRoundEnd： 回合继续";
+    
+    qDebug() << "GD_Controller::handleRoundEnd： 回合未结束";
     return false;
 }
 
 void GD_Controller::processRoundResults()
 {
-    if (m_roundFinishOrder.size() != 4) return;
+    try {
+        qDebug() << "processRoundResults - 开始处理回合结果";
+        qDebug() << "当前回合玩家完成顺序:" << m_roundFinishOrder;
+        
+        if (m_roundFinishOrder.size() != 4) {
+            qDebug() << "错误：回合结束时玩家完成顺序数量不正确:" << m_roundFinishOrder.size();
+            return;
+        }
 
-    // 获取获胜队伍
-    Team* winningTeam = nullptr;
-    int winnerRank = -1;
+        // 获取获胜队伍
+        Team* winningTeam = nullptr;
+        int winnerRank = -1;
 
-    // 找到第一名玩家所在的队伍
-    Player* winner = getPlayerById(m_roundFinishOrder.first());
-    if (winner) {
-        winningTeam = winner->getTeam();
-        // 找到队友的排名
-        for (int i = 1; i < m_roundFinishOrder.size(); ++i) {
-            Player* player = getPlayerById(m_roundFinishOrder[i]);
-            if (player && player->getTeam() == winningTeam) {
-                winnerRank = i + 1;
-            break;
+        // 找到第一名玩家所在的队伍
+        Player* winner = getPlayerById(m_roundFinishOrder.first());
+        if (winner) {
+            winningTeam = winner->getTeam();
+            // 找到队友的排名
+            for (int i = 1; i < m_roundFinishOrder.size(); ++i) {
+                Player* player = getPlayerById(m_roundFinishOrder[i]);
+                if (player && player->getTeam() == winningTeam) {
+                    winnerRank = i + 1;
+                    break;
+                }
             }
         }
-    }
 
-    if (!winningTeam || winnerRank == -1) return;
+        if (!winningTeam || winnerRank == -1) {
+            qDebug() << "错误：无法确定获胜队伍或队友排名";
+            return;
+        }
 
-    // 将一基于1的名次转换为0基索引再传入升级逻辑
-    int partnerIndex = winnerRank - 1;  // winnerRank 是 1=第一,2=第二,3=第三,4=第四
-    m_levelStatus.updateLevelsAfterRound(winningTeam->getId(), partnerIndex,
-        *m_teams[0], *m_teams[1]);
+        qDebug() << "获胜队伍ID:" << winningTeam->getId() << "队友排名:" << winnerRank;
 
-    // 生成本局总结
-    QString summary = generateRoundSummary();
-    emit sigRoundOver(summary, m_roundFinishOrder);
+        // 将一基于1的名次转换为0基索引再传入升级逻辑
+        int partnerIndex = winnerRank - 1;  // winnerRank 是 1=第一,2=第二,3=第三,4=第四
+        m_levelStatus.updateLevelsAfterRound(winningTeam->getId(), partnerIndex,
+            *m_teams[0], *m_teams[1]);
 
-    // 检查游戏是否结束
-    if (m_levelStatus.isGameOver()) {
-        int winnerTeamId = m_levelStatus.getGameWinnerTeamId();
-        Team* finalWinner = m_teams[winnerTeamId];
-        if (finalWinner) {
-            QString finalMessage = QString("恭喜%1队获得最终胜利！").arg(winnerTeamId + 1);
-            emit sigGameOver(winnerTeamId, QString("队伍%1").arg(winnerTeamId + 1), finalMessage);
+        // 生成本局总结
+        QString summary = generateRoundSummary();
+        
+        // 保存本局的排名顺序，用于下一局的进贡判断（在发送信号前保存）
+        m_lastRoundFinishOrder = m_roundFinishOrder;
+        qDebug() << "已保存本局排名顺序:" << m_lastRoundFinishOrder;
+        
+        try {
+            // 发送回合结束信号
+            emit sigRoundOver(summary, m_roundFinishOrder);
+        }
+        catch (...) {
+            qDebug() << "警告：发送回合结束信号时发生异常，但将继续处理";
+        }
+
+        // 检查游戏是否结束
+        if (m_levelStatus.isGameOver()) {
+            int winnerTeamId = m_levelStatus.getGameWinnerTeamId();
+            Team* finalWinner = m_teams[winnerTeamId];
+            if (finalWinner) {
+                QString finalMessage = QString("恭喜%1队获得最终胜利！").arg(winnerTeamId + 1);
+                try {
+                    emit sigGameOver(winnerTeamId, QString("队伍%1").arg(winnerTeamId + 1), finalMessage);
+                }
+                catch (...) {
+                    qDebug() << "警告：发送游戏结束信号时发生异常";
+                }
+            }
+        }
+        else {
+            // 准备开始新的一局
+            m_currentRoundNumber++;
+            qDebug() << "开始新的一局，局数更新为:" << m_currentRoundNumber;
+            
+            // 开始新一局前清空本局出牌顺序（注意：m_lastRoundFinishOrder已经保存了上局顺序）
+            m_roundFinishOrder.clear();
+            qDebug() << "已清空当前局出牌顺序，准备开始新一局";
+            
+            // 开始新一局
+            startNewRound();
         }
     }
-    else {
-        // 准备开始新的一局
-        m_currentRoundNumber++;
-        startNewRound();
-        // 清空上一局出牌顺序
-        m_roundFinishOrder.clear();
+    catch (const std::exception& e) {
+        qDebug() << "processRoundResults发生异常:" << e.what();
+        // 确保状态正确更新，即使发生异常
+        m_lastRoundFinishOrder = m_roundFinishOrder;  // 保存本局排名
+        m_roundFinishOrder.clear();                   // 清空当前局排名
+        m_currentRoundNumber++;                       // 更新局数
+        startNewRound();                              // 开始新一局
+    }
+    catch (...) {
+        qDebug() << "processRoundResults发生未知异常";
+        // 确保状态正确更新，即使发生异常
+        m_lastRoundFinishOrder = m_roundFinishOrder;  // 保存本局排名
+        m_roundFinishOrder.clear();                   // 清空当前局排名
+        m_currentRoundNumber++;                       // 更新局数
+        startNewRound();                              // 开始新一局
     }
 }
 
@@ -673,16 +793,16 @@ void GD_Controller::startTributePhaseLogic()
     m_currentTributeIndex = 0;
 
     // 根据上局排名确定进贡情况
-    if (m_roundFinishOrder.size() < 4) {
+    if (m_lastRoundFinishOrder.size() < 4) {
         // 异常情况，直接进入游戏阶段
         m_currentPhase = GamePhase::Playing;
         return;
     }
 
-    int firstPlayerId = m_roundFinishOrder[0];   // 头游
-    int secondPlayerId = m_roundFinishOrder[1];  // 二游  
-    int thirdPlayerId = m_roundFinishOrder[2];   // 三游
-    int fourthPlayerId = m_roundFinishOrder[3];  // 末游
+    int firstPlayerId = m_lastRoundFinishOrder[0];   // 头游
+    int secondPlayerId = m_lastRoundFinishOrder[1];  // 二游  
+    int thirdPlayerId = m_lastRoundFinishOrder[2];   // 三游
+    int fourthPlayerId = m_lastRoundFinishOrder[3];  // 末游
 
     Team* firstTeam = getTeamOfPlayer(firstPlayerId);
     Team* fourthTeam = getTeamOfPlayer(fourthPlayerId);
@@ -974,23 +1094,6 @@ void GD_Controller::executePass(int playerId)
     nextPlayer();
 }
 
-bool GD_Controller::handleRoundEnd()
-{
-    qDebug() << "GD_Controller::handleRoundEnd： 开始判断";
-    if (checkRoundEnd()) {
-        qDebug() << "GD_Controller::handleRoundEnd： 回合结束";
-        // 构建回合结束摘要
-        QStringList summary;
-        for (int id : m_roundFinishOrder) {
-            summary << getPlayerById(id)->getName();
-        }
-        emit sigRoundOver(summary.join(", "), m_roundFinishOrder);
-        return true;
-    }
-    qDebug() << "GD_Controller::handleRoundEnd： 回合未结束";
-    return false;
-}
-
 void GD_Controller::handleCircleEnd()
 {
     qDebug() << "GD_Controller::handleCircleEnd： 开始判断圈结束";
@@ -1010,16 +1113,20 @@ void GD_Controller::handleCircleEnd()
 
 void GD_Controller::nextPlayer()
 {
-    QVector<int> activeIds = getActivePlayerIdsSorted();
-    auto it = std::find(activeIds.begin(), activeIds.end(), m_currentPlayerId);
-    if (it != activeIds.end() && ++it != activeIds.end()) {
-        m_currentPlayerId = *it;
-    } else {
-        m_currentPlayerId = activeIds.isEmpty() ? -1 : activeIds.front();
+    // 固定顺序：0,1,2,3,0,1,2,3...
+    int nextId = (m_currentPlayerId + 1) % 4;
+    
+    // 检查下一个玩家是否已经出完牌
+    while (m_roundFinishOrder.contains(nextId) && m_activePlayersInRound > 1) {
+        nextId = (nextId + 1) % 4;
     }
-    if (m_currentPlayerId >= 0) {
-        emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
-        qDebug() << "GD_Controller::nextPlayer： 当前玩家ID=" << m_currentPlayerId;
+    
+    m_currentPlayerId = nextId;
+    
+    qDebug() << "GD_Controller::nextPlayer： 当前玩家ID=" << m_currentPlayerId;
+    
+    if (Player* p = getPlayerById(m_currentPlayerId)) {
+        emit sigSetCurrentTurnPlayer(m_currentPlayerId, p->getName());
         
         // AI玩家回合自动处理
         QTimer::singleShot(0, [this]() {
