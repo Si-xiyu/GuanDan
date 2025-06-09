@@ -280,8 +280,7 @@ void GD_Controller::startNewRound()
         // 先给所有玩家发牌
         dealCardsToPlayers();
 
-        // 暂时注释掉进贡还贡相关逻辑
-        /*
+        // 决定是开始进贡还是直接开始出牌
         if (m_currentRoundNumber > 1 && m_lastRoundFinishOrder.size() == 4) {
             qDebug() << "开始进贡阶段 - 上局排名:";
             for (int i = 0; i < m_lastRoundFinishOrder.size(); ++i) {
@@ -296,10 +295,6 @@ void GD_Controller::startNewRound()
                     << "上局排名数量:" << m_lastRoundFinishOrder.size();
             determineFirstPlayerForRound();
         }
-        */
-
-        // 直接确定首个出牌玩家
-        determineFirstPlayerForRound();
     }
     catch (const std::exception& e) {
         qDebug() << "GD_Controller::startNewRound 发生异常:" << e.what();
@@ -371,7 +366,9 @@ void GD_Controller::dealCardsToPlayers()
     }
 
     // 设置游戏阶段为出牌阶段
-    m_currentPhase = GamePhase::Playing;
+    // m_currentPhase = GamePhase::Playing;
+    // 通过状态机进入游戏阶段
+    enterState(GamePhase::Playing);
 }
 
 void GD_Controller::determineFirstPlayerForRound()
@@ -544,6 +541,7 @@ bool GD_Controller::PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, C
                 return true;
             }
             // 包含癞子，弹框让玩家选择具体牌型
+            qDebug() << "GD_Controller::PlayerPlay：WildCardDialog被调用";
             WildCardDialog dialog(possibleCombos, nullptr);
             if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
                 outPlayedCombo = dialog.getSelectedCombo();
@@ -639,13 +637,17 @@ bool GD_Controller::handleRoundEnd()
     if (isLastPlayerStanding()) {
         qDebug() << "GD_Controller::handleRoundEnd： 仅剩一名玩家";
         
+        // 立刻改变游戏阶段，阻止任何新的出牌/过牌操作
+        // m_currentPhase = GamePhase::RoundOver;
+        
         // 将最后一名玩家添加到完成顺序中
         appendLastPlayer();
         
         qDebug() << "GD_Controller::handleRoundEnd： 回合确认结束，将调度处理结果";
         
         // 使用QTimer::singleShot来调度processRoundResults，确保它在下一个事件循环中执行
-        QTimer::singleShot(0, this, &GD_Controller::processRoundResults);
+        // QTimer::singleShot(0, this, &GD_Controller::processRoundResults);
+        enterState(GamePhase::RoundOver);
         
         return true;
     }
@@ -712,17 +714,7 @@ void GD_Controller::processRoundResults()
 
         // 检查游戏是否结束
         if (m_levelStatus.isGameOver()) {
-            int winnerTeamId = m_levelStatus.getGameWinnerTeamId();
-            Team* finalWinner = m_teams[winnerTeamId];
-            if (finalWinner) {
-                QString finalMessage = QString("恭喜%1队获得最终胜利！").arg(winnerTeamId + 1);
-                try {
-                    emit sigGameOver(winnerTeamId, QString("队伍%1").arg(winnerTeamId + 1), finalMessage);
-                }
-                catch (...) {
-                    qDebug() << "警告：发送游戏结束信号时发生异常";
-                }
-            }
+            enterState(GamePhase::GameOver);
         }
         else {
             // 准备开始新的一局
@@ -788,14 +780,13 @@ QString GD_Controller::generateRoundSummary() const
 
 void GD_Controller::startTributePhaseLogic()
 {
-    m_currentPhase = GamePhase::TributeProcess;
     m_pendingTributes.clear();
     m_currentTributeIndex = 0;
 
     // 根据上局排名确定进贡情况
     if (m_lastRoundFinishOrder.size() < 4) {
         // 异常情况，直接进入游戏阶段
-        m_currentPhase = GamePhase::Playing;
+        enterState(GamePhase::Playing);
         return;
     }
 
@@ -844,7 +835,7 @@ void GD_Controller::startTributePhaseLogic()
         // 抗贡成功，头游先出牌
         emit sigBroadcastMessage("抗贡成功！");
         m_currentPlayerId = firstPlayerId;
-        m_currentPhase = GamePhase::Playing;
+        enterState(GamePhase::Playing);
         emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
         emit sigEnablePlayerControls(m_currentPlayerId, true, false);
         return;
@@ -934,7 +925,7 @@ void GD_Controller::processNextTributeAction()
                 m_currentPlayerId = m_roundFinishOrder.first();
             }
         }
-        m_currentPhase = GamePhase::Playing;
+        enterState(GamePhase::Playing);
         Player* firstPlayer = getPlayerById(m_currentPlayerId);
         if (firstPlayer) {
             emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
@@ -953,7 +944,7 @@ void GD_Controller::processNextTributeAction()
 
     if (currentTribute.isReturn) {
         // 还贡阶段：让玩家选择牌
-        m_currentPhase = GamePhase::TributeProcess;
+        enterState(GamePhase::TributeProcess);
         Team* fromTeam = getTeamOfPlayer(currentTribute.fromPlayerId);
         Team* toTeam = getTeamOfPlayer(currentTribute.toPlayerId);
         bool isTeammate = (fromTeam == toTeam);
@@ -985,7 +976,23 @@ void GD_Controller::processNextTributeAction()
     }
     else {
         // 进贡阶段：让玩家选择牌
-        m_currentPhase = GamePhase::TributeInput;
+        enterState(GamePhase::TributeInput);
+
+        // AI 自动进贡：只交手中最大的一张牌
+        if (fromPlayer->getType() == Player::AI) {
+            QVector<Card> hand = fromPlayer->getHandCards();
+            std::sort(hand.begin(), hand.end());
+            if (!hand.isEmpty()) {
+                Card largest = hand.last();
+                int fid = currentTribute.fromPlayerId;
+                // 延迟调用以安全执行槽函数
+                QTimer::singleShot(0, [this, fid, largest]() {
+                    this->onPlayerTributeCardSelected(fid, largest);
+                });
+            }
+            return;
+        }
+
         emit sigAskForTribute(currentTribute.fromPlayerId, fromPlayer->getName(),
             currentTribute.toPlayerId, toPlayer->getName(), false);
             
@@ -1186,4 +1193,56 @@ void GD_Controller::emitCircleResetSignals()
     emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
     emit sigEnablePlayerControls(m_currentPlayerId, true, false);
     qDebug() << "GD_Controller::emitCircleResetSignals： 信号发送完成, currentPlayerId=" << m_currentPlayerId;
+}
+
+void GD_Controller::enterState(GamePhase newPhase)
+{
+    if (m_currentPhase == newPhase) return;
+
+    m_currentPhase = newPhase;
+    qDebug() << "进入状态：" << static_cast<int>(newPhase);
+
+    switch (newPhase) {
+        case GamePhase::Dealing:
+            // 进入发牌阶段，调用发牌函数
+            dealCardsToPlayers();
+            break;
+
+        case GamePhase::Playing:
+            // 首次进入Playing状态，什么也不做，等待出牌
+            break;
+        
+        case GamePhase::TributeInput:
+            // 由 processNextTributeAction 内部管理，这里主要用于状态记录
+            break;
+
+        case GamePhase::TributeProcess:
+            // 由 processNextTributeAction 内部管理，这里主要用于状态记录
+            break;
+
+        case GamePhase::RoundOver:
+            // 回合结束，调度结果处理
+             QTimer::singleShot(0, this, &GD_Controller::processRoundResults);
+            break;
+
+        case GamePhase::GameOver:
+        {
+            // 游戏结束，处理最终逻辑
+             int winnerTeamId = m_levelStatus.getGameWinnerTeamId();
+             Team* finalWinner = m_teams[winnerTeamId];
+             if (finalWinner) {
+                 QString finalMessage = QString("恭喜%1队获得最终胜利！").arg(winnerTeamId + 1);
+                 try {
+                     emit sigGameOver(winnerTeamId, QString("队伍%1").arg(winnerTeamId + 1), finalMessage);
+                 }
+                 catch (...) {
+                     qDebug() << "警告：发送游戏结束信号时发生异常";
+                 }
+             }
+            break;
+        }
+        
+        case GamePhase::NotStarted:
+            break;
+    }
 }
