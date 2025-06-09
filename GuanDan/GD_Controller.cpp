@@ -77,12 +77,13 @@ void GD_Controller::startGame()
         return;
     }
 
-    m_currentPhase = GamePhase::Dealing;
+    // 只设置和游戏整体相关的状态
     m_currentRoundNumber = 1;
 
     emit sigGameStarted();
     emit sigBroadcastMessage("掼蛋游戏开始！");
 
+    // 通过状态机启动第一轮
     startNewRound();
 }
 
@@ -260,77 +261,22 @@ void GD_Controller::onPlayerTributeCardSelected(int tributingPlayerId, const Car
 
 void GD_Controller::startNewRound()
 {
-    try {
-        qDebug() << "GD_Controller::startNewRound - 开始新一局";
-        qDebug() << "当前局数: " << m_currentRoundNumber;
-        
-        // 重置状态
-        m_currentPhase = GamePhase::Dealing;
-        m_passedPlayersInCircle.clear();
-        m_activePlayersInRound = 4;
-        m_currentTableCombo.type = CardComboType::Invalid;
-        m_currentTableCombo.cards_in_combo.clear();
-        m_circleLeaderId = -1;
-
-        // 发送新一轮开始的信号
-        emit sigNewRoundStarted(m_currentRoundNumber);
-
-        // 获取当前级牌信息
-        Card currentLevel_card;
-        currentLevel_card.setPoint(m_levelStatus.getTeamPlayingLevel(0)); // 两队级牌相同
-        QString levelStr = currentLevel_card.PointToString();
-        emit sigBroadcastMessage(QString("第%1局开始！当前级牌：%2").arg(m_currentRoundNumber).arg(levelStr));
-
-        // 先给所有玩家发牌
-        dealCardsToPlayers();
-
-        // 决定是开始进贡还是直接开始出牌
-        if (m_currentRoundNumber > 1 && m_lastRoundFinishOrder.size() == 4) {
-            qDebug() << "开始进贡阶段 - 上局排名:";
-            for (int i = 0; i < m_lastRoundFinishOrder.size(); ++i) {
-                Player* player = getPlayerById(m_lastRoundFinishOrder[i]);
-                if (player) {
-                    qDebug() << QString("第%1名: %2").arg(i + 1).arg(player->getName());
-                }
-            }
-            startTributePhaseLogic();
-        } else {
-            qDebug() << "跳过进贡阶段 - 当前局数:" << m_currentRoundNumber 
-                    << "上局排名数量:" << m_lastRoundFinishOrder.size();
-            determineFirstPlayerForRound();
-        }
-    }
-    catch (const std::exception& e) {
-        qDebug() << "GD_Controller::startNewRound 发生异常:" << e.what();
-        // 错误恢复：设置玩家0为首个出牌玩家
-        m_currentPlayerId = 0;
-        m_circleLeaderId = m_currentPlayerId;
-        if (Player* p = getPlayerById(m_currentPlayerId)) {
-            emit sigSetCurrentTurnPlayer(m_currentPlayerId, p->getName());
-            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-        }
-    }
-    catch (...) {
-        qDebug() << "GD_Controller::startNewRound 发生未知异常";
-        // 错误恢复：设置玩家0为首个出牌玩家
-        m_currentPlayerId = 0;
-        m_circleLeaderId = m_currentPlayerId;
-        if (Player* p = getPlayerById(m_currentPlayerId)) {
-            emit sigSetCurrentTurnPlayer(m_currentPlayerId, p->getName());
-            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-        }
-    }
+    qDebug() << "GD_Controller::startNewRound - 准备开始新一局，局数: " << m_currentRoundNumber;
+    
+    // 唯一的职责：启动发牌状态
+    enterState(GamePhase::Dealing);
 }
 
 void GD_Controller::dealCardsToPlayers()
 {
+    qDebug() << "GD_Controller::dealCardsToPlayers - 开始发牌";
+
     // 创建牌组并自动初始化（deck构造函数中会创建两副牌并洗牌）
     CardDeck deck;
     QVector<Card> allCards = deck.getDeckCards(); // 得到乱序的牌组（注意，是无所有者的牌组！）
 
     // 检查牌组大小是否足够
-    // 调试：每人发3张
-    const int cardsPerPlayer = 3;
+    const int cardsPerPlayer = 4; // 测试，每个人4张牌
     //const int cardsPerPlayer = 27;
     const int totalPlayers = 4;
     if (allCards.size() < cardsPerPlayer * totalPlayers) {
@@ -368,9 +314,6 @@ void GD_Controller::dealCardsToPlayers()
             qDebug() << "错误：玩家ID" << playerIds[i] << "不存在，无法发牌";
         }
     }
-
-    // 通过状态机进入游戏阶段
-    // enterState(GamePhase::Playing);
 }
 
 void GD_Controller::determineFirstPlayerForRound()
@@ -379,85 +322,24 @@ void GD_Controller::determineFirstPlayerForRound()
     qDebug() << "当前局数:" << m_currentRoundNumber;
     qDebug() << "上局排名数量:" << m_lastRoundFinishOrder.size();
 
+    // 第一局：玩家0先出
     if (m_currentRoundNumber == 1) {
         m_currentPlayerId = 0;
         m_circleLeaderId = m_currentPlayerId;
-        if (m_players.contains(m_currentPlayerId)) {
-            Player* firstPlayer = getPlayerById(m_currentPlayerId);
-            qDebug() << "第一局强制设置玩家ID:" << m_currentPlayerId << "作为首个出牌玩家";
-            if (firstPlayer) {
-                qDebug() << "发送设置当前玩家信号:" << m_currentPlayerId << firstPlayer->getName();
-                emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
-                qDebug() << "发送启用玩家控制信号:" << m_currentPlayerId << "可出牌:true 可跳过:false";
-                emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-                QTimer::singleShot(0, [this]() {
-                    if (Player* p = getPlayerById(m_currentPlayerId)) {
-                        p->autoPlay(this, m_currentTableCombo);
-                    }
-                });
-                emit sigBroadcastMessage(QString("第%1局开始，玩家%2先出牌！")
-                    .arg(m_currentRoundNumber)
-                    .arg(firstPlayer->getName()));
-            }
-            else {
-                qWarning() << "错误：玩家ID" << m_currentPlayerId << "不存在，无法开始游戏";
-            }
-        }
-        else {
-            qWarning() << "错误：玩家ID" << m_currentPlayerId << "不存在";
-        }
-        return;  // 第一局处理完毕后直接返回，避免重复发送信号
-    }
-    else {
-        if (!m_lastRoundFinishOrder.isEmpty()) {
-            // 使用上一局最后一名作为首出玩家
-            m_currentPlayerId = m_lastRoundFinishOrder.last();
-            m_circleLeaderId = m_currentPlayerId;
-            qDebug() << "非第一局，选择上一局最后一名玩家ID:" << m_currentPlayerId << "作为首个出牌玩家";
-        }
-        else {
-            qWarning() << "错误：非第一局但没有上一局的排名信息";
-            // 如果没有上一局排名信息，使用默认玩家
-            m_currentPlayerId = 0;
-            m_circleLeaderId = m_currentPlayerId;
-        }
+        qDebug() << "第一局强制设置玩家ID:" << m_currentPlayerId << "作为首个出牌玩家";
+        return;
     }
 
-    if (m_currentPlayerId != -1) {
-        Player* firstPlayer = getPlayerById(m_currentPlayerId);
-        if (firstPlayer) {
-            qDebug() << "最终设置当前玩家:" << m_currentPlayerId << firstPlayer->getName();
-
-            emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
-            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-            QTimer::singleShot(0, [this]() {
-                if (Player* p = getPlayerById(m_currentPlayerId)) {
-                    p->autoPlay(this, m_currentTableCombo);
-                }
-            });
-            emit sigBroadcastMessage(QString("第%1局开始，玩家%2先出牌！")
-                .arg(m_currentRoundNumber)
-                .arg(firstPlayer->getName()));
-        }
-        else {
-            qWarning() << "错误：无法找到ID为" << m_currentPlayerId << "的玩家";
-        }
-    }
-    else {
-        qWarning() << "错误：当前玩家ID无效";
-        // 错误恢复：设置为玩家0
+    // 非第一局：使用上一局最后一名作为首出玩家
+    if (!m_lastRoundFinishOrder.isEmpty()) {
+        m_currentPlayerId = m_lastRoundFinishOrder.last();
+        m_circleLeaderId = m_currentPlayerId;
+        qDebug() << "非第一局，选择上一局最后一名玩家ID:" << m_currentPlayerId << "作为首个出牌玩家";
+    } else {
+        // 如果没有上一局排名信息，使用默认玩家
+        qWarning() << "错误：非第一局但没有上一局的排名信息，使用默认玩家0";
         m_currentPlayerId = 0;
         m_circleLeaderId = m_currentPlayerId;
-        Player* defaultPlayer = getPlayerById(m_currentPlayerId);
-        if (defaultPlayer) {
-            emit sigSetCurrentTurnPlayer(m_currentPlayerId, defaultPlayer->getName());
-            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-            QTimer::singleShot(0, [this]() {
-                if (Player* p = getPlayerById(m_currentPlayerId)) {
-                    p->autoPlay(this, m_currentTableCombo);
-                }
-            });
-        }
     }
 }
 
@@ -899,40 +781,29 @@ void GD_Controller::processNextTributeAction()
     if (m_currentTributeIndex >= m_pendingTributes.size()) {
         // 所有进贡/还贡完成
         emit sigTributePhaseEnded();
-
+        
         // 确定首出玩家
         QVector<TributeInfo> tributes;
-        // 只收集进贡（非还贡）操作
         for (const TributeInfo& tribute : m_pendingTributes) {
             if (!tribute.isReturn) {
                 tributes.append(tribute);
             }
         }
-        if (tributes.size() >= 2) {
-            // 双下情况：进贡大者先出牌
-            if (tributes[0].card > tributes[1].card) {
-                m_currentPlayerId = tributes[0].fromPlayerId;
-            }
-            else {
-                m_currentPlayerId = tributes[1].fromPlayerId;
-            }
-        }
-        else if (tributes.size() == 1) {
-            // 单下情况：进贡者先出牌
+        if (tributes.size() >= 2) { // 双下
+            m_currentPlayerId = (tributes[0].card > tributes[1].card) ? tributes[0].fromPlayerId : tributes[1].fromPlayerId;
+        } else if (tributes.size() == 1) { // 单下
             m_currentPlayerId = tributes[0].fromPlayerId;
-        }
-        else {
-            // 异常情况，使用头游先出牌
-            if (!m_roundFinishOrder.isEmpty()) {
-                m_currentPlayerId = m_roundFinishOrder.first();
+        } else { // 抗贡或异常情况
+            if (!m_lastRoundFinishOrder.isEmpty()) {
+                m_currentPlayerId = m_lastRoundFinishOrder.first(); // 抗贡成功，头游出
+            } else {
+                m_currentPlayerId = 0; // 最终备用
             }
         }
+        m_circleLeaderId = m_currentPlayerId;
+        
+        // 通过状态机进入出牌阶段
         enterState(GamePhase::Playing);
-        Player* firstPlayer = getPlayerById(m_currentPlayerId);
-        if (firstPlayer) {
-            emit sigSetCurrentTurnPlayer(m_currentPlayerId, firstPlayer->getName());
-            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-        }
         return;
     }
 
@@ -941,66 +812,47 @@ void GD_Controller::processNextTributeAction()
     Player* toPlayer = getPlayerById(currentTribute.toPlayerId);
 
     if (!fromPlayer || !toPlayer) {
+        qWarning() << "错误：找不到进贡相关的玩家";
+        m_currentTributeIndex++;
+        processNextTributeAction();
         return;
     }
 
+    // 进入对应的进贡状态
     if (currentTribute.isReturn) {
-        // 还贡阶段：让玩家选择牌
+        // 还贡阶段
         enterState(GamePhase::TributeProcess);
-        Team* fromTeam = getTeamOfPlayer(currentTribute.fromPlayerId);
-        Team* toTeam = getTeamOfPlayer(currentTribute.toPlayerId);
-        bool isTeammate = (fromTeam == toTeam);
-
-        // 发送信号，通知UI显示还贡选择界面
-        emit sigAskForTribute(currentTribute.fromPlayerId, fromPlayer->getName(),
-            currentTribute.toPlayerId, toPlayer->getName(), true);
-            
-        // 在消息中提示规则
-         if (isTeammate) {
-             qDebug("GD_Controller::processNextTributeAction(): 请选择一张10或以下的牌还贡给队友");
-         } else {
-			 qDebug("GD_Controller::processNextTributeAction(): 请选择一张牌还贡给对手");
-         }
-        // AI 自动还贡：只还手中最小的一张牌
-        if (fromPlayer->getType() == Player::AI) {
-            QVector<Card> hand = fromPlayer->getHandCards();
-            std::sort(hand.begin(), hand.end());
-            if (!hand.isEmpty()) {
-                Card smallest = hand.first();
-                int fid = currentTribute.fromPlayerId;
-                // 延迟调用以安全执行槽函数
-                QTimer::singleShot(0, [this, fid, smallest]() {
-                    this->onPlayerTributeCardSelected(fid, smallest);
-                });
-            }
-            return;
-        }
-    }
-    else {
-        // 进贡阶段：让玩家选择牌
+    } else {
+        // 进贡阶段
         enterState(GamePhase::TributeInput);
-
-        // AI 自动进贡：只交手中最大的一张牌
-        if (fromPlayer->getType() == Player::AI) {
-            QVector<Card> hand = fromPlayer->getHandCards();
-            std::sort(hand.begin(), hand.end());
-            if (!hand.isEmpty()) {
-                Card largest = hand.last();
-                int fid = currentTribute.fromPlayerId;
-                // 延迟调用以安全执行槽函数
-                QTimer::singleShot(0, [this, fid, largest]() {
-                    this->onPlayerTributeCardSelected(fid, largest);
-                });
-            }
-            return;
-        }
-
-        emit sigAskForTribute(currentTribute.fromPlayerId, fromPlayer->getName(),
-            currentTribute.toPlayerId, toPlayer->getName(), false);
-            
-         // 提示玩家选择最大的牌
-		qDebug("GD_Controller::processNextTributeAction(): 请选择手牌中最大的牌进贡给对手");
     }
+
+    // AI自动选择
+    if (fromPlayer->getType() == Player::AI) {
+        QVector<Card> hand = fromPlayer->getHandCards();
+        std::sort(hand.begin(), hand.end());
+        if (!hand.isEmpty()) {
+            Card cardToTribute = currentTribute.isReturn ? hand.first() : hand.last();
+            int fid = currentTribute.fromPlayerId;
+            QTimer::singleShot(0, [this, fid, cardToTribute]() {
+                this->onPlayerTributeCardSelected(fid, cardToTribute);
+            });
+        }
+        return;
+    }
+
+    // 人类玩家：发出信号请求UI交互
+    emit sigAskForTribute(currentTribute.fromPlayerId, fromPlayer->getName(),
+                         currentTribute.toPlayerId, toPlayer->getName(),
+                         currentTribute.isReturn);
+
+    // 发送提示消息
+    QString actionName = currentTribute.isReturn ? "还贡" : "进贡";
+    QString message = QString("请%1选择一张牌%2给%3")
+        .arg(fromPlayer->getName())
+        .arg(actionName)
+        .arg(toPlayer->getName());
+    emit sigBroadcastMessage(message);
 }
 
 // ==================== 辅助方法 ====================
@@ -1222,17 +1074,16 @@ void GD_Controller::enterState(GamePhase newPhase)
             break;
 
         case GamePhase::Dealing:
-            // 进入发牌阶段，重置本轮状态
+            qDebug() << "进入状态：Dealing - 开始发牌阶段";
+            // 1. 重置本轮状态
             m_passedPlayersInCircle.clear();
             m_activePlayersInRound = 4;
             m_currentTableCombo.type = CardComboType::Invalid;
             m_currentTableCombo.cards_in_combo.clear();
             m_circleLeaderId = -1;
             
-            // 发送新一轮开始的信号
+            // 2. 发送新一轮开始的信号和消息
             emit sigNewRoundStarted(m_currentRoundNumber);
-            
-            // 获取当前级牌信息并广播
             {
                 Card currentLevel_card;
                 currentLevel_card.setPoint(m_levelStatus.getTeamPlayingLevel(0));
@@ -1240,12 +1091,23 @@ void GD_Controller::enterState(GamePhase newPhase)
                 emit sigBroadcastMessage(QString("第%1局开始！当前级牌：%2").arg(m_currentRoundNumber).arg(levelStr));
             }
             
-            // 调用发牌函数
+            // 3. 调用发牌函数
             dealCardsToPlayers();
+
+            // 4. 发牌后，决定下一步流程
+            if (m_currentRoundNumber > 1 && m_lastRoundFinishOrder.size() == 4) {
+                qDebug() << "发牌完毕，进入进贡流程";
+                startTributePhaseLogic();
+            } else {
+                qDebug() << "发牌完毕，直接进入出牌流程";
+                determineFirstPlayerForRound();
+                enterState(GamePhase::Playing);
+            }
             break;
 
         case GamePhase::Playing:
             {
+                qDebug() << "进入状态：Playing - 开始出牌阶段";
                 // 确保当前玩家已设置
                 if (m_currentPlayerId == -1) {
                     qWarning() << "错误：进入Playing状态时currentPlayerId未设置";
@@ -1278,20 +1140,53 @@ void GD_Controller::enterState(GamePhase newPhase)
             break;
 
         case GamePhase::TributeInput:
-            // 进入进贡输入阶段，由processNextTributeAction管理具体流程
+            {
+                qDebug() << "进入状态：TributeInput - 等待玩家选择进贡牌";
+                const TributeInfo& currentTribute = m_pendingTributes[m_currentTributeIndex];
+                Player* fromPlayer = getPlayerById(currentTribute.fromPlayerId);
+                
+                if (fromPlayer) {
+                    emit sigEnablePlayerControls(currentTribute.fromPlayerId, true, false);
+                    emit sigBroadcastMessage(QString("请%1选择最大的牌进贡").arg(fromPlayer->getName()));
+                }
+            }
             break;
 
         case GamePhase::TributeProcess:
-            // 进入进贡处理阶段，由processNextTributeAction管理具体流程
+            {
+                qDebug() << "进入状态：TributeProcess - 等待玩家选择还贡牌";
+                const TributeInfo& currentTribute = m_pendingTributes[m_currentTributeIndex];
+                Player* fromPlayer = getPlayerById(currentTribute.fromPlayerId);
+                Player* toPlayer = getPlayerById(currentTribute.toPlayerId);
+                
+                if (fromPlayer && toPlayer) {
+                    Team* fromTeam = getTeamOfPlayer(currentTribute.fromPlayerId);
+                    Team* toTeam = getTeamOfPlayer(currentTribute.toPlayerId);
+                    bool isTeammate = (fromTeam == toTeam);
+                    
+                    emit sigEnablePlayerControls(currentTribute.fromPlayerId, true, false);
+                    if (isTeammate) {
+                        emit sigBroadcastMessage(QString("请%1选择一张10或以下的牌还贡给队友%2")
+                            .arg(fromPlayer->getName())
+                            .arg(toPlayer->getName()));
+                    } else {
+                        emit sigBroadcastMessage(QString("请%1选择一张牌还贡给%2")
+                            .arg(fromPlayer->getName())
+                            .arg(toPlayer->getName()));
+                    }
+                }
+            }
             break;
 
         case GamePhase::RoundOver:
+            qDebug() << "进入状态：RoundOver - 本局结束";
             // 回合结束，调度结果处理
             QTimer::singleShot(0, this, &GD_Controller::processRoundResults);
             break;
 
         case GamePhase::GameOver:
             {
+                qDebug() << "进入状态：GameOver - 游戏结束";
                 // 游戏结束，处理最终逻辑
                 int winnerTeamId = m_levelStatus.getGameWinnerTeamId();
                 Team* finalWinner = m_teams[winnerTeamId];
