@@ -32,6 +32,7 @@ public:
     // 手牌管理
     void addCards(const QVector<Card>& cards);
     void removeCards(const QVector<Card>& cards);
+    void clearHandCards(); // 清空所有手牌
     QVector<Card> getHandCards() const;
 
     // 所属队伍

@@ -57,12 +57,10 @@ public:
     QVector<Card> getSelectedCards() const;
 
     // 状态设置
-    void setEnabled(bool enabled);
-    bool isEnabled() const { return m_isEnabled; }
     void setCardsVisible(bool visible);
-    void setPlayerStatus(const QString& status);
     void setHighlighted(bool highlighted);
-    void highlightTurn(bool isCurrentTurn);
+    void setEnabled(bool enabled);
+    void setPlayerStatus(const QString& status);
     void setPosition(PlayerPosition position);
     PlayerPosition getPosition() const { return m_position; }
 
@@ -138,7 +136,6 @@ private:
 
     QVector<CardWidget*> m_playedCardWidgets; // 用于显示在"牌桌"上组合的 CardWidget
 
-    bool m_isCurrentTurn; // 用于样式控制，标记是否轮到此玩家
     PlayerPosition m_position;            // 玩家位置
 
     // 新增：玩家头像相关

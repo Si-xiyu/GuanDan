@@ -254,11 +254,7 @@ void GuanDan::setupConnections()
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
                     found = true;
                     widget->setEnabled(canPlay);
-                    widget->highlightTurn(true); // 高亮显示当前玩家
                     qDebug() << "已更新玩家UI状态:" << widget->getPlayer()->getName();
-                } else if (widget->getPlayer()) {
-                    // 其他玩家设置为非高亮
-                    widget->highlightTurn(false);
                 }
             }
             
@@ -272,8 +268,6 @@ void GuanDan::setupConnections()
         this, [this](int playerId, const QString& playerName) {
             for (PlayerWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer()) {
-                    bool isCurrentPlayer = (widget->getPlayer()->getID() == playerId);
-                    widget->highlightTurn(isCurrentPlayer);
                 }
             }
         });

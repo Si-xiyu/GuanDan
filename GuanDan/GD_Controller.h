@@ -86,6 +86,7 @@ private:
     int m_circleLeaderId;                  // 本圈第一个出牌的玩家ID (即m_currentTableCombo的所有者)
     QSet<int> m_passedPlayersInCircle;     // 本圈已经选择"不出"的玩家ID
     QVector<int> m_roundFinishOrder;       // 按顺序记录本局完成出牌的玩家ID
+    QVector<int> m_lastRoundFinishOrder;   // 存储上一局的玩家获胜顺序，用于进贡判断
     int m_activePlayersInRound;            // 本局还剩多少玩家没打完牌
 
     QVector<Card> m_lastPlayedCards;       // 记录上次出牌时玩家选中的原始卡牌，用于正确移除手牌
