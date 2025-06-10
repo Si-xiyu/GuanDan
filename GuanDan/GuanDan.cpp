@@ -1,11 +1,15 @@
-#include "GuanDan.h"
-#include <QMessageBox>
-#include <QScreen>
-#include <QApplication>
-#include <QTimer>
-#include <QDebug>
+#include "GuanDan.h" 
+#include "GD_Controller.h" 
+#include "Team.h"         
+
 #include "NPCPlayer.h"
 #include "TributeDialog.h"
+
+#include <QApplication>
+#include <QDebug>
+#include <QMessageBox>
+#include <QScreen>
+#include <QTimer>
 
 GuanDan::GuanDan(QWidget* parent)
     : QMainWindow(parent)
@@ -119,27 +123,30 @@ void GuanDan::createPlayers()
         if (i == 0) {
             player = new Player(QString("玩家%1").arg(i), i);
             player->setType(Player::Human);
-        } else {
+        }
+        else {
             player = new NPCPlayer(QString("AI%1").arg(i), i);
             player->setType(Player::AI);
         }
         m_players.append(player);
         qDebug() << "创建玩家:" << player->getName() << "ID:" << player->getID();
-        
+
         // 创建玩家界面，设置位置和是否为当前玩家
         PlayerPosition position;
+
+        // 【关键修复点】 交换 Left 和 Right 的位置
         switch (i) {
         case 0:
             position = PlayerPosition::Bottom;
             break;
-        case 1:
-            position = PlayerPosition::Left;
+        case 1: // ID 1 是下家，应该在右边
+            position = PlayerPosition::Right; // 原来是 Left
             break;
         case 2:
             position = PlayerPosition::Top;
             break;
-        case 3:
-            position = PlayerPosition::Right;
+        case 3: // ID 3 是上家，应该在左边
+            position = PlayerPosition::Left; // 原来是 Right
             break;
         }
 
@@ -285,51 +292,58 @@ void GuanDan::arrangePlayerWidgets()
 
     QSize gameSize = gameArea->size();
     int margin = 20;
-    
-    // 计算玩家区域的大小
-    // 底部/顶部玩家区域使用全宽度以容纳更多卡牌
+
+    // 计算玩家区域的大小 (这部分逻辑不变)
     int horizontalWidth = gameSize.width() - 2 * margin;
     int verticalWidth = 180;
     int verticalHeight = qMin(600, gameSize.height() - 2 * margin);
-    // 增加底部/顶部玩家区域高度
     int horizontalHeight = 240;
 
-    // 设置玩家界面位置和大小
-    // 底部玩家
-    m_playerWidgets[0]->setGeometry(
-        (gameSize.width() - horizontalWidth) / 2,
-        gameSize.height() - horizontalHeight - margin,
-        horizontalWidth,
-        horizontalHeight
-    );
-    
-    // 左侧玩家
-    m_playerWidgets[1]->setGeometry(
-        margin,
-        (gameSize.height() - verticalHeight) / 2,
-        verticalWidth,
-        verticalHeight
-    );
-    
-    // 顶部玩家
-    m_playerWidgets[2]->setGeometry(
-        (gameSize.width() - horizontalWidth) / 2,
-        margin,
-        horizontalWidth,
-        horizontalHeight
-    );
-    
-    // 右侧玩家
-    m_playerWidgets[3]->setGeometry(
-        gameSize.width() - verticalWidth - margin,
-        (gameSize.height() - verticalHeight) / 2,
-        verticalWidth,
-        verticalHeight
-    );
+    // 【关键修复点】 不再使用硬编码的索引，而是遍历所有widget，根据其position属性来布局
+    for (PlayerWidget* widget : m_playerWidgets)
+    {
+        if (!widget) continue;
 
-    // 显示所有玩家界面
-    for (PlayerWidget* widget : m_playerWidgets) {
-        widget->show();
+        switch (widget->getPosition())
+        {
+        case PlayerPosition::Bottom:
+            widget->setGeometry(
+                (gameSize.width() - horizontalWidth) / 2,
+                gameSize.height() - horizontalHeight - margin,
+                horizontalWidth,
+                horizontalHeight
+            );
+            break;
+
+        case PlayerPosition::Left:
+            widget->setGeometry(
+                margin,
+                (gameSize.height() - verticalHeight) / 2,
+                verticalWidth,
+                verticalHeight
+            );
+            break;
+
+        case PlayerPosition::Top:
+            widget->setGeometry(
+                (gameSize.width() - horizontalWidth) / 2,
+                margin,
+                horizontalWidth,
+                horizontalHeight
+            );
+            break;
+
+        case PlayerPosition::Right:
+            widget->setGeometry(
+                gameSize.width() - verticalWidth - margin,
+                (gameSize.height() - verticalHeight) / 2,
+                verticalWidth,
+                verticalHeight
+            );
+            break;
+        }
+
+        widget->show(); // 确保显示
     }
 }
 

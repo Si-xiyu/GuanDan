@@ -70,10 +70,16 @@
     <ClCompile Include="WildCardDialog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Setting.cpp">
+    <ClCompile Include="NPCplayer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="NPCplayer.cpp">
+    <ClCompile Include="HMPlayer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TributeDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ShowCardWidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -93,10 +99,10 @@
     <ClInclude Include="Team.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Setting.h">
+    <ClInclude Include="HMPlayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="NPCplayer.h">
+    <ClInclude Include="ShowCardWidget.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -114,6 +120,12 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="WildCardDialog.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="TributeDialog.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="NPCPlayer.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

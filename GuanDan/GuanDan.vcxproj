@@ -101,6 +101,7 @@
     <ClCompile Include="NPCPlayer.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="PlayerWidget.cpp" />
+    <ClCompile Include="ShowCardWidget.cpp" />
     <ClCompile Include="Team.cpp" />
     <ClCompile Include="TributeDialog.cpp" />
     <ClCompile Include="WildCardDialog.cpp" />
@@ -122,6 +123,7 @@
     <ClInclude Include="Levelstatus.h" />
     <QtMoc Include="PlayerWidget.h" />
     <QtMoc Include="NPCPlayer.h" />
+    <ClInclude Include="ShowCardWidget.h" />
     <ClInclude Include="Team.h" />
     <QtMoc Include="CardWidget.h" />
     <QtMoc Include="Player.h" />

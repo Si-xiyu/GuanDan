@@ -49,17 +49,10 @@ void TributeDialog::setupUI()
     scroll->setWidget(scrollWidget);
     mainLayout->addWidget(scroll);
 
-    // 确认/取消按钮
-    QHBoxLayout* btnLayout = new QHBoxLayout();
-    btnLayout->addStretch();
-    m_confirmButton = new QPushButton(m_isReturn ? tr("还贡") : tr("进贡"), this);
-    m_confirmButton->setEnabled(false);
-    connect(m_confirmButton, &QPushButton::clicked, this, &TributeDialog::onConfirmClicked);
-    btnLayout->addWidget(m_confirmButton);
-    QPushButton* cancel = new QPushButton(tr("取消"), this);
-    connect(cancel, &QPushButton::clicked, this, &TributeDialog::onCancelClicked);
-    btnLayout->addWidget(cancel);
-    mainLayout->addLayout(btnLayout);
+    // 说明文字
+    QLabel* infoLabel = new QLabel(tr("点击卡片直接选择"), this);
+    infoLabel->setAlignment(Qt::AlignCenter);
+    mainLayout->addWidget(infoLabel);
 }
 
 void TributeDialog::onCardClicked(CardWidget* widget)
@@ -78,17 +71,9 @@ void TributeDialog::onCardClicked(CardWidget* widget)
     
     m_selectedCard = widget->getCard();
     m_hasSelection = true;
-    m_confirmButton->setEnabled(true);
-}
-
-void TributeDialog::onConfirmClicked()
-{
-    if (m_hasSelection) accept();
-}
-
-void TributeDialog::onCancelClicked()
-{
-    reject();
+    
+    // 直接接受选择并关闭对话框
+    accept();
 }
 
 Card TributeDialog::getSelectedCard() const
