@@ -116,17 +116,16 @@ private:
 
     // --- 内部游戏流程方法 ---
     void enterState(GamePhase newPhase); // 状态机核心：进入新状态
-	void startNewRound(); // 开始新的一局 
+    void advanceToNextPlayer();
+    void startNewRound(); // 开始新的一局 
 	void dealCardsToPlayers(); // 给玩家发牌
     void determineFirstPlayerForRound(); // 决定新一局谁先出牌
-	void nextPlayerTurn(); // 找到下一个未出完牌玩家的轮次逻辑 (仅控制m_currentPlayerId）
     void resetTableCombo(); // 重置桌面牌型
 
     bool PlayerPlay(int playerId, const QVector<Card>& cardsToPlay, CardCombo::ComboInfo& outPlayedCombo);
 	void processPlayerPlay(int playerId, const CardCombo::ComboInfo& playedCombo);
 	// 玩家是否可以跳过
     void processPlayerPass(int playerId);
-    bool checkCircleEnd();
 
     // 扫描并更新已完成出牌的玩家状态，并发送广播
     void updateFinishedPlayers();
@@ -134,11 +133,6 @@ private:
     bool isLastPlayerStanding() const;
     // 将最后一名玩家加入完成顺序
     void appendLastPlayer();
-
-    // 重置桌面状态，开始新一圈（仅更新状态，不发送信号）
-    void resetCircleState();
-    // 发送新一圈开始的UI信号
-    void emitCircleResetSignals();
 
     void processRoundResults();         // 处理一局结束后的计分、升级等
     QString generateRoundSummary() const;
@@ -166,7 +160,6 @@ private:
 
     // 检查回合结束, 如结束则处理相关逻辑并返回true
     bool handleRoundEnd();
-    void handleCircleEnd();
 
     // 切换到下一个玩家并发出控制信号
     void nextPlayer();

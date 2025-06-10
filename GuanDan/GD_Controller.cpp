@@ -90,7 +90,6 @@ void GD_Controller::startGame()
 // ==================== 玩家操作槽函数 ====================
 
 // 处理玩家出牌操作(总方法)
-// 只进行了判断合法性和处理玩家手牌，信号部分没有处理
 void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
 {
     qDebug() << "GD_Controller::onPlayerPlay: 玩家" << playerId << "尝试出牌，牌数:" << cardsToPlay.size();
@@ -100,23 +99,19 @@ void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
         return;
     }
 
-    // 记录玩家选中的原始卡牌，用于正确移除手牌
     m_lastPlayedCards = cardsToPlay;
 
     CardCombo::ComboInfo playedCombo;
     if (!PlayerPlay(playerId, cardsToPlay, playedCombo)) {
         emit sigShowPlayerMessage(playerId, "出牌不符合规则", true);
         qDebug() << "GD_Controller::onPlayerPlay: 玩家" << playerId << "出牌不符合规则 "
-			<< "当前桌面牌型为" << m_currentTableCombo.type
-			<< ",当前牌型等级为" << m_currentTableCombo.level;
+            << "当前桌面牌型为" << m_currentTableCombo.type
+            << ",当前牌型等级为" << m_currentTableCombo.level;
         return;
     }
-    executePlay(playerId, playedCombo);
 
-    if (handleRoundEnd()) {
-        return;
-    }
-    handleCircleEnd();
+    // 核心修改：只执行出牌，然后转到下一位
+    executePlay(playerId, playedCombo);
 }
 
 // 处理玩家过牌操作(总方法)
@@ -127,17 +122,14 @@ void GD_Controller::onPlayerPass(int playerId)
         emit sigShowPlayerMessage(playerId, errorMsg, true);
         return;
     }
-    // 第一个出牌的人不能过牌的检查留在canPerformAction或executePass前
+
     if (m_currentTableCombo.type == CardComboType::Invalid) {
         emit sigShowPlayerMessage(playerId, "您是第一个出牌，不能过牌", true);
         return;
     }
-    executePass(playerId);
 
-    if (handleRoundEnd()) {
-        return;
-    }
-    handleCircleEnd();
+    // 核心修改：只执行过牌，然后转到下一位
+    executePass(playerId);
 }
 
 // 实现提示功能
@@ -343,32 +335,6 @@ void GD_Controller::determineFirstPlayerForRound()
     }
 }
 
-// 找到下一个未出完牌玩家的轮次逻辑 (仅控制m_currentPlayerId）
-void GD_Controller::nextPlayerTurn()
-{
-    QVector<int> activePlayers = getActivePlayerIdsSorted();
-    if (activePlayers.isEmpty()) {
-		qDebug() << "GD_Controller::nextPlayerTurn():玩家都出完牌了，没有下一个玩家";
-        return;
-    }
-    // 找到当前玩家的索引
-    int currentIndex = activePlayers.indexOf(m_currentPlayerId);
-    if (currentIndex == -1) return;
-
-    // 找到下一个未出完牌的玩家
-    int nextIndex = (currentIndex + 1) % activePlayers.size();
-	// 设置当前玩家ID为下一个玩家
-    m_currentPlayerId = activePlayers[nextIndex];
-
-    Player* nextPlayer = getPlayerById(m_currentPlayerId);
-    if (!nextPlayer) {
-        return;
-		qDebug()<< "GD_Controller::nextPlayerTurn():下一个玩家ID" << m_currentPlayerId << "不存在";
-    }
-	emit sigSetCurrentTurnPlayer(m_currentPlayerId, nextPlayer->getName());
-    emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-}
-
 // 清空当前桌面牌型和过牌玩家列表，并发送清空桌面牌型的信号
 void GD_Controller::resetTableCombo()
 {
@@ -486,27 +452,6 @@ void GD_Controller::processPlayerPass(int playerId)
 
     QString message = QString("%1 选择不出").arg(player->getName());
     emit sigBroadcastMessage(message);
-}
-
-// 当玩家跳过时进行判定
-bool GD_Controller::checkCircleEnd()
-{
-    qDebug() << "GD_Controller::checkCircleEnd： 调用";
-    // 1. 赢家开始新的一圈：检查是否所有其他活跃玩家都已过牌
-    if (allOtherActivePlayersPassed(m_circleLeaderId)) {
-        qDebug() << "GD_Controller::checkCircleEnd： 所有其他玩家已过, leaderId=" << m_circleLeaderId;
-        // 一圈结束，赢家开始新一圈，重置桌面牌型
-        resetCircleState();
-        // 发送重置信号
-        emitCircleResetSignals();
-        return true;
-    } else if (m_roundFinishOrder.size() <= 2) {
-        qDebug() << "GD_Controller::checkCircleEnd： 第一或第二玩家出完牌, 清空桌面";
-        resetTableCombo();
-        emit sigClearTableCards();
-    }
-    qDebug() << "GD_Controller::checkCircleEnd： 未触发圈结束";
-    return false;
 }
 
 // 当玩家出完牌时判定
@@ -781,27 +726,28 @@ void GD_Controller::processNextTributeAction()
     if (m_currentTributeIndex >= m_pendingTributes.size()) {
         // 所有进贡/还贡完成
         emit sigTributePhaseEnded();
-        
+
         // 确定首出玩家
-        QVector<TributeInfo> tributes;
-        for (const TributeInfo& tribute : m_pendingTributes) {
-            if (!tribute.isReturn) {
-                tributes.append(tribute);
-            }
+        // 默认情况下，都由上一局的头游先出牌
+        if (!m_lastRoundFinishOrder.isEmpty()) {
+            m_currentPlayerId = m_lastRoundFinishOrder.first();
+            qDebug() << "进贡阶段结束，确定首出玩家为上一局的头游: " << m_currentPlayerId;
         }
-        if (tributes.size() >= 2) { // 双下
-            m_currentPlayerId = (tributes[0].card > tributes[1].card) ? tributes[0].fromPlayerId : tributes[1].fromPlayerId;
-        } else if (tributes.size() == 1) { // 单下
-            m_currentPlayerId = tributes[0].fromPlayerId;
-        } else { // 抗贡或异常情况
-            if (!m_lastRoundFinishOrder.isEmpty()) {
-                m_currentPlayerId = m_lastRoundFinishOrder.first(); // 抗贡成功，头游出
-            } else {
-                m_currentPlayerId = 0; // 最终备用
-            }
+        else {
+            m_currentPlayerId = 0; // 备用逻辑
+            qWarning() << "无法获取上局排名，默认玩家0先出";
         }
+
+        // 特殊情况：双下时，由头游的对家（即上一局的二游）先出牌
+        Player* thirdPlayer = getPlayerById(m_lastRoundFinishOrder[2]);
+        Player* fourthPlayer = getPlayerById(m_lastRoundFinishOrder[3]);
+        if (thirdPlayer && fourthPlayer && thirdPlayer->getTeam() == fourthPlayer->getTeam()) {
+            m_currentPlayerId = m_lastRoundFinishOrder[1];
+            qDebug() << "检测到双下，首出玩家变更为头游的对家（二游）: " << m_currentPlayerId;
+        }
+
         m_circleLeaderId = m_currentPlayerId;
-        
+
         // 通过状态机进入出牌阶段
         enterState(GamePhase::Playing);
         return;
@@ -941,12 +887,13 @@ bool GD_Controller::canPerformAction(int playerId, QString& errorMsg)
 void GD_Controller::executePlay(int playerId, const CardCombo::ComboInfo& playedCombo)
 {
     // 更新手牌并广播出牌信息
-    processPlayerPlay(playerId, playedCombo);
+    processPlayerPlay(playerId, playedCombo); // 这个函数会设置 m_circleLeaderId
     QString message = QString("%1 出牌: %2").arg(getPlayerById(playerId)->getName()).arg(playedCombo.getDescription());
     emit sigBroadcastMessage(message);
     qDebug() << "GD_Controller::executePlay： 出牌处理完成, playerId=" << playerId;
-    // 切换到下一个玩家
-    nextPlayer();
+
+    // 推进游戏
+    advanceToNextPlayer();
 }
 
 void GD_Controller::executePass(int playerId)
@@ -956,51 +903,27 @@ void GD_Controller::executePass(int playerId)
     QString message = QString("%1 选择过牌").arg(getPlayerById(playerId)->getName());
     emit sigBroadcastMessage(message);
     qDebug() << "GD_Controller::executePass： 过牌处理完成, playerId=" << playerId;
-    // 切换到下一个玩家
-    nextPlayer();
-}
 
-void GD_Controller::handleCircleEnd()
-{
-    qDebug() << "GD_Controller::handleCircleEnd： 开始判断圈结束";
-    if (allOtherActivePlayersPassed(m_currentPlayerId)) {
-        qDebug() << "GD_Controller::handleCircleEnd： 圈结束, leaderId=" << m_currentPlayerId;
-        // 开始新一圈
-        m_circleLeaderId = m_currentPlayerId;
-        m_currentTableCombo.type = CardComboType::Invalid;
-        m_currentTableCombo.cards_in_combo.clear();
-        m_passedPlayersInCircle.clear();
-        emit sigClearTableCards();
-    }
-    qDebug() << "GD_Controller::handleCircleEnd： 发送启用控制信号 for playerId=" << m_currentPlayerId;
-    // 重新启用玩家控制
-    emit sigEnablePlayerControls(m_currentPlayerId, true, true);
+    // 推进游戏
+    advanceToNextPlayer();
 }
 
 void GD_Controller::nextPlayer()
 {
     // 固定顺序：0,1,2,3,0,1,2,3...
-    int nextId = (m_currentPlayerId + 1) % 4;
-    
-    // 检查下一个玩家是否已经出完牌
+    const int numPlayers = m_players.size();
+    if (numPlayers == 0) return;
+
+    int nextId = (m_currentPlayerId + 1) % numPlayers;
+
+    // 跳过已经出完牌的玩家
     while (m_roundFinishOrder.contains(nextId) && m_activePlayersInRound > 1) {
-        nextId = (nextId + 1) % 4;
+        nextId = (nextId + 1) % numPlayers;
     }
-    
+
     m_currentPlayerId = nextId;
-    
-    qDebug() << "GD_Controller::nextPlayer： 当前玩家ID=" << m_currentPlayerId;
-    
-    if (Player* p = getPlayerById(m_currentPlayerId)) {
-        emit sigSetCurrentTurnPlayer(m_currentPlayerId, p->getName());
-        
-        // AI玩家回合自动处理
-        QTimer::singleShot(0, [this]() {
-            if (Player* p = getPlayerById(m_currentPlayerId)) {
-                p->autoPlay(this, m_currentTableCombo);
-            }
-        });
-    }
+
+    qDebug() << "GD_Controller::nextPlayer： 下一个玩家ID计算为 " << m_currentPlayerId;
 }
 
 // 新增：扫描并更新已完成出牌的玩家状态，并发送广播
@@ -1034,24 +957,6 @@ void GD_Controller::appendLastPlayer()
             break;
         }
     }
-}
-
-// 重置桌面状态，开始新一圈（仅更新状态，不发送信号）
-void GD_Controller::resetCircleState()
-{
-    resetTableCombo();
-    m_passedPlayersInCircle.clear();
-    m_currentPlayerId = m_circleLeaderId;
-    qDebug() << "GD_Controller::resetCircleState： 圈状态已重置, leaderId=" << m_circleLeaderId;
-}
-
-// 新增：发送新一圈开始的UI信号
-void GD_Controller::emitCircleResetSignals()
-{
-    emit sigClearTableCards();
-    emit sigSetCurrentTurnPlayer(m_currentPlayerId, getPlayerById(m_currentPlayerId)->getName());
-    emit sigEnablePlayerControls(m_currentPlayerId, true, false);
-    qDebug() << "GD_Controller::emitCircleResetSignals： 信号发送完成, currentPlayerId=" << m_currentPlayerId;
 }
 
 void GD_Controller::enterState(GamePhase newPhase)
@@ -1130,7 +1035,7 @@ void GD_Controller::enterState(GamePhase newPhase)
                 // 广播轮到谁出牌
                 emit sigBroadcastMessage(QString("轮到 %1 出牌！").arg(currentPlayer->getName()));
 
-                // 如果是AI玩家，触发自动出牌
+        		// 如果是AI玩家，触发自动出牌
                 QTimer::singleShot(0, [this]() {
                     if (Player* p = getPlayerById(m_currentPlayerId)) {
                         p->autoPlay(this, m_currentTableCombo);
@@ -1202,4 +1107,97 @@ void GD_Controller::enterState(GamePhase newPhase)
             }
             break;
     }
+}
+
+void GD_Controller::advanceToNextPlayer()
+{
+    // 1. 每次推进前，都先检查是否有人出完牌，以及是否因此导致回合结束
+    if (handleRoundEnd()) {
+        // 如果回合结束，processRoundResults会被调用并启动新一轮或结束游戏，
+        // 此处无需再做任何事。
+        return;
+    }
+
+    // 2. 检查当前“圈”是否结束
+    // 条件：当前有领出者(m_circleLeaderId != -1)，并且所有其他活跃玩家都已经Pass了
+    if (m_circleLeaderId != -1 && allOtherActivePlayersPassed(m_circleLeaderId))
+    {
+        qDebug() << "advanceToNextPlayer: 圈结束! 所有其他玩家已Pass。领出者 " << m_circleLeaderId << " 准备开始新一圈。";
+
+        // BUG修复关键点：
+        // 在让圈主开始新一圈之前，先检查他是否还在游戏中。
+        if (isPlayerInGame(m_circleLeaderId))
+        {
+            // --- 情况A：圈主还在游戏中 ---
+            // 那么就由他开始新的一圈
+            m_currentPlayerId = m_circleLeaderId;
+            Player* leader = getPlayerById(m_currentPlayerId);
+            if (!leader) return;
+
+            qDebug() << "圈主 " << m_circleLeaderId << " 仍在游戏中，由他开始新一圈。";
+
+            // 重置桌面，开始新的一圈
+            resetTableCombo();
+            m_passedPlayersInCircle.clear();
+
+            // 通知UI和所有玩家
+            emit sigClearTableCards();
+            emit sigBroadcastMessage(QString("新的一圈开始，由 %1 出牌。").arg(leader->getName()));
+            emit sigSetCurrentTurnPlayer(m_currentPlayerId, leader->getName());
+
+            // 领出者开始新的一圈，不能Pass
+            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+        }
+        else
+        {
+            // --- 情况B：圈主已经出完牌了 ---
+            // 那么出牌权应该顺延到他之后的第一个还在游戏中的玩家
+            qDebug() << "圈主 " << m_circleLeaderId << " 已出完牌，寻找下一位出牌者。";
+
+            // 将当前玩家临时设置为已出完牌的圈主，然后调用 nextPlayer()，
+            // nextPlayer() 内部的循环会自动跳过已出局的玩家，找到正确的下一个玩家。
+            m_currentPlayerId = m_circleLeaderId;
+            nextPlayer(); // nextPlayer()会更新 m_currentPlayerId 为下一个合法的玩家
+
+            Player* nextActivePlayer = getPlayerById(m_currentPlayerId);
+            if (!nextActivePlayer) return;
+
+            // 同样需要重置桌面，因为这也是一个新圈的开始
+            resetTableCombo();
+            m_passedPlayersInCircle.clear();
+
+            emit sigClearTableCards();
+            emit sigBroadcastMessage(QString("新的一圈开始，由 %1 出牌。").arg(nextActivePlayer->getName()));
+            emit sigSetCurrentTurnPlayer(m_currentPlayerId, nextActivePlayer->getName());
+            emit sigEnablePlayerControls(m_currentPlayerId, true, false); // 新圈不能Pass
+        }
+    }
+    else
+    {
+        // 3. 圈未结束，正常轮到下一位玩家
+        nextPlayer(); // nextPlayer() 只负责按顺序计算出下一个玩家ID
+
+        Player* next_p = getPlayerById(m_currentPlayerId);
+        if (!next_p) return; // 安全检查
+
+        qDebug() << "advanceToNextPlayer: 圈未结束，轮到下一位玩家 " << m_currentPlayerId;
+
+        // 通知UI和所有玩家
+        emit sigBroadcastMessage(QString("轮到 %1 出牌！").arg(next_p->getName()));
+        emit sigSetCurrentTurnPlayer(m_currentPlayerId, next_p->getName());
+
+        // 圈未结束时，玩家可以选择出牌或过牌
+        emit sigEnablePlayerControls(m_currentPlayerId, true, true);
+    }
+
+    // 4. 统一在这里触发AI行动（无论圈是否结束）
+    // 使用QTimer::singleShot确保AI操作在当前事件处理完成后执行，避免递归调用问题
+    QTimer::singleShot(0, [this]() {
+        if (m_currentPhase == GamePhase::Playing) {
+            Player* p = getPlayerById(m_currentPlayerId);
+            if (p && p->getType() == Player::AI) {
+                p->autoPlay(this, m_currentTableCombo);
+            }
+        }
+        });
 }

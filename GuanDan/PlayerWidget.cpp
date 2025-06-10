@@ -898,6 +898,10 @@ void PlayerWidget::cardClicked(CardWidget* clickedWidget)
         return;
     }
 
+    // 切换卡片的选中状态
+    clickedWidget->setSelected(!clickedWidget->isSelected());
+    qDebug() << "切换卡片选中状态 - 当前状态:" << clickedWidget->isSelected();
+
     // 发送选中卡牌信号
     QVector<Card> selectedCards = getSelectedCards();
     qDebug() << "发送选中卡牌信号 - 选中数量:" << selectedCards.size();
