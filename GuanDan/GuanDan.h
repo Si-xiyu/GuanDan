@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GUANDAN_H
+#define GUANDAN_H
 
 #include <QtWidgets/QMainWindow>
 #include <QPushButton>
@@ -47,3 +48,4 @@ private:
     bool m_gameInProgress;              // 游戏进行状态
 };
 
+#endif // GD_CONTROLLER_H

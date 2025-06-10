@@ -7,7 +7,6 @@ class CardWidget;
 class QVBoxLayout;
 class QHBoxLayout;
 class QLabel;
-class QPushButton;
 class QScrollArea;
 
 class TributeDialog : public QDialog
@@ -25,15 +24,12 @@ public:
 
 private slots:
     void onCardClicked(CardWidget* widget);
-    void onConfirmClicked();
-    void onCancelClicked();
 
 private:
     void setupUI();
     QVector<Card> m_handCards;
     QVector<CardWidget*> m_cardWidgets;
     Card m_selectedCard;
-    QPushButton* m_confirmButton;
     bool m_hasSelection = false;
     bool m_isReturn;
 };
