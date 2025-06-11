@@ -2,6 +2,7 @@
 #include "Cardcombo.h"
 #include "GD_Controller.h"
 #include <algorithm>
+#include <QTimer>
 
 // 构造函数
 NPCPlayer::NPCPlayer(const QString& name, int id)
@@ -50,10 +51,18 @@ QVector<Card> NPCPlayer::choosePlay(const CardCombo::ComboInfo& currentTableComb
 // AI玩家自动行为：在回合开始时由控制器调用
 void NPCPlayer::autoPlay(GD_Controller* controller, const CardCombo::ComboInfo& currentTableCombo)
 {
+    // 获取AI选择的牌
     QVector<Card> choice = choosePlay(currentTableCombo);
-    if (choice.isEmpty()) {
-        controller->onPlayerPass(getID());
-    } else {
-        controller->onPlayerPlay(getID(), choice);
-    }
+    
+    // 使用ID副本和选择的牌来创建延迟执行的lambda
+    int playerId = getID();
+    
+    // 使用QTimer延迟1秒后执行出牌或过牌操作
+    QTimer::singleShot(1000, [controller, playerId, choice]() {
+        if (choice.isEmpty()) {
+            controller->onPlayerPass(playerId);
+        } else {
+            controller->onPlayerPlay(playerId, choice);
+        }
+    });
 }
