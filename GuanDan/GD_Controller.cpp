@@ -130,7 +130,7 @@ void GD_Controller::onPlayerPass(int playerId)
         return;
     }
 
-    // 核心修改：只执行过牌，然后转到下一位
+    // 只执行过牌，然后转到下一位
     executePass(playerId);
 }
 
@@ -1121,85 +1121,85 @@ void GD_Controller::enterState(GamePhase newPhase)
 
 void GD_Controller::advanceToNextPlayer()
 {
+    // 记录当前行动的玩家ID，以便后续判断该玩家是否刚刚出完牌
+    int lastPlayerId = m_currentPlayerId;
+    
     // 1. 每次推进前，都先检查是否有人出完牌，以及是否因此导致回合结束
     if (handleRoundEnd()) {
         // 如果回合结束，processRoundResults会被调用并启动新一轮或结束游戏，
         // 此处无需再做任何事。
         return;
     }
-
+    
+    // 检查刚才行动的玩家是否已经出完牌（即不再游戏中）
+    bool lastPlayerFinished = !isPlayerInGame(lastPlayerId);
+    
     // 2. 检查当前"圈"是否结束
-    // 条件：当前有领出者(m_circleLeaderId != -1)，并且所有其他活跃玩家都已经Pass了
-    if (m_circleLeaderId != -1 && allOtherActivePlayersPassed(m_circleLeaderId))
+    // 条件：(A)当前有领出者，并且所有其他活跃玩家都已经Pass了
+    //      或者(B)刚才行动的玩家出完了所有牌
+    bool allOthersPassed = (m_circleLeaderId != -1 && allOtherActivePlayersPassed(m_circleLeaderId));
+    bool circleEnded = allOthersPassed || lastPlayerFinished;
+    
+    if (circleEnded)
     {
-        qDebug() << "advanceToNextPlayer: 圈结束! 所有其他玩家已Pass。领出者 " << m_circleLeaderId << " 准备开始新一圈。";
-
-        // BUG修复关键点：
-        // 在让圈主开始新一圈之前，先检查他是否还在游戏中。
-        if (isPlayerInGame(m_circleLeaderId))
-        {
-            // --- 情况A：圈主还在游戏中 ---
-            // 那么就由他开始新的一圈
-            m_currentPlayerId = m_circleLeaderId;
-            Player* leader = getPlayerById(m_currentPlayerId);
-            if (!leader) return;
-
+        qDebug() << "advanceToNextPlayer: 圈结束! " 
+                 << (lastPlayerFinished ? "玩家出完牌导致圈结束。" : "所有其他玩家已Pass。")
+                 << "领出者: " << m_circleLeaderId;
+        
+        // 确定下一圈的领出者
+        int nextLeaderId = -1;
+        
+        if (allOthersPassed && isPlayerInGame(m_circleLeaderId)) {
+            // 情况A：所有人都Pass且圈主还在游戏中，由圈主开始新一圈
+            nextLeaderId = m_circleLeaderId;
             qDebug() << "圈主 " << m_circleLeaderId << " 仍在游戏中，由他开始新一圈。";
-
-            // 重置桌面，开始新的一圈
-            resetTableCombo();
-            m_passedPlayersInCircle.clear();
-
-            // 通知UI和所有玩家
-            emit sigClearTableCards();
-            emit sigBroadcastMessage(QString("新的一圈开始，由 %1 出牌。").arg(leader->getName()));
-            emit sigSetCurrentTurnPlayer(m_currentPlayerId, leader->getName());
-
-            // 领出者开始新的一圈，不能Pass
-            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
         }
-        else
-        {
-            // --- 情况B：圈主已经出完牌了 ---
-            // 那么出牌权应该顺延到他之后的第一个还在游戏中的玩家
-            qDebug() << "圈主 " << m_circleLeaderId << " 已出完牌，寻找下一位出牌者。";
-
-            // 将当前玩家临时设置为已出完牌的圈主，然后调用 nextPlayer()，
-            // nextPlayer() 内部的循环会自动跳过已出局的玩家，找到正确的下一个玩家。
-            m_currentPlayerId = m_circleLeaderId;
-            nextPlayer(); // nextPlayer()会更新 m_currentPlayerId 为下一个合法的玩家
-
-            Player* nextActivePlayer = getPlayerById(m_currentPlayerId);
-            if (!nextActivePlayer) return;
-
-            // 同样需要重置桌面，因为这也是一个新圈的开始
-            resetTableCombo();
-            m_passedPlayersInCircle.clear();
-
-            emit sigClearTableCards();
-            emit sigBroadcastMessage(QString("新的一圈开始，由 %1 出牌。").arg(nextActivePlayer->getName()));
-            emit sigSetCurrentTurnPlayer(m_currentPlayerId, nextActivePlayer->getName());
-            emit sigEnablePlayerControls(m_currentPlayerId, true, false); // 新圈不能Pass
+        else {
+            // 情况B：出牌者打光牌或圈主已出完牌
+            // 由当前行动者的下一位未出完牌的玩家开始新一圈
+            m_currentPlayerId = lastPlayerId;
+            nextPlayer(); // 找到下一个合法玩家
+            nextLeaderId = m_currentPlayerId;
+            qDebug() << "需要寻找新的圈主，下一圈由 " << nextLeaderId << " 开始。";
         }
+        
+        // 设置新一圈的领出者和当前玩家
+        m_currentPlayerId = nextLeaderId;
+        m_circleLeaderId = nextLeaderId;
+        
+        Player* leader = getPlayerById(m_currentPlayerId);
+        if (!leader) return; // 安全检查
+        
+        // 重置桌面，开始新的一圈
+        resetTableCombo();
+        m_passedPlayersInCircle.clear();
+        
+        // 通知UI和所有玩家
+        emit sigClearTableCards();
+        emit sigBroadcastMessage(QString("新的一圈开始，由 %1 出牌。").arg(leader->getName()));
+        emit sigSetCurrentTurnPlayer(m_currentPlayerId, leader->getName());
+        
+        // 新一圈的领出者不能Pass
+        emit sigEnablePlayerControls(m_currentPlayerId, true, false);
     }
     else
     {
         // 3. 圈未结束，正常轮到下一位玩家
         nextPlayer(); // nextPlayer() 只负责按顺序计算出下一个玩家ID
-
+        
         Player* next_p = getPlayerById(m_currentPlayerId);
         if (!next_p) return; // 安全检查
-
+        
         qDebug() << "advanceToNextPlayer: 圈未结束，轮到下一位玩家 " << m_currentPlayerId;
-
+        
         // 通知UI和所有玩家
         emit sigBroadcastMessage(QString("轮到 %1 出牌！").arg(next_p->getName()));
         emit sigSetCurrentTurnPlayer(m_currentPlayerId, next_p->getName());
-
+        
         // 圈未结束时，玩家可以选择出牌或过牌
         emit sigEnablePlayerControls(m_currentPlayerId, true, true);
     }
-
+    
     // 4. 统一在这里触发AI行动（无论圈是否结束）
     // 使用QTimer::singleShot确保AI操作在当前事件处理完成后执行，避免递归调用问题
     QTimer::singleShot(500, [this]() {
@@ -1209,5 +1209,5 @@ void GD_Controller::advanceToNextPlayer()
                 p->autoPlay(this, m_currentTableCombo);
             }
         }
-        });
+    });
 }
