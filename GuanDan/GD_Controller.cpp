@@ -1,4 +1,4 @@
-
+// 这部分代码太逆天了，主播要崩溃了
 
 #include "GD_Controller.h"
 #include <QRandomGenerator>
