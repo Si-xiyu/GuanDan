@@ -64,6 +64,9 @@
     <ClCompile Include="GD_Controller.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="PlayerAreaWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="PlayerWidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -102,9 +105,6 @@
     <ClInclude Include="HMPlayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="ShowCardWidget.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="Player.h">
@@ -114,6 +114,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="GD_Controller.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="PlayerAreaWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="PlayerWidget.h">
@@ -126,6 +129,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="NPCPlayer.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="ShowCardWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

@@ -59,7 +59,8 @@ signals:
 
 	// 更新桌面牌的显示(新Round和Game开始时)
     void sigClearTableCards(); // 清空桌面的牌（新Circle开始）
-    void sigUpdateTableCards(const CardCombo::ComboInfo& lastPlayedCombo, const QString& playerName); // 更新桌面显示的牌
+    void sigUpdateTableCards(int playerId, const CardCombo::ComboInfo& lastPlayedCombo, const QVector<Card>& originalCards); // 更新桌面显示的牌
+    void sigPlayerPassed(int playerId); // 玩家过牌信号
 
 	// 更新全局状态
 	void sigSetCurrentTurnPlayer(int playerId, const QString& playerName); // 轮到谁出牌

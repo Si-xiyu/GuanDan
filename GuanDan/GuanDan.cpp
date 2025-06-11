@@ -150,10 +150,10 @@ void GuanDan::createPlayers()
             break;
         }
 
-        // 创建玩家界面
-        PlayerWidget* playerWidget = new PlayerWidget(player, position, i == 0, gameArea);
-        m_playerWidgets.append(playerWidget);
-        playerWidget->show();
+        // 创建玩家界面（使用PlayerAreaWidget）
+        PlayerAreaWidget* playerAreaWidget = new PlayerAreaWidget(player, position, i == 0, gameArea);
+        m_playerWidgets.append(playerAreaWidget);
+        playerAreaWidget->show();
         qDebug() << "创建玩家界面:" << player->getName() << "位置:" << static_cast<int>(position);
     }
 
@@ -200,10 +200,39 @@ void GuanDan::setupConnections()
         this, &GuanDan::onRoundOver);
     connect(m_gameController, &GD_Controller::sigGameOver,
         this, &GuanDan::onGameOver);
+        
+    // 连接出牌和过牌显示信号
+    connect(m_gameController, &GD_Controller::sigUpdateTableCards,
+        this, [this](int playerId, const CardCombo::ComboInfo& combo, const QVector<Card>& originalCards) {
+            // 更新所有玩家的出牌显示区域
+            for (PlayerAreaWidget* widget : m_playerWidgets) {
+                if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
+                    widget->updatePlayedCards(combo, originalCards);
+                }
+            }
+        });
+        
+    connect(m_gameController, &GD_Controller::sigPlayerPassed,
+        this, [this](int playerId) {
+            // 清空过牌玩家的出牌显示
+            for (PlayerAreaWidget* widget : m_playerWidgets) {
+                if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
+                    widget->clearPlayedCards();
+                }
+            }
+        });
+        
+    connect(m_gameController, &GD_Controller::sigClearTableCards,
+        this, [this]() {
+            // 清空所有玩家的出牌显示
+            for (PlayerAreaWidget* widget : m_playerWidgets) {
+                widget->clearPlayedCards();
+            }
+        });
     connect(m_gameController, &GD_Controller::sigCardsDealt,
         this, [this](int playerId, const QVector<Card>& cards) {
             qDebug() << "收到发牌信号 - 玩家ID:" << playerId << "牌数:" << cards.size();
-            for (PlayerWidget* widget : m_playerWidgets) {
+            for (PlayerAreaWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
                     widget->updateHandDisplay(cards, widget->getPlayer()->getID() == 0);
                     break;
@@ -214,7 +243,7 @@ void GuanDan::setupConnections()
     connect(m_gameController, &GD_Controller::sigUpdatePlayerHand,
         this, [this](int playerId, const QVector<Card>& cards) {
             qDebug() << "收到玩家手牌更新信号(无动画) - 玩家ID:" << playerId << "牌数:" << cards.size();
-            for (PlayerWidget* widget : m_playerWidgets) {
+            for (PlayerAreaWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
                     widget->updateHandDisplayNoAnimation(cards, widget->getPlayer()->getID() == 0);
                     break;
@@ -223,16 +252,16 @@ void GuanDan::setupConnections()
         });
 
     // 连接玩家界面信号
-    for (PlayerWidget* widget : m_playerWidgets) {
+    for (PlayerAreaWidget* widget : m_playerWidgets) {
         // 当玩家选择卡牌时更新按钮状态，但不重新显示所有卡牌
-        connect(widget, &PlayerWidget::cardsSelected,
+        connect(widget, &PlayerAreaWidget::cardsSelected,
             [this, widget](const QVector<Card>& cards) {
                 qDebug() << "收到卡牌选择信号 - 玩家:" << widget->getPlayer()->getName()
                          << "选中卡牌数量:" << cards.size();
             });
         
         // 当玩家选择卡牌时通知游戏控制器
-        connect(widget, &PlayerWidget::playCardsRequested,
+        connect(widget, &PlayerAreaWidget::playCardsRequested,
             [this, widget]() {
                 if (widget->getPlayer()) {
                     QVector<Card> selectedCards = widget->getSelectedCards();
@@ -243,7 +272,7 @@ void GuanDan::setupConnections()
             });
             
         // 当玩家点击跳过按钮时通知游戏控制器
-        connect(widget, &PlayerWidget::skipTurnRequested,
+        connect(widget, &PlayerAreaWidget::skipTurnRequested,
             [this, widget]() {
                 if (widget->getPlayer()) {
                     m_gameController->onPlayerPass(widget->getPlayer()->getID());
@@ -257,7 +286,7 @@ void GuanDan::setupConnections()
             qDebug() << "收到启用玩家控制信号 - 玩家ID:" << playerId << "可出牌:" << canPlay << "可跳过:" << canPass;
             
             bool found = false;
-            for (PlayerWidget* widget : m_playerWidgets) {
+            for (PlayerAreaWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
                     found = true;
                     widget->setEnabled(canPlay);
@@ -273,7 +302,7 @@ void GuanDan::setupConnections()
     // 连接当前玩家回合信号
     connect(m_gameController, &GD_Controller::sigSetCurrentTurnPlayer,
         this, [this](int playerId, const QString& playerName) {
-            for (PlayerWidget* widget : m_playerWidgets) {
+            for (PlayerAreaWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer()) {
                 }
             }
@@ -300,7 +329,7 @@ void GuanDan::arrangePlayerWidgets()
     int horizontalHeight = 240;
 
     // 【关键修复点】 不再使用硬编码的索引，而是遍历所有widget，根据其position属性来布局
-    for (PlayerWidget* widget : m_playerWidgets)
+    for (PlayerAreaWidget* widget : m_playerWidgets)
     {
         if (!widget) continue;
 
@@ -384,7 +413,7 @@ void GuanDan::startGame()
         m_gameController->startGame();
 
         // 更新所有玩家界面
-        for (PlayerWidget* widget : m_playerWidgets) {
+        for (PlayerAreaWidget* widget : m_playerWidgets) {
             if (widget && widget->getPlayer()) {
                 widget->updatePlayerInfo();
             }
@@ -401,7 +430,7 @@ void GuanDan::onGameStarted()
     QTimer::singleShot(500, this, [this]() {
         qDebug() << "检查玩家控件状态:";
         for (int i = 0; i < m_playerWidgets.size(); ++i) {
-            PlayerWidget* widget = m_playerWidgets[i];
+            PlayerAreaWidget* widget = m_playerWidgets[i];
             if (widget && widget->getPlayer()) {
                 qDebug() << "玩家" << i << ":" << widget->getPlayer()->getName()
                          << "位置:" << static_cast<int>(widget->getPosition())
@@ -445,7 +474,7 @@ void GuanDan::updateGameStatus()
 {
     // 更新玩家界面显示
     for (int i = 0; i < m_playerWidgets.size(); ++i) {
-        if (PlayerWidget* widget = m_playerWidgets[i]) {
+        if (PlayerAreaWidget* widget = m_playerWidgets[i]) {
             if (Player* player = widget->getPlayer()) {
                 // 更新手牌显示，底部玩家显示正面，其他玩家显示背面
                 widget->updateHandDisplay(

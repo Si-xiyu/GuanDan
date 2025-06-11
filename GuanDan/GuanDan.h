@@ -6,7 +6,7 @@
 #include <QVBoxLayout>
 #include "ui_GuanDan.h"
 #include "GD_Controller.h"
-#include "PlayerWidget.h"
+#include "PlayerAreaWidget.h"
 #include "Player.h"
 
 class GuanDan : public QMainWindow
@@ -37,7 +37,7 @@ private:
 
     Ui::GuanDanClass ui;
     GD_Controller* m_gameController;    // 游戏控制器
-    QVector<PlayerWidget*> m_playerWidgets; // 玩家界面
+    QVector<PlayerAreaWidget*> m_playerWidgets; // 玩家界面
     QVector<Player*> m_players;         // 玩家对象
     QPushButton* m_startButton;         // 开始游戏按钮
     QPushButton* m_globalPlayButton;    // 全局出牌按钮
