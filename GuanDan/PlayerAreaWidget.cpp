@@ -29,13 +29,19 @@ PlayerAreaWidget::~PlayerAreaWidget()
 
 void PlayerAreaWidget::arrangeComponents()
 {
-    // 删除旧布局
+    // 删除旧布局，防止内存泄漏
     if (m_mainLayout) {
+        // 先将布局中的所有项移除，防止它们被一同删除
+        while (QLayoutItem* item = m_mainLayout->takeAt(0)) {
+            // 不删除 item->widget()，因为它们的父窗口是PlayerAreaWidget，会被自动管理
+            delete item;
+        }
         delete m_mainLayout;
         m_mainLayout = nullptr;
     }
-    
-    // 根据位置决定布局方向
+
+    // 【关键修复】 根据位置决定并创建布局对象
+    // 这段代码在您之前的文件中缺失了，导致 m_mainLayout 为空指针
     switch (m_position) {
     case PlayerPosition::Bottom:
     case PlayerPosition::Top:
@@ -48,34 +54,36 @@ void PlayerAreaWidget::arrangeComponents()
         m_mainLayout = new QHBoxLayout(this);
         break;
     }
-    
+
+    // 调整边距，减少空间浪费
     m_mainLayout->setContentsMargins(2, 2, 2, 2);
     m_mainLayout->setSpacing(5);
-    
+
     // 根据位置决定控件顺序，让ShowCardWidget总是靠近屏幕中心
+    // 现在 m_mainLayout 是一个有效的指针，可以安全地添加控件
     switch (m_position) {
     case PlayerPosition::Bottom:
         // 底部玩家: 出牌区(ShowCardWidget)在上，手牌区(PlayerWidget)在下
-        m_mainLayout->addWidget(m_showCardWidget, 1); // 占较小空间
-        m_mainLayout->addWidget(m_playerWidget, 3);   // 占较大空间
+        m_mainLayout->addWidget(m_showCardWidget, 1); // 占1份空间
+        m_mainLayout->addWidget(m_playerWidget, 4);   // 占4份空间
         break;
     case PlayerPosition::Top:
         // 顶部玩家: 手牌区在上，出牌区在下
-        m_mainLayout->addWidget(m_playerWidget, 3);
-        m_mainLayout->addWidget(m_showCardWidget, 1);
+        m_mainLayout->addWidget(m_playerWidget, 1);   // 占1份空间
+        m_mainLayout->addWidget(m_showCardWidget, 2); // 占2份空间
         break;
     case PlayerPosition::Left:
         // 左侧玩家: 手牌区在左，出牌区在右
-        m_mainLayout->addWidget(m_playerWidget, 3);
-        m_mainLayout->addWidget(m_showCardWidget, 1);
+        m_mainLayout->addWidget(m_playerWidget, 1);
+        m_mainLayout->addWidget(m_showCardWidget, 2);
         break;
     case PlayerPosition::Right:
         // 右侧玩家: 出牌区在左，手牌区在右
-        m_mainLayout->addWidget(m_showCardWidget, 1);
-        m_mainLayout->addWidget(m_playerWidget, 3);
+        m_mainLayout->addWidget(m_showCardWidget, 2);
+        m_mainLayout->addWidget(m_playerWidget, 1);
         break;
     }
-    
+
     // 调整大小以适应内容
     adjustSize();
 }
@@ -174,16 +182,6 @@ void PlayerAreaWidget::setPosition(PlayerPosition position)
 PlayerPosition PlayerAreaWidget::getPosition() const
 {
     return m_position;
-}
-
-void PlayerAreaWidget::setPlayerAvatar(const QString& avatarPath)
-{
-    m_playerWidget->setPlayerAvatar(avatarPath);
-}
-
-void PlayerAreaWidget::setDefaultAvatar()
-{
-    m_playerWidget->setDefaultAvatar();
 }
 
 void PlayerAreaWidget::setPlayerBackground(const QString& backgroundPath)
