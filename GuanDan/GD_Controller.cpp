@@ -432,7 +432,7 @@ void GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& 
 
     // 通知UI更新
     emit sigUpdatePlayerHand(playerId, player->getHandCards());
-    emit sigUpdateTableCards(playedCombo, player->getName());
+    emit sigUpdateTableCards(playerId, playedCombo, m_lastPlayedCards);
 
     QString message = QString("%1 出牌：%2")
         .arg(player->getName())
@@ -892,6 +892,10 @@ void GD_Controller::executePlay(int playerId, const CardCombo::ComboInfo& played
     processPlayerPlay(playerId, playedCombo); // 这个函数会设置 m_circleLeaderId
     QString message = QString("%1 出牌: %2").arg(getPlayerById(playerId)->getName()).arg(playedCombo.getDescription());
     emit sigBroadcastMessage(message);
+    
+    // 通知UI更新显示出牌
+    emit sigUpdateTableCards(playerId, playedCombo, m_lastPlayedCards);
+    
     qDebug() << "GD_Controller::executePlay： 出牌处理完成, playerId=" << playerId;
 
     // 推进游戏
@@ -904,6 +908,10 @@ void GD_Controller::executePass(int playerId)
     processPlayerPass(playerId);
     QString message = QString("%1 选择过牌").arg(getPlayerById(playerId)->getName());
     emit sigBroadcastMessage(message);
+    
+    // 发出玩家过牌信号
+    emit sigPlayerPassed(playerId);
+    
     qDebug() << "GD_Controller::executePass： 过牌处理完成, playerId=" << playerId;
 
     // 推进游戏
