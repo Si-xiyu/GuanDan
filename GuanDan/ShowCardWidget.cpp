@@ -6,6 +6,7 @@
 
 ShowCardWidget::ShowCardWidget(QWidget* parent)
     : QWidget(parent)
+    , m_cardFrame(nullptr)
 {
     // 设置最小尺寸
     setMinimumSize(SHOW_CARD_MIN_WIDTH, SHOW_CARD_MIN_HEIGHT);
@@ -15,11 +16,16 @@ ShowCardWidget::ShowCardWidget(QWidget* parent)
     m_mainLayout->setContentsMargins(5, 5, 5, 5);
     m_mainLayout->setSpacing(5);
     
-    // 创建牌型标签
+    // 创建卡牌框架，用于容纳卡牌
+    m_cardFrame = new QFrame(this);
+    m_cardFrame->setStyleSheet("QFrame { background-color: transparent; }");
+    m_mainLayout->addWidget(m_cardFrame, 1); // 占主要空间
+    
+    // 创建牌型标签，放在底部
     m_comboTypeLabel = new QLabel(this);
     m_comboTypeLabel->setAlignment(Qt::AlignCenter);
     m_comboTypeLabel->setStyleSheet("QLabel { color: white; font-size: 14px; font-weight: bold; }");
-    m_mainLayout->addWidget(m_comboTypeLabel);
+    m_mainLayout->addWidget(m_comboTypeLabel, 0, Qt::AlignCenter); // 居中显示，不拉伸
     
     // 设置背景色
     setStyleSheet("ShowCardWidget { background-color: rgba(0, 80, 0, 150); border-radius: 5px; }");
@@ -115,7 +121,8 @@ void ShowCardWidget::clearDisplay()
 
 CardWidget* ShowCardWidget::createCardWidget(const Card& card)
 {
-    CardWidget* cardWidget = new CardWidget(card, nullptr, this);
+    // 父窗口改为m_cardFrame
+    CardWidget* cardWidget = new CardWidget(card, nullptr, m_cardFrame);
     cardWidget->setFrontSide(true);
     cardWidget->setEnabled(false); // 禁用交互
     cardWidget->setFixedSize(DefaultCardWidth, DefaultCardHeight);
@@ -135,13 +142,16 @@ void ShowCardWidget::relayoutCards()
             return a->getCard().point() < b->getCard().point();
         });
     
-    // 计算每张牌的位置
-    int baseX = (width() - DefaultCardWidth) / 2;
+    // 计算卡片区域，现在使用m_cardFrame的矩形区域
+    QRect cardsArea = m_cardFrame->rect();
     int cardCount = m_cardWidgets.size();
     
-    // 调整起始位置，使牌组居中
+    // 计算总宽度
     int totalWidth = DefaultCardWidth + (cardCount - 1) * SHOW_CARD_OVERLAP_HORIZONTAL;
-    baseX = (width() - totalWidth) / 2;
+    
+    // 计算起始位置，使牌组在m_cardFrame中居中显示
+    int startX = (cardsArea.width() - totalWidth) / 2;
+    int startY = (cardsArea.height() - DefaultCardHeight) / 2;
     
     // 为每张牌设置位置
     for (int i = 0; i < cardCount; ++i) {
@@ -155,9 +165,11 @@ void ShowCardWidget::relayoutCards()
             stackIndex = 1;
         }
         
-        // 计算并设置位置
-        QPoint pos = calculateCardPosition(i, stackIndex);
-        cardWidget->move(pos);
+        // 计算位置
+        int x = startX + i * SHOW_CARD_OVERLAP_HORIZONTAL;
+        int y = startY - stackIndex * SHOW_CARD_OVERLAP_VERTICAL; // 癞子牌向上堆叠
+        
+        cardWidget->move(x, y);
     }
     
     // 更新Z顺序，确保堆叠效果正确
@@ -166,8 +178,9 @@ void ShowCardWidget::relayoutCards()
 
 QPoint ShowCardWidget::calculateCardPosition(int index, int stackIndex) const
 {
-    int x = 10 + index * SHOW_CARD_OVERLAP_HORIZONTAL;
-    int y = 30 + stackIndex * SHOW_CARD_OVERLAP_VERTICAL;
+    // 这个方法已经被新的布局逻辑替代，但保留以兼容旧代码
+    int x = index * SHOW_CARD_OVERLAP_HORIZONTAL;
+    int y = -stackIndex * SHOW_CARD_OVERLAP_VERTICAL; // 负值使癞子牌向上堆叠
     return QPoint(x, y);
 }
 

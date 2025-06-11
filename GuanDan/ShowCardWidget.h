@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QMap>
+#include <QFrame>
 #include "Card.h"
 #include "CardWidget.h"
 #include "CardCombo.h"
@@ -47,6 +48,7 @@ private:
 
     QVBoxLayout* m_mainLayout;          // 主布局
     QLabel* m_comboTypeLabel;           // 显示牌型名称的标签
+    QFrame* m_cardFrame;                // 卡牌容器框架
     QVector<CardWidget*> m_cardWidgets; // 所有卡片视图
     
     // 映射普通牌和癞子牌的关系（癞子牌->变成的牌）
