@@ -8,6 +8,8 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QWidget>
+#include <QCloseEvent>
+#include <QMessageBox>
 #include "Cardwidget.h"
 
 TributeDialog::TributeDialog(const QVector<Card>& handCards, bool isReturn, QWidget* parent)
@@ -19,6 +21,15 @@ TributeDialog::TributeDialog(const QVector<Card>& handCards, bool isReturn, QWid
     setWindowTitle(m_isReturn ? tr("选择还贡的牌") : tr("选择进贡的牌"));
     setModal(true);
     setMinimumSize(400, 200);
+    
+    // 禁用关闭按钮
+    Qt::WindowFlags flags = windowFlags();
+    flags &= ~Qt::WindowCloseButtonHint;
+    setWindowFlags(flags);
+    
+    // 禁止通过ESC键关闭
+    setWindowFlag(Qt::WindowContextHelpButtonHint, false);
+    setWindowModality(Qt::ApplicationModal);
 }
 
 TributeDialog::~TributeDialog() {}
@@ -44,6 +55,7 @@ void TributeDialog::setupUI()
         m_cardWidgets.append(cw);
         cardsLayout->addWidget(cw);
     }
+
     cardsLayout->addStretch();
     scrollWidget->setLayout(cardsLayout);
     scroll->setWidget(scrollWidget);
@@ -84,4 +96,11 @@ Card TributeDialog::getSelectedCard() const
 bool TributeDialog::hasValidSelection() const
 {
     return m_hasSelection;
+}
+
+void TributeDialog::closeEvent(QCloseEvent* event)
+{
+    // 显示警告并阻止关闭
+    QMessageBox::warning(this, tr("警告"), tr("必须选择一张牌进行进贡/还贡！"));
+    event->ignore();
 }

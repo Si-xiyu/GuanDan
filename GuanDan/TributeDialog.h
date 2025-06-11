@@ -22,6 +22,10 @@ public:
     Card getSelectedCard() const;
     bool hasValidSelection() const;
 
+protected:
+    // 阻止关闭事件
+    void closeEvent(QCloseEvent* event) override;
+
 private slots:
     void onCardClicked(CardWidget* widget);
 

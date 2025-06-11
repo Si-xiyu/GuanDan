@@ -462,12 +462,24 @@ void GuanDan::onAskForTribute(int fromPlayerId, const QString& fromPlayerName, i
 {
     // 仅对人类玩家弹窗
     if (fromPlayerId != m_players[0]->getID()) return;
+    
     // 获取手牌
     QVector<Card> hand = m_players[0]->getHandCards();
     qDebug() << "GuanDan::onAskForTribute：TributeDialog被调用";
+    
+    // 创建对话框并循环直到用户做出选择
     TributeDialog dialog(hand, isReturn, this);
-    if (dialog.exec() == QDialog::Accepted && dialog.hasValidSelection()) {
+    int result = dialog.exec();
+    
+    // 由于我们已经禁用了关闭按钮和closeEvent，对话框应该总是返回Accepted
+    if (result == QDialog::Accepted && dialog.hasValidSelection()) {
         Card sel = dialog.getSelectedCard();
         m_gameController->onPlayerTributeCardSelected(fromPlayerId, sel);
+    }
+    else {
+        // 以防万一，如果对话框被拒绝或没有选择，重新弹出
+        QTimer::singleShot(100, [this, fromPlayerId, fromPlayerName, toPlayerId, toPlayerName, isReturn]() {
+            onAskForTribute(fromPlayerId, fromPlayerName, toPlayerId, toPlayerName, isReturn);
+        });
     }
 }
