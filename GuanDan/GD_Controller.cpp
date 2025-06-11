@@ -1162,25 +1162,40 @@ void GD_Controller::advanceToNextPlayer()
             nextLeaderId = m_currentPlayerId;
             qDebug() << "需要寻找新的圈主，下一圈由 " << nextLeaderId << " 开始。";
         }
-        
-        // 设置新一圈的领出者和当前玩家
-        m_currentPlayerId = nextLeaderId;
-        m_circleLeaderId = nextLeaderId;
-        
-        Player* leader = getPlayerById(m_currentPlayerId);
-        if (!leader) return; // 安全检查
-        
-        // 重置桌面，开始新的一圈
-        resetTableCombo();
-        m_passedPlayersInCircle.clear();
-        
-        // 通知UI和所有玩家
-        emit sigClearTableCards();
-        emit sigBroadcastMessage(QString("新的一圈开始，由 %1 出牌。").arg(leader->getName()));
-        emit sigSetCurrentTurnPlayer(m_currentPlayerId, leader->getName());
-        
-        // 新一圈的领出者不能Pass
-        emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+
+        // 延迟1.5秒后再开始新一圈，让玩家有时间看清上一手牌
+        QTimer::singleShot(1500, this, [this, nextLeaderId]() {
+            // 设置新一圈的领出者和当前玩家
+            m_currentPlayerId = nextLeaderId;
+            m_circleLeaderId = nextLeaderId;
+            
+            Player* leader = getPlayerById(m_currentPlayerId);
+            if (!leader) return; // 安全检查
+            
+            // 重置桌面，开始新的一圈
+            resetTableCombo();
+            m_passedPlayersInCircle.clear();
+            
+            // 通知UI和所有玩家
+            emit sigClearTableCards();
+            emit sigBroadcastMessage(QString("新的一圈开始，由 %1 出牌。").arg(leader->getName()));
+            emit sigSetCurrentTurnPlayer(m_currentPlayerId, leader->getName());
+            
+            // 新一圈的领出者不能Pass
+            emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+
+            // 如果是AI玩家，触发其行动
+            if (leader->getType() == Player::AI) {
+                QTimer::singleShot(500, this, [this]() {
+                    if (m_currentPhase == GamePhase::Playing) {
+                        Player* p = getPlayerById(m_currentPlayerId);
+                        if (p && p->getType() == Player::AI) {
+                            p->autoPlay(this, m_currentTableCombo);
+                        }
+                    }
+                });
+            }
+        });
     }
     else
     {
@@ -1200,14 +1215,16 @@ void GD_Controller::advanceToNextPlayer()
         emit sigEnablePlayerControls(m_currentPlayerId, true, true);
     }
     
-    // 4. 统一在这里触发AI行动（无论圈是否结束）
-    // 使用QTimer::singleShot确保AI操作在当前事件处理完成后执行，避免递归调用问题
-    QTimer::singleShot(500, [this]() {
-        if (m_currentPhase == GamePhase::Playing) {
-            Player* p = getPlayerById(m_currentPlayerId);
-            if (p && p->getType() == Player::AI) {
-                p->autoPlay(this, m_currentTableCombo);
+    // 4. 如果圈未结束，触发AI行动
+    // 注意：圈结束的情况下，AI行动会在延迟后的新一圈开始时触发
+    if (!circleEnded) {
+        QTimer::singleShot(500, [this]() {
+            if (m_currentPhase == GamePhase::Playing) {
+                Player* p = getPlayerById(m_currentPlayerId);
+                if (p && p->getType() == Player::AI) {
+                    p->autoPlay(this, m_currentTableCombo);
+                }
             }
-        }
-    });
+        });
+    }
 }
