@@ -39,16 +39,13 @@ void PlayerAreaWidget::arrangeComponents()
     switch (m_position) {
     case PlayerPosition::Bottom:
     case PlayerPosition::Top:
-        // 水平布局
-        m_mainLayout = new QHBoxLayout(this);
-        // 为顶部和底部玩家设置最大宽度限制，避免与侧面区域重叠
-        m_playerWidget->setMinimumWidth(600);  // 设置最小宽度
-        m_playerWidget->setMaximumWidth(800);  // 设置最大宽度
+        // 顶部和底部玩家，其内部控件是上下排列的，所以用QVBoxLayout
+        m_mainLayout = new QVBoxLayout(this);
         break;
     case PlayerPosition::Left:
     case PlayerPosition::Right:
-        // 垂直布局
-        m_mainLayout = new QVBoxLayout(this);
+        // 左右玩家，其内部控件是左右排列的，所以用QHBoxLayout
+        m_mainLayout = new QHBoxLayout(this);
         break;
     }
     
@@ -58,24 +55,24 @@ void PlayerAreaWidget::arrangeComponents()
     // 根据位置决定控件顺序，让ShowCardWidget总是靠近屏幕中心
     switch (m_position) {
     case PlayerPosition::Bottom:
-        // 底部玩家：ShowCardWidget在左，PlayerWidget在右
-        m_mainLayout->addWidget(m_showCardWidget, 1);
-        m_mainLayout->addWidget(m_playerWidget, 4);
+        // 底部玩家: 出牌区(ShowCardWidget)在上，手牌区(PlayerWidget)在下
+        m_mainLayout->addWidget(m_showCardWidget, 1); // 占较小空间
+        m_mainLayout->addWidget(m_playerWidget, 3);   // 占较大空间
         break;
     case PlayerPosition::Top:
-        // 顶部玩家：PlayerWidget在左，ShowCardWidget在右
-        m_mainLayout->addWidget(m_playerWidget, 4);
+        // 顶部玩家: 手牌区在上，出牌区在下
+        m_mainLayout->addWidget(m_playerWidget, 3);
         m_mainLayout->addWidget(m_showCardWidget, 1);
         break;
     case PlayerPosition::Left:
-        // 左侧玩家：PlayerWidget在上，ShowCardWidget在下
-        m_mainLayout->addWidget(m_playerWidget, 4);
+        // 左侧玩家: 手牌区在左，出牌区在右
+        m_mainLayout->addWidget(m_playerWidget, 3);
         m_mainLayout->addWidget(m_showCardWidget, 1);
         break;
     case PlayerPosition::Right:
-        // 右侧玩家：ShowCardWidget在上，PlayerWidget在下
+        // 右侧玩家: 出牌区在左，手牌区在右
         m_mainLayout->addWidget(m_showCardWidget, 1);
-        m_mainLayout->addWidget(m_playerWidget, 4);
+        m_mainLayout->addWidget(m_playerWidget, 3);
         break;
     }
     
