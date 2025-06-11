@@ -435,6 +435,7 @@ CardCombo::ComboInfo CardCombo::evaluateConcreteCombo(const QVector<Card>& concr
 void CardCombo::findCombinationsWithWildsRecursive(
     const QVector<Card>& current_concrete_cards, //确定的牌组
     const QVector<Card>& original_wild_cards_remaining, // 当前的癞子牌数组
+    const QVector<Card>& original_selection, // 原始选择的牌
     Player* player_context, // 当前玩家
     QVector<ComboInfo>& valid_combos_found, // 存储找到的合法牌组
     QMap<QString, bool>& visited_combo_fingerprints, // 已经生成过的牌组指纹
@@ -450,15 +451,16 @@ void CardCombo::findCombinationsWithWildsRecursive(
 
         // 如果生成的牌组是合法的且没有指纹
         if (combo.isValid()) {
-            QString fingerprint = generateComboFingerprint(combo.cards_in_combo);
-            if (!visited_combo_fingerprints.contains(fingerprint)) {
-                // 如果能大过上家
-                if (canBeat(combo, current_table_combo_type, current_table_combo_level)) {
-                    combo.wild_cards_used = total_original_wild_cards_in_selection;
+            combo.wild_cards_used = total_original_wild_cards_in_selection;
+            combo.original_cards = original_selection;  // 设置原始手牌
+            // 如果能大过上家
+            if (canBeat(combo, current_table_combo_type, current_table_combo_level)) {
+                QString fingerprint = generateComboFingerprint(combo.cards_in_combo);
+                if (!visited_combo_fingerprints.contains(fingerprint)) {
                     valid_combos_found.push_back(combo); // 加入到合法牌组数组
+                    // 将指纹添加到已访问的集合中
+                    visited_combo_fingerprints.insert(fingerprint, true);
                 }
-                // 将指纹添加到已访问的集合中
-                visited_combo_fingerprints.insert(fingerprint, true);
             }
         }
         return; // 结束递归
@@ -479,6 +481,7 @@ void CardCombo::findCombinationsWithWildsRecursive(
             QVector<Card> next_concrete_cards = current_concrete_cards;
             next_concrete_cards.push_back(Card(point_to_try, suit_to_try, player_context));
             findCombinationsWithWildsRecursive(next_concrete_cards, next_wild_cards_remaining,
+                original_selection,
                 player_context, valid_combos_found, visited_combo_fingerprints,
                 current_table_combo_type, current_table_combo_level,
                 total_original_wild_cards_in_selection);
@@ -522,6 +525,7 @@ QVector<CardCombo::ComboInfo> CardCombo::getAllPossibleValidPlays( // Return QVe
         QVector<Card> temp_concrete = initial_concrete_cards; // Use QVector for consistency
         ComboInfo combo = evaluateConcreteCombo(temp_concrete, current_player_context);
         if (combo.isValid() && canBeat(combo, current_table_combo_type, current_table_combo_level)) {
+            combo.original_cards = selected_cards;  // 设置原始手牌
             all_valid_plays.push_back(combo);
         }
     }
@@ -529,6 +533,7 @@ QVector<CardCombo::ComboInfo> CardCombo::getAllPossibleValidPlays( // Return QVe
     else {
         findCombinationsWithWildsRecursive(initial_concrete_cards,
             initial_wild_cards_to_substitute,
+            selected_cards,  // 传递原始选择的牌
             current_player_context,
             all_valid_plays,
             visited_fingerprints,
