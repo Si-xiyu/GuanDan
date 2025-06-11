@@ -478,10 +478,38 @@ void GuanDan::onGameOver(int winningTeamId, const QString& winningTeamName, cons
     m_startButton->setEnabled(true);
     m_startButton->show(); // 重新显示开始按钮
     
+    QString title;
+    QString message;
+
+    // 确保玩家和队伍信息是有效的
+    if (m_players.isEmpty() || !m_players[0] || !m_players[0]->getTeam())
+    {
+        // 备用逻辑，如果玩家信息丢失
+        title = tr("游戏结束");
+        message = tr("获胜队伍: %1\n%2").arg(winningTeamName).arg(finalMessage);
+    }
+    else
+    {
+        // 获取人类玩家（ID为0）的队伍ID
+        int humanPlayerTeamId = m_players[0]->getTeam()->getId();
+
+        if (humanPlayerTeamId == winningTeamId)
+        {
+            // 人类玩家的队伍获胜
+            title = tr("胜利！");
+            message = tr("恭喜，你和你的队友取得了最终的胜利！");
+        }
+        else
+        {
+            // 人类玩家的队伍失败
+            title = tr("失败");
+            message = tr("很遗憾，你输了。再接再厉！");
+        }
+    }
+    
     // 显示游戏结果
-    QString message = tr("获胜队伍: %1\n%2").arg(winningTeamName).arg(finalMessage);
     qDebug() << "GuanDan::onGameOver：游戏结束QMessageBox被调用";
-    QMessageBox::information(this, tr("游戏结束"), message);
+    QMessageBox::information(this, title, message);
 }
 
 void GuanDan::updateGameStatus()
@@ -510,19 +538,28 @@ void GuanDan::onAskForTribute(int fromPlayerId, const QString& fromPlayerName, i
     QVector<Card> hand = m_players[0]->getHandCards();
     qDebug() << "GuanDan::onAskForTribute：TributeDialog被调用";
     
-    // 创建对话框并循环直到用户做出选择
-    TributeDialog dialog(hand, isReturn, this);
-    int result = dialog.exec();
-    
-    // 由于我们已经禁用了关闭按钮和closeEvent，对话框应该总是返回Accepted
-    if (result == QDialog::Accepted && dialog.hasValidSelection()) {
-        Card sel = dialog.getSelectedCard();
-        m_gameController->onPlayerTributeCardSelected(fromPlayerId, sel);
+    // 判断是否还贡给队友
+    bool isToTeammate = false;
+    if (isReturn) {
+        // 获取fromPlayer和toPlayer
+        Player* fromPlayer = nullptr;
+        Player* toPlayer = nullptr;
+        
+        for (Player* p : m_players) {
+            if (p->getID() == fromPlayerId) fromPlayer = p;
+            if (p->getID() == toPlayerId) toPlayer = p;
+        }
+        
+        // 检查是否为队友
+        if (fromPlayer && toPlayer && fromPlayer->getTeam() && toPlayer->getTeam()) {
+            isToTeammate = (fromPlayer->getTeam() == toPlayer->getTeam());
+        }
     }
-    else {
-        // 以防万一，如果对话框被拒绝或没有选择，重新弹出
-        QTimer::singleShot(100, [this, fromPlayerId, fromPlayerName, toPlayerId, toPlayerName, isReturn]() {
-            onAskForTribute(fromPlayerId, fromPlayerName, toPlayerId, toPlayerName, isReturn);
-        });
+    
+    // 创建对话框
+    TributeDialog dialog(hand, isReturn, isToTeammate, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        Card selectedCard = dialog.getSelectedCard();
+        m_gameController->onPlayerTributeCardSelected(fromPlayerId, selectedCard);
     }
 }
