@@ -30,6 +30,7 @@ public:
         int type = CardComboType::Invalid;
         int level = -1;
         QVector<Card> cards_in_combo;
+        QVector<Card> original_cards;  // 存储构成该牌型的原始手牌（包括癞子牌）
         int wild_cards_used = 0;
         bool is_flush_straight_bomb = false;
 
@@ -71,6 +72,7 @@ private:
     static void findCombinationsWithWildsRecursive(
         const QVector<Card>& current_concrete_cards,
         const QVector<Card>& original_wild_cards_remaining,
+        const QVector<Card>& original_selection,
         Player* player_context,
         QVector<ComboInfo>& valid_combos_found,
         QMap<QString, bool>& visited_combo_fingerprints,
