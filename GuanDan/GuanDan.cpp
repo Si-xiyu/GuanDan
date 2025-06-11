@@ -36,9 +36,9 @@ GuanDan::~GuanDan()
 
 void GuanDan::initializeUI()
 {
-    // 设置窗口标题和初始大小
+    // 设置窗口标题和固定大小，使用更合适的尺寸
     setWindowTitle(tr("掼蛋游戏"));
-    resize(1280, 960);
+    setFixedSize(1440, 1080);
 
     // 创建中央窗口部件和主布局
     m_centralWidget = new QWidget(this);
@@ -50,11 +50,11 @@ void GuanDan::initializeUI()
     // 创建游戏区域
     QWidget* gameArea = new QWidget(this);
     gameArea->setStyleSheet("QWidget { background-color: #1B5E20; }");
-    m_mainLayout->addWidget(gameArea, 1); // 设置stretch为1，使其填充可用空间
+    m_mainLayout->addWidget(gameArea, 1);
 
     // 创建底部控制区域
     QWidget* controlArea = new QWidget(this);
-    controlArea->setFixedHeight(80);
+    controlArea->setFixedHeight(80); // 减小控制区域高度
     controlArea->setStyleSheet("QWidget { background-color: #0D2E10; }");
     
     // 创建开始游戏按钮
@@ -315,20 +315,26 @@ void GuanDan::setupConnections()
 
 void GuanDan::arrangePlayerWidgets()
 {
-    // 获取游戏区域
     QWidget* gameArea = m_centralWidget->findChild<QWidget*>();
     if (!gameArea) return;
 
-    QSize gameSize = gameArea->size();
-    int margin = 20;
+    QSize gameSize = gameArea->size(); // 游戏区大小现在应为 1440 x 1000
 
-    // 计算玩家区域的大小 (这部分逻辑不变)
-    int horizontalWidth = gameSize.width() - 2 * margin;
-    int verticalWidth = 180;
-    int verticalHeight = qMin(600, gameSize.height() - 2 * margin);
-    int horizontalHeight = 240;
+    // 为1440x1080窗口重新设计的布局参数
+    int horizontalWidth = 900;   // 上下玩家区域的宽度
+    int bottomHeight = 320;      // 底部玩家区域的高度，确保手牌能完全显示
+    int topHeight = 240;         // 增加顶部玩家区域的高度，从 200 增加到 240
+    int verticalWidth = 300;     // 左右玩家区域的宽度
+    int verticalHeight = 420;    // 适当减小左右玩家区域高度以适应整体布局，从 450 减少到 420
 
-    // 【关键修复点】 不再使用硬编码的索引，而是遍历所有widget，根据其position属性来布局
+    // 修正垂直位置计算，避免重叠
+    // 此计算逻辑旨在将侧边区域放置在顶部和底部区域之间的中心
+    int topAreaBottomEdge = 20 + topHeight; // 顶部区域下边缘 Y 坐标 (20是顶部边距)
+    int bottomAreaTopEdge = gameSize.height() - bottomHeight; // 底部区域上边缘 Y 坐标
+    int centralFreeSpace = bottomAreaTopEdge - topAreaBottomEdge; // 中间可用空间高度
+    int verticalY = topAreaBottomEdge + (centralFreeSpace - verticalHeight) / 2; // 计算侧边区域的起始Y坐标使其居中
+
+    // 遍历所有widget，根据其position属性来设置固定的、无重叠的几何位置
     for (PlayerAreaWidget* widget : m_playerWidgets)
     {
         if (!widget) continue;
@@ -337,17 +343,17 @@ void GuanDan::arrangePlayerWidgets()
         {
         case PlayerPosition::Bottom:
             widget->setGeometry(
-                (gameSize.width() - horizontalWidth) / 2,
-                gameSize.height() - horizontalHeight - margin,
+                (gameSize.width() - horizontalWidth) / 2,  // 居中
+                gameSize.height() - bottomHeight,          // 紧贴底部
                 horizontalWidth,
-                horizontalHeight
+                bottomHeight
             );
             break;
 
         case PlayerPosition::Left:
             widget->setGeometry(
-                margin,
-                (gameSize.height() - verticalHeight) / 2,
+                20,                                        // 留出边距
+                verticalY,                                 // **【修复】** 使用新的垂直位置
                 verticalWidth,
                 verticalHeight
             );
@@ -355,24 +361,24 @@ void GuanDan::arrangePlayerWidgets()
 
         case PlayerPosition::Top:
             widget->setGeometry(
-                (gameSize.width() - horizontalWidth) / 2,
-                margin,
+                (gameSize.width() - horizontalWidth) / 2,  // 居中
+                20,                                        // 留出边距
                 horizontalWidth,
-                horizontalHeight
+                topHeight
             );
             break;
 
         case PlayerPosition::Right:
             widget->setGeometry(
-                gameSize.width() - verticalWidth - margin,
-                (gameSize.height() - verticalHeight) / 2,
+                gameSize.width() - verticalWidth - 20,     // 留出边距
+                verticalY,                                 // **【修复】** 使用新的垂直位置
                 verticalWidth,
                 verticalHeight
             );
             break;
         }
 
-        widget->show(); // 确保显示
+        widget->show();
     }
 }
 
@@ -442,7 +448,14 @@ void GuanDan::onGameStarted()
 
 void GuanDan::onNewRoundStarted(int roundNumber)
 {
-    // 更新界面显示
+    // 新一轮开始时，清空所有玩家的出牌区域，解决状态残留问题
+    for (PlayerAreaWidget* widget : m_playerWidgets) {
+        if (widget) {
+            widget->clearPlayedCards();
+        }
+    }
+
+    // 更新界面显示（主要是手牌）
     updateGameStatus();
 	qDebug() << "GuanDan::onNewRoundStarted：新一轮QMessageBox被调用,第" << roundNumber << "轮开始";
     QMessageBox::information(this, tr("新一轮"),
@@ -463,6 +476,7 @@ void GuanDan::onGameOver(int winningTeamId, const QString& winningTeamName, cons
 {
     m_gameInProgress = false;
     m_startButton->setEnabled(true);
+    m_startButton->show(); // 重新显示开始按钮
     
     // 显示游戏结果
     QString message = tr("获胜队伍: %1\n%2").arg(winningTeamName).arg(finalMessage);

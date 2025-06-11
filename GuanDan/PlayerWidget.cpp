@@ -32,15 +32,8 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     m_mainLayout = new QVBoxLayout(this);
     m_mainLayout->setContentsMargins(5, 5, 5, 5);
     
-    // 创建头像和信息区域
+    // 创建信息区域
     QHBoxLayout* infoLayout = new QHBoxLayout();
-    
-    // 创建头像标签
-    m_avatarLabel = new QLabel(this);
-    m_avatarLabel->setFixedSize(AVATAR_SIZE, AVATAR_SIZE);
-    m_avatarLabel->setScaledContents(true);
-    setDefaultAvatar();
-    infoLayout->addWidget(m_avatarLabel);
     
     // 创建名称和状态标签的垂直布局
     QVBoxLayout* labelsLayout = new QVBoxLayout();
@@ -216,21 +209,13 @@ void PlayerWidget::resizeEvent(QResizeEvent* event)
 {
     QWidget::resizeEvent(event);
     
-    // 更新头像位置
-    int avatarMargin = 5;
-    if (m_position == PlayerPosition::Bottom || m_position == PlayerPosition::Top) {
-        m_avatarLabel->move(avatarMargin, avatarMargin);
-    } else {
-        m_avatarLabel->move(avatarMargin, height() / 2 - AVATAR_SIZE / 2);
-    }
-    
     // 更新标签位置
     if (m_position == PlayerPosition::Bottom || m_position == PlayerPosition::Top) {
-        m_nameLabel->setGeometry(AVATAR_SIZE + 2 * avatarMargin, 5, width() - AVATAR_SIZE - 3 * avatarMargin, NAME_LABEL_HEIGHT);
-        m_statusLabel->setGeometry(AVATAR_SIZE + 2 * avatarMargin, NAME_LABEL_HEIGHT + 5, width() - AVATAR_SIZE - 3 * avatarMargin, NAME_LABEL_HEIGHT);
+        m_nameLabel->setGeometry(5, 5, width() - 10, NAME_LABEL_HEIGHT);
+        m_statusLabel->setGeometry(5, NAME_LABEL_HEIGHT + 5, width() - 10, NAME_LABEL_HEIGHT);
     } else {
-        m_nameLabel->setGeometry(AVATAR_SIZE + 2 * avatarMargin, height() / 2 - NAME_LABEL_HEIGHT, width() - AVATAR_SIZE - 3 * avatarMargin, NAME_LABEL_HEIGHT);
-        m_statusLabel->setGeometry(AVATAR_SIZE + 2 * avatarMargin, height() / 2, width() - AVATAR_SIZE - 3 * avatarMargin, NAME_LABEL_HEIGHT);
+        m_nameLabel->setGeometry(5, height() / 2 - NAME_LABEL_HEIGHT, width() - 10, NAME_LABEL_HEIGHT);
+        m_statusLabel->setGeometry(5, height() / 2, width() - 10, NAME_LABEL_HEIGHT);
     }
     
     // 重新布局卡片
@@ -288,8 +273,8 @@ void PlayerWidget::layoutCardsForBottom()
 {
     if (m_cardWidgets.isEmpty()) return;
 
-    // 计算卡片区域
-    QRect cardsArea = rect().adjusted(CARDS_MARGIN, 2 * NAME_LABEL_HEIGHT + 10,
+    // 计算卡片区域，预留更多空间给手牌区域
+    QRect cardsArea = rect().adjusted(CARDS_MARGIN, 2 * NAME_LABEL_HEIGHT + 20,
         -CARDS_MARGIN, -CARDS_MARGIN);
 
     if (cardsArea.width() <= 0 || cardsArea.height() <= 0) {
@@ -302,13 +287,8 @@ void PlayerWidget::layoutCardsForBottom()
 
     // 计算总宽度
     int totalWidth = 0;
-    for (Card::CardPoint point : sortedPoints) {
-        if (!m_cardStacks[point].isEmpty()) {
-            totalWidth += CARD_WIDGET_WIDTH;
-            if (totalWidth > CARD_WIDGET_WIDTH) { // 不是第一组
-                totalWidth -= CARD_OVERLAP_HORIZONTAL;
-            }
-        }
+    if (!sortedPoints.isEmpty()) {
+        totalWidth = (sortedPoints.size() - 1) * (CARD_WIDGET_WIDTH - CARD_OVERLAP_HORIZONTAL) + CARD_WIDGET_WIDTH;
     }
 
     // 如果卡片总宽度超过可用区域，调整重叠度
@@ -316,17 +296,14 @@ void PlayerWidget::layoutCardsForBottom()
     if (totalWidth > cardsArea.width() && sortedPoints.size() > 1) {
         int excessWidth = totalWidth - cardsArea.width();
         int additionalOverlap = excessWidth / (sortedPoints.size() - 1);
-        actualOverlap = qMin(CARD_OVERLAP_HORIZONTAL + additionalOverlap,
-            CARD_WIDGET_WIDTH - 10); // 最大重叠不超过卡片宽度-10
-
-        // 重新计算总宽度
-        totalWidth = sortedPoints.size() * CARD_WIDGET_WIDTH -
-            (sortedPoints.size() - 1) * actualOverlap;
+        actualOverlap = qMin(CARD_OVERLAP_HORIZONTAL + additionalOverlap, CARD_WIDGET_WIDTH - 20);
+        totalWidth = (sortedPoints.size() - 1) * (CARD_WIDGET_WIDTH - actualOverlap) + CARD_WIDGET_WIDTH;
     }
 
     // 计算起始X坐标，使卡片居中显示
     int currentX = cardsArea.left() + (cardsArea.width() - totalWidth) / 2;
-    int baseY = cardsArea.top();
+    // 【关键修复】: 将Y轴的基准点设置到卡片区域的底部，并留出足够空间
+    int baseY = cardsArea.bottom() - CARD_WIDGET_HEIGHT;
 
     // 获取窗口中心点在本控件坐标系中的起始位置
     QPoint globalCenter = window()->geometry().center();
@@ -340,35 +317,22 @@ void PlayerWidget::layoutCardsForBottom()
         // 布局这一组牌
         for (int i = 0; i < stack.size(); ++i) {
             CardWidget* card = stack[i];
-
-            // 确保卡片属性正确
             card->setFixedSize(CARD_WIDGET_WIDTH, CARD_WIDGET_HEIGHT);
             card->setRotation(0);
             card->setParent(this);
 
-            // 计算目标位置 - 同点数的牌向上堆叠（y坐标减小）
+            // 【关键修复】: 计算目标位置，从底部向上堆叠
             int x = currentX;
             int y = baseY - i * CARD_OVERLAP_VERTICAL;
 
-            // 初始移动到窗口中心位置
-            card->move(startPos);
-
-            // 使用动画移动到新位置
-            QPropertyAnimation* animation = new QPropertyAnimation(card, "pos");
-            animation->setDuration(150); // 缩短动画时间
-            animation->setStartValue(card->pos());
-            animation->setEndValue(QPoint(x, y));
-            animation->setEasingCurve(QEasingCurve::OutCubic);
-
-            animation->start(QAbstractAnimation::DeleteWhenStopped);
+            // 直接设置位置，不使用动画，避免回合开始时的位置错误
+            card->move(x, y);
         }
-
-        // 移动到下一组牌的位置
         currentX += CARD_WIDGET_WIDTH - actualOverlap;
     }
 
-    // 在动画完成后更新Z顺序
-    QTimer::singleShot(200, this, &PlayerWidget::updateCardZOrder);
+    // 更新Z顺序
+    updateCardZOrder();
 }
 
 void PlayerWidget::layoutCardsForSide()
@@ -633,28 +597,25 @@ void PlayerWidget::relayoutCardsStatic()
 {
     switch (m_position) {
     case PlayerPosition::Bottom: {
-        QRect cardsArea = rect().adjusted(CARDS_MARGIN, 2 * NAME_LABEL_HEIGHT + 10,
+        QRect cardsArea = rect().adjusted(CARDS_MARGIN, 2 * NAME_LABEL_HEIGHT + 20,
             -CARDS_MARGIN, -CARDS_MARGIN);
         if (cardsArea.width() <= 0 || cardsArea.height() <= 0) return;
         QVector<Card::CardPoint> sortedPoints = m_cardStacks.keys().toVector();
         std::sort(sortedPoints.begin(), sortedPoints.end());
         int totalWidth = 0;
-        for (auto point : sortedPoints) {
-            if (!m_cardStacks[point].isEmpty()) {
-                totalWidth += CARD_WIDGET_WIDTH;
-                if (totalWidth > CARD_WIDGET_WIDTH)
-                    totalWidth -= CARD_OVERLAP_HORIZONTAL;
-            }
+        if (!sortedPoints.isEmpty()) {
+            totalWidth = (sortedPoints.size() - 1) * (CARD_WIDGET_WIDTH - CARD_OVERLAP_HORIZONTAL) + CARD_WIDGET_WIDTH;
         }
         int actualOverlap = CARD_OVERLAP_HORIZONTAL;
         if (totalWidth > cardsArea.width() && sortedPoints.size() > 1) {
             int excessWidth = totalWidth - cardsArea.width();
             int additionalOverlap = excessWidth / (sortedPoints.size() - 1);
-            actualOverlap = qMin(CARD_OVERLAP_HORIZONTAL + additionalOverlap,
-                CARD_WIDGET_WIDTH - 10);
+            actualOverlap = qMin(CARD_OVERLAP_HORIZONTAL + additionalOverlap, CARD_WIDGET_WIDTH - 20);
+            totalWidth = (sortedPoints.size() - 1) * (CARD_WIDGET_WIDTH - actualOverlap) + CARD_WIDGET_WIDTH;
         }
         int currentX = cardsArea.left() + (cardsArea.width() - totalWidth) / 2;
-        int baseY = cardsArea.top();
+        // 【关键修复】: 将Y轴的基准点设置到卡片区域的底部
+        int baseY = cardsArea.bottom() - CARD_WIDGET_HEIGHT;
         for (auto point : sortedPoints) {
             auto& stack = m_cardStacks[point];
             for (int i = 0; i < stack.size(); ++i) {
@@ -802,44 +763,12 @@ void PlayerWidget::updateCardZOrder()
 
 void PlayerWidget::loadDefaultResources()
 {
-    // 加载默认头像
-    QString defaultAvatarPath = ":/pic/res/default_avatar.png";
-    if (!m_defaultAvatarPixmap.load(defaultAvatarPath)) {
-        qWarning() << "Failed to load default avatar:" << defaultAvatarPath;
-        // 创建一个默认的头像
-        m_defaultAvatarPixmap = QPixmap(AVATAR_SIZE, AVATAR_SIZE);
-        m_defaultAvatarPixmap.fill(Qt::gray);
-    }
-    
     // 加载默认背景
     QString defaultBackgroundPath = ":/pic/res/player_bg.png";
     if (!m_defaultBackgroundPixmap.load(defaultBackgroundPath)) {
         qWarning() << "Failed to load default background:" << defaultBackgroundPath;
         m_defaultBackgroundPixmap = QPixmap(); // 使用空背景，会fallback到纯色背景
     }
-}
-
-void PlayerWidget::setPlayerAvatar(const QString& avatarPath)
-{
-    if (avatarPath.isEmpty()) {
-        setDefaultAvatar();
-        return;
-    }
-    
-    QPixmap newAvatar;
-    if (newAvatar.load(avatarPath)) {
-        m_avatarPixmap = newAvatar;
-        m_avatarLabel->setPixmap(m_avatarPixmap.scaled(AVATAR_SIZE, AVATAR_SIZE, Qt::KeepAspectRatio, Qt::SmoothTransformation));
-    } else {
-        qWarning() << "Failed to load avatar from path:" << avatarPath;
-        setDefaultAvatar();
-    }
-}
-
-void PlayerWidget::setDefaultAvatar()
-{
-    m_avatarPixmap = m_defaultAvatarPixmap;
-    m_avatarLabel->setPixmap(m_avatarPixmap.scaled(AVATAR_SIZE, AVATAR_SIZE, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 }
 
 void PlayerWidget::setPlayerBackground(const QString& backgroundPath)

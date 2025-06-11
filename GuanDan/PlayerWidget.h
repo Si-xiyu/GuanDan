@@ -1,5 +1,4 @@
-#ifndef PLAYERWIDGET_H
-#define PLAYERWIDGET_H
+#pragma once
 
 #include <QWidget>
 #include <QLabel>
@@ -19,13 +18,13 @@
 class GD_Controller; // PlayerWidget可以直接向控制器发送信号
 
 // 定义玩家视图的常量
-const int PLAYER_WIDGET_MIN_WIDTH = 1000;  // 增加宽度以容纳更多卡牌
-const int PLAYER_WIDGET_MIN_HEIGHT = 300;  // 增加高度以容纳垂直堆叠的卡牌
-const int CARD_OVERLAP_HORIZONTAL = 40;    // 卡片水平重叠的像素数
-const int CARD_OVERLAP_VERTICAL = 25;      // 相同牌垂直重叠的像素数
-const int SIDE_CARD_OVERLAP = 20;          // 侧面玩家牌的重叠像素数
-const int CARDS_MARGIN = 15;               // 卡片区域的边距
-const int NAME_LABEL_HEIGHT = 30;          // 玩家名称标签的高度
+const int PLAYER_WIDGET_MIN_WIDTH = 400;
+const int PLAYER_WIDGET_MIN_HEIGHT = 150;
+const int CARD_OVERLAP_HORIZONTAL = 30;
+const int CARD_OVERLAP_VERTICAL = 20;
+const int SIDE_CARD_OVERLAP = 20;
+const int CARDS_MARGIN = 10;
+const int NAME_LABEL_HEIGHT = 20;
 
 // 玩家位置枚举
 enum class PlayerPosition {
@@ -65,15 +64,11 @@ public:
     PlayerPosition getPosition() const { return m_position; }
 
     // 显示更新
-    void updateHandDisplay(const QVector<Card>& handCards, bool showCardFronts);
-    void updateHandDisplayNoAnimation(const QVector<Card>& handCards, bool showCardFronts);
+    void updateHandDisplay(const QVector<Card>& cards, bool showFront);
+    void updateHandDisplayNoAnimation(const QVector<Card>& cards, bool showFront);
     void displayPlayedCombo(const QVector<Card>& cards);
     void clearPlayedCardsArea();
 
-    // 设置玩家头像
-    void setPlayerAvatar(const QString& avatarPath);
-    void setDefaultAvatar();
-    
     // 设置玩家背景
     void setPlayerBackground(const QString& backgroundPath);
     void setDefaultBackground();
@@ -92,9 +87,6 @@ protected:
     virtual void resizeEvent(QResizeEvent* event) override;
     virtual void paintEvent(QPaintEvent* event) override;
     virtual void contextMenuEvent(QContextMenuEvent* event) override;  // 添加右键菜单事件处理
-    void stopAllAnimations();
-    void animateCardsRemoval(const QVector<CardWidget*>& widgets);
-    void animateCardsAddition(const QVector<CardWidget*>& widgets);
 
 private:
     // 重新布局所有卡片
@@ -118,6 +110,12 @@ private:
     
     // 更新卡片的Z顺序
     void updateCardZOrder();
+    
+    // 停止所有动画
+    void stopAllAnimations();
+    // 动画效果
+    void animateCardsRemoval(const QVector<CardWidget*>& widgets);
+    void animateCardsAddition(const QVector<CardWidget*>& widgets);
 
     Player* m_player;                     // 关联的玩家对象
     bool m_isCurrentPlayer;               // 是否是当前玩家
@@ -138,12 +136,6 @@ private:
 
     PlayerPosition m_position;            // 玩家位置
 
-    // 新增：玩家头像相关
-    QLabel* m_avatarLabel;
-    QPixmap m_avatarPixmap;
-    QPixmap m_defaultAvatarPixmap;
-    static const int AVATAR_SIZE = 60;
-
     // 新增：背景相关
     QPixmap m_backgroundPixmap;
     QPixmap m_defaultBackgroundPixmap;
@@ -152,5 +144,3 @@ private:
     // 新增：加载默认资源
     void loadDefaultResources();
 };
-
-#endif // PLAYERWIDGET_H

@@ -31,8 +31,6 @@ public:
     void setPlayerStatus(const QString& status);
     void setPosition(PlayerPosition position);
     PlayerPosition getPosition() const;
-    void setPlayerAvatar(const QString& avatarPath);
-    void setDefaultAvatar();
     void setPlayerBackground(const QString& backgroundPath);
     void setDefaultBackground();
     

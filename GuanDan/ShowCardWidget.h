@@ -13,7 +13,7 @@
 // 常量定义
 const int SHOW_CARD_OVERLAP_HORIZONTAL = 40;    // 卡片水平重叠的像素数
 const int SHOW_CARD_OVERLAP_VERTICAL = 25;      // 相同牌垂直重叠的像素数（用于癞子堆叠）
-const int SHOW_CARD_MIN_WIDTH = 300;
+const int SHOW_CARD_MIN_WIDTH = 150;
 const int SHOW_CARD_MIN_HEIGHT = 150;
 
 class ShowCardWidget : public QWidget
