@@ -10,17 +10,20 @@
 #include <QWidget>
 #include <QCloseEvent>
 #include <QMessageBox>
-#include "Cardwidget.h"
+#include <algorithm>
 
-TributeDialog::TributeDialog(const QVector<Card>& handCards, bool isReturn, QWidget* parent)
+TributeDialog::TributeDialog(const QVector<Card>& handCards, bool isReturn, bool isToTeammate, QWidget* parent)
     : QDialog(parent)
     , m_handCards(handCards)
     , m_isReturn(isReturn)
+    , m_isToTeammate(isToTeammate)
+    , m_confirmButton(nullptr)
+    , m_infoLabel(nullptr)
 {
     setupUI();
     setWindowTitle(m_isReturn ? tr("选择还贡的牌") : tr("选择进贡的牌"));
     setModal(true);
-    setMinimumSize(400, 200);
+    setMinimumSize(400, 300);
     
     // 禁用关闭按钮
     Qt::WindowFlags flags = windowFlags();
@@ -37,9 +40,20 @@ TributeDialog::~TributeDialog() {}
 void TributeDialog::setupUI()
 {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
-    QLabel* label = new QLabel(m_isReturn ? tr("请选择一张牌进行还贡：") : tr("请选择一张牌进行进贡："), this);
+    
+    // 标题标签
+    QString titleText;
+    if (m_isReturn) {
+        titleText = m_isToTeammate ? 
+            tr("请选择一张10或以下的牌还贡给队友：") : 
+            tr("请选择一张牌还贡：");
+    } else {
+        titleText = tr("请选择您手牌中最大的牌进贡：");
+    }
+    QLabel* label = new QLabel(titleText, this);
     mainLayout->addWidget(label);
 
+    // 卡片滚动区域
     QScrollArea* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     QWidget* scrollWidget = new QWidget(scroll);
@@ -61,10 +75,17 @@ void TributeDialog::setupUI()
     scroll->setWidget(scrollWidget);
     mainLayout->addWidget(scroll);
 
-    // 说明文字
-    QLabel* infoLabel = new QLabel(tr("点击卡片直接选择"), this);
-    infoLabel->setAlignment(Qt::AlignCenter);
-    mainLayout->addWidget(infoLabel);
+    // 信息标签
+    m_infoLabel = new QLabel(tr("请选择一张牌"), this);
+    m_infoLabel->setAlignment(Qt::AlignCenter);
+    m_infoLabel->setStyleSheet("QLabel { color: blue; }");
+    mainLayout->addWidget(m_infoLabel);
+
+    // 确认按钮
+    m_confirmButton = new QPushButton(tr("确认选择"), this);
+    m_confirmButton->setEnabled(false);
+    connect(m_confirmButton, &QPushButton::clicked, this, &QDialog::accept);
+    mainLayout->addWidget(m_confirmButton);
 }
 
 void TributeDialog::onCardClicked(CardWidget* widget)
@@ -82,10 +103,56 @@ void TributeDialog::onCardClicked(CardWidget* widget)
     widget->update(); // 强制更新视图
     
     m_selectedCard = widget->getCard();
-    m_hasSelection = true;
     
-    // 直接接受选择并关闭对话框
-    accept();
+    // 验证选择
+    validateSelection();
+}
+
+void TributeDialog::validateSelection()
+{
+    bool isValid = false;
+    QString message;
+
+    if (m_isReturn) {
+        // 还贡规则：如果是还贡给队友，牌必须是10或以下
+        if (m_isToTeammate && m_selectedCard.point() > Card::Card_10) {
+            message = tr("错误：还贡给队友的牌必须是10或以下的牌！");
+        } else {
+            isValid = true;
+            message = tr("选择有效，请点击确认按钮");
+        }
+    } else {
+        // 进贡规则：必须是手牌中最大的牌
+        Card largestCard = findLargestCard();
+        if (m_selectedCard < largestCard) {
+            message = tr("错误：进贡必须选择手牌中最大的牌！");
+        } else {
+            isValid = true;
+            message = tr("选择有效，请点击确认按钮");
+        }
+    }
+
+    // 更新UI状态
+    m_confirmButton->setEnabled(isValid);
+    m_infoLabel->setText(message);
+    m_infoLabel->setStyleSheet(isValid ? 
+        "QLabel { color: green; }" : 
+        "QLabel { color: red; }");
+}
+
+Card TributeDialog::findLargestCard() const
+{
+    if (m_handCards.isEmpty()) {
+        return Card(); // 返回一个无效的牌
+    }
+    
+    Card largest = m_handCards.first();
+    for (const Card& card : m_handCards) {
+        if (card > largest) {
+            largest = card;
+        }
+    }
+    return largest;
 }
 
 Card TributeDialog::getSelectedCard() const
@@ -93,14 +160,4 @@ Card TributeDialog::getSelectedCard() const
     return m_selectedCard;
 }
 
-bool TributeDialog::hasValidSelection() const
-{
-    return m_hasSelection;
-}
 
-void TributeDialog::closeEvent(QCloseEvent* event)
-{
-    // 显示警告并阻止关闭
-    QMessageBox::warning(this, tr("警告"), tr("必须选择一张牌进行进贡/还贡！"));
-    event->ignore();
-}
