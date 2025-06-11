@@ -41,6 +41,9 @@ void PlayerAreaWidget::arrangeComponents()
     case PlayerPosition::Top:
         // 水平布局
         m_mainLayout = new QHBoxLayout(this);
+        // 为顶部和底部玩家设置最大宽度限制，避免与侧面区域重叠
+        m_playerWidget->setMinimumWidth(600);  // 设置最小宽度
+        m_playerWidget->setMaximumWidth(800);  // 设置最大宽度
         break;
     case PlayerPosition::Left:
     case PlayerPosition::Right:

@@ -782,7 +782,7 @@ void GD_Controller::processNextTributeAction()
         if (!hand.isEmpty()) {
             Card cardToTribute = currentTribute.isReturn ? hand.first() : hand.last();
             int fid = currentTribute.fromPlayerId;
-            QTimer::singleShot(0, [this, fid, cardToTribute]() {
+            QTimer::singleShot(1000, [this, fid, cardToTribute]() {
                 this->onPlayerTributeCardSelected(fid, cardToTribute);
             });
         }
@@ -1046,7 +1046,7 @@ void GD_Controller::enterState(GamePhase newPhase)
                 emit sigBroadcastMessage(QString("轮到 %1 出牌！").arg(currentPlayer->getName()));
 
         		// 如果是AI玩家，触发自动出牌
-                QTimer::singleShot(0, [this]() {
+                QTimer::singleShot(1000, [this]() {
                     if (Player* p = getPlayerById(m_currentPlayerId)) {
                         p->autoPlay(this, m_currentTableCombo);
                     }
@@ -1128,7 +1128,7 @@ void GD_Controller::advanceToNextPlayer()
         return;
     }
 
-    // 2. 检查当前“圈”是否结束
+    // 2. 检查当前"圈"是否结束
     // 条件：当前有领出者(m_circleLeaderId != -1)，并且所有其他活跃玩家都已经Pass了
     if (m_circleLeaderId != -1 && allOtherActivePlayersPassed(m_circleLeaderId))
     {
@@ -1202,7 +1202,7 @@ void GD_Controller::advanceToNextPlayer()
 
     // 4. 统一在这里触发AI行动（无论圈是否结束）
     // 使用QTimer::singleShot确保AI操作在当前事件处理完成后执行，避免递归调用问题
-    QTimer::singleShot(0, [this]() {
+    QTimer::singleShot(1000, [this]() {
         if (m_currentPhase == GamePhase::Playing) {
             Player* p = getPlayerById(m_currentPlayerId);
             if (p && p->getType() == Player::AI) {
