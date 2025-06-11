@@ -58,7 +58,7 @@ void NPCPlayer::autoPlay(GD_Controller* controller, const CardCombo::ComboInfo& 
     int playerId = getID();
     
     // 使用QTimer延迟1秒后执行出牌或过牌操作
-    QTimer::singleShot(1000, [controller, playerId, choice]() {
+    QTimer::singleShot(500, [controller, playerId, choice]() {
         if (choice.isEmpty()) {
             controller->onPlayerPass(playerId);
         } else {

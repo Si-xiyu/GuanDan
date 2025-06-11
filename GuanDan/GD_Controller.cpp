@@ -1046,7 +1046,7 @@ void GD_Controller::enterState(GamePhase newPhase)
                 emit sigBroadcastMessage(QString("轮到 %1 出牌！").arg(currentPlayer->getName()));
 
         		// 如果是AI玩家，触发自动出牌
-                QTimer::singleShot(1000, [this]() {
+                QTimer::singleShot(0, [this]() {
                     if (Player* p = getPlayerById(m_currentPlayerId)) {
                         p->autoPlay(this, m_currentTableCombo);
                     }
@@ -1202,7 +1202,7 @@ void GD_Controller::advanceToNextPlayer()
 
     // 4. 统一在这里触发AI行动（无论圈是否结束）
     // 使用QTimer::singleShot确保AI操作在当前事件处理完成后执行，避免递归调用问题
-    QTimer::singleShot(1000, [this]() {
+    QTimer::singleShot(500, [this]() {
         if (m_currentPhase == GamePhase::Playing) {
             Player* p = getPlayerById(m_currentPlayerId);
             if (p && p->getType() == Player::AI) {
