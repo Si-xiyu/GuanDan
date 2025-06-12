@@ -292,6 +292,8 @@ void GuanDan::setupConnections()
             for (PlayerAreaWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
                     widget->updateHandDisplayNoAnimation(cards, widget->getPlayer()->getID() == 0);
+                    // 明确命令刷新玩家信息（如剩余牌数）
+                    widget->getPlayerWidget()->updatePlayerInfo();
                     break;
                 }
             }

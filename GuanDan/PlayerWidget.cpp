@@ -55,11 +55,6 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     
     // 更新玩家信息
     updatePlayerInfo();
-
-    // 连接玩家手牌更新信号
-    if (m_player) {
-        connect(m_player, &Player::cardsUpdated, this, &PlayerWidget::updatePlayerInfo);
-    }
     
     // 设置背景色
     setStyleSheet("PlayerWidget { background-color: rgba(0, 100, 0, 180); border-radius: 10px; }");
@@ -466,9 +461,8 @@ void PlayerWidget::updatePlayerInfo()
         m_nameLabel->setText(m_player->getName());
         
         // 获取当前实际手牌数量
-        int handCardCount = m_cardWidgets.size();
-        // 也可以从Player对象获取，但要确保同步
-        // int handCardCount = m_player->getHandCards().size();
+        // 从Player对象获取手牌数量，确保数据源的权威性
+        int handCardCount = m_player->getHandCards().size();
         
         m_statusLabel->setText(QString("剩余牌数：%1").arg(handCardCount));
         
