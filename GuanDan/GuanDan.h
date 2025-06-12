@@ -8,6 +8,7 @@
 #include "GD_Controller.h"
 #include "PlayerAreaWidget.h"
 #include "Player.h"
+#include "CardCounterWidget.h"
 
 class GuanDan : public QMainWindow
 {
@@ -44,6 +45,8 @@ private:
     QPushButton* m_globalSkipButton;    // 全局跳过按钮
     QWidget* m_centralWidget;           // 中央窗口部件
     QVBoxLayout* m_mainLayout;          // 主布局
+    
+    CardCounterWidget* m_cardCounterWidget; // 记牌器部件
     
     bool m_gameInProgress;              // 游戏进行状态
 };

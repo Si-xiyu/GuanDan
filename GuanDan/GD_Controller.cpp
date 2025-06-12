@@ -257,6 +257,9 @@ void GD_Controller::startNewRound()
 {
     qDebug() << "GD_Controller::startNewRound - 准备开始新一局，局数: " << m_currentRoundNumber;
     
+    // 初始化记牌器数据
+    initializeCardCounts();
+    
     // 唯一的职责：启动发牌状态
     enterState(GamePhase::Dealing);
 }
@@ -423,6 +426,10 @@ void GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& 
     // 从玩家手牌中移除玩家选中的原始卡牌
     Player* player = getPlayerById(playerId);
     player->removeCards(m_lastPlayedCards);
+    
+    // 更新记牌器数据
+    updateCardCounts(m_lastPlayedCards);
+    
     m_lastPlayedCards.clear();
 
     // 更新桌面牌型
@@ -1227,4 +1234,56 @@ void GD_Controller::advanceToNextPlayer()
             }
         });
     }
+}
+
+// 添加记牌器相关的新方法实现
+void GD_Controller::initializeCardCounts()
+{
+    qDebug() << "GD_Controller::initializeCardCounts - 初始化记牌器数据";
+    
+    // 清空现有数据
+    m_remainingCardCounts.clear();
+    
+    // 初始化所有牌的数量
+    // 游戏使用两副牌，所以大/小王各2张，其他点数各8张(每种花色2张)
+    m_remainingCardCounts[Card::CardPoint::Card_2] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_3] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_4] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_5] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_6] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_7] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_8] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_9] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_10] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_J] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_Q] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_K] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_A] = 8;
+    m_remainingCardCounts[Card::CardPoint::Card_LJ] = 2; // 小王
+    m_remainingCardCounts[Card::CardPoint::Card_BJ] = 2; // 大王
+    
+    // 发送信号通知UI更新记牌器
+    emit sigCardCountsUpdated(m_remainingCardCounts);
+}
+
+void GD_Controller::updateCardCounts(const QVector<Card>& playedCards)
+{
+    qDebug() << "GD_Controller::updateCardCounts - 更新记牌器数据，牌数:" << playedCards.size();
+    
+    // 遍历打出的牌，更新记牌器数据
+    for (const Card& card : playedCards) {
+        Card::CardPoint point = card.point();
+        
+        // 确保点数在映射中存在
+        if (m_remainingCardCounts.contains(point)) {
+            // 减少相应点数的牌的数量
+            int currentCount = m_remainingCardCounts[point];
+            if (currentCount > 0) {
+                m_remainingCardCounts[point] = currentCount - 1;
+            }
+        }
+    }
+    
+    // 发送信号通知UI更新记牌器
+    emit sigCardCountsUpdated(m_remainingCardCounts);
 }

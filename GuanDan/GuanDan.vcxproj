@@ -93,6 +93,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Cardcombo.cpp" />
+    <ClCompile Include="CardCounterWidget.cpp" />
     <ClCompile Include="Carddeck.cpp" />
     <ClCompile Include="CardWidget.cpp" />
     <ClCompile Include="GD_Controller.cpp" />
@@ -116,6 +117,7 @@
   <ItemGroup>
     <ClInclude Include="Card.h" />
     <ClInclude Include="Cardcombo.h" />
+    <QtMoc Include="CardCounterWidget.h" />
     <ClInclude Include="Carddeck.h" />
     <QtMoc Include="PlayerAreaWidget.h" />
     <QtMoc Include="TributeDialog.h" />
