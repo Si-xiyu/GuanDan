@@ -1,5 +1,4 @@
-#ifndef GUANDAN_H
-#define GUANDAN_H
+#pragma once
 
 #include <QtWidgets/QMainWindow>
 #include <QPushButton>
@@ -28,6 +27,7 @@ private slots:
     void onRoundOver(const QString& summary, const QVector<int>& playerRanks); // 一局结束
     void onGameOver(int winningTeamId, const QString& winningTeamName, const QString& finalMessage); // 游戏结束
     void onAskForTribute(int fromPlayerId, const QString& fromPlayerName, int toPlayerId, const QString& toPlayerName, bool isReturn);
+    void showSettingsDialog();
 
 private:
     void initializeUI();                // 初始化界面
@@ -43,6 +43,7 @@ private:
     QPushButton* m_startButton;         // 开始游戏按钮
     QPushButton* m_globalPlayButton;    // 全局出牌按钮
     QPushButton* m_globalSkipButton;    // 全局跳过按钮
+    QPushButton* m_settingsButton;      // 新增：设置按钮
     QWidget* m_centralWidget;           // 中央窗口部件
     QVBoxLayout* m_mainLayout;          // 主布局
     
@@ -50,5 +51,3 @@ private:
     
     bool m_gameInProgress;              // 游戏进行状态
 };
-
-#endif // GD_CONTROLLER_H
