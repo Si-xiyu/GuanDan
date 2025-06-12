@@ -1,5 +1,6 @@
 #include "SoundManager.h"
 #include <QDebug>
+#include <QMediaPlaylist>
 
 SoundManager& SoundManager::instance()
 {
@@ -10,7 +11,6 @@ SoundManager& SoundManager::instance()
 SoundManager::SoundManager(QObject* parent)
     : QObject(parent)
     , m_bgmPlayer(nullptr)
-    , m_audioOutput(nullptr)
     , m_volume(50) // 默认音量50%
 {
     initializeSounds();
@@ -21,17 +21,16 @@ SoundManager::~SoundManager()
     stopBGM();
     qDeleteAll(m_soundEffects);
     delete m_bgmPlayer;
-    delete m_audioOutput;
 }
 
 void SoundManager::initializeSounds()
 {
     // 初始化BGM播放器
     m_bgmPlayer = new QMediaPlayer(this);
-    m_audioOutput = new QAudioOutput(this);
-    m_bgmPlayer->setAudioOutput(m_audioOutput);
-    m_bgmPlayer->setSource(QUrl("qrc:/sounds/res/sounds/bgm.mp3"));
-    m_bgmPlayer->setLoops(QMediaPlayer::Infinite);
+    QMediaPlaylist* playlist = new QMediaPlaylist(this);
+    playlist->addMedia(QUrl("qrc:/sounds/res/sounds/bgm.mp3"));
+    playlist->setPlaybackMode(QMediaPlaylist::Loop);
+    m_bgmPlayer->setPlaylist(playlist);
 
     // 初始化音效
     QStringList soundFiles = {
@@ -62,7 +61,7 @@ int SoundManager::getVolume() const
 void SoundManager::updateVolume()
 {
     float volume = m_volume / 100.0f;
-    m_audioOutput->setVolume(volume);
+    m_bgmPlayer->setVolume(qRound(volume * 100));
     
     for (QSoundEffect* effect : m_soundEffects) {
         effect->setVolume(volume);
@@ -71,7 +70,7 @@ void SoundManager::updateVolume()
 
 void SoundManager::playBGM()
 {
-    if (m_bgmPlayer->playbackState() != QMediaPlayer::PlayingState) {
+    if (m_bgmPlayer->state() != QMediaPlayer::PlayingState) {
         m_bgmPlayer->play();
     }
 }
