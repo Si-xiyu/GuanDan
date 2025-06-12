@@ -2,7 +2,6 @@
 
 #include <QObject>
 #include <QMediaPlayer>
-#include <QAudioOutput>
 #include <QSoundEffect>
 #include <QMap>
 
@@ -38,7 +37,6 @@ private:
     void updateVolume();
 
     QMediaPlayer* m_bgmPlayer;
-    QAudioOutput* m_audioOutput;
     QMap<QString, QSoundEffect*> m_soundEffects;
     int m_volume;
 };
