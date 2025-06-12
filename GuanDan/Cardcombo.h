@@ -61,6 +61,9 @@ public:
     static bool checkConsecutive(const QVector<Card::CardPoint>& distinct_points_input,
         Card::CardPoint& leading_point_for_level);
 
+    // 生成牌组的指纹Qstring，用于唯一标识牌组
+    static QString generateComboFingerprint(const QVector<Card>& cards);
+
 
 private:
     // 判断玩家现在的牌型是否可以打败当前桌面上的牌型
@@ -79,9 +82,6 @@ private:
         int current_table_combo_type,
         int current_table_combo_level,
         int total_original_wild_cards_in_selection);
-
-    // 生成牌组的指纹Qstring，用于唯一标识牌组
-    static QString generateComboFingerprint(const QVector<Card>& cards);
 };
 
 #endif // CARDCOMBO_H
