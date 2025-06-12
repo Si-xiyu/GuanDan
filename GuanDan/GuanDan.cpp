@@ -11,6 +11,9 @@
 #include <QScreen>
 #include <QTimer>
 
+#include "SettingsDialog.h"
+#include "SoundManager.h"
+
 GuanDan::GuanDan(QWidget* parent)
     : QMainWindow(parent)
     , m_gameController(nullptr)
