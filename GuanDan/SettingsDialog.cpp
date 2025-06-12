@@ -8,8 +8,11 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     : QDialog(parent)
     , m_currentVolume(SoundManager::instance().getVolume())
 {
-    setWindowTitle(tr("设置"));
-    setFixedSize(300, 150);
+    setWindowTitle(tr("游戏设置"));
+    setFixedSize(300, 200);
+
+    // 移除窗口标题栏的问号（帮助）按钮
+    setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
     // 创建音量滑块
     m_volumeSlider = new QSlider(Qt::Horizontal, this);

@@ -82,38 +82,52 @@ void GuanDan::initializeUI()
         "}"
     );
 
-    // 创建设置按钮
-    m_settingsButton = new QPushButton(tr("设置"), controlArea);
-    m_settingsButton->setFixedSize(100, 40);
+    // 将设置按钮修改为图标
+    m_settingsButton = new QPushButton(this);
+    m_settingsButton->setIcon(QIcon(":/icon/res/Setting_icon.jpg"));
+    m_settingsButton->setIconSize(QSize(32, 32));
+    m_settingsButton->setFixedSize(40, 40);
     m_settingsButton->setStyleSheet(
         "QPushButton {"
-        "   background-color: #2196F3;"
-        "   color: white;"
+        "   background-color: transparent;"
         "   border: none;"
         "   border-radius: 20px;"
-        "   font-size: 16px;"
         "}"
         "QPushButton:hover {"
-        "   background-color: #1976D2;"
+        "   background-color: #40FFFFFF;" // 半透明白色
         "}"
         "QPushButton:pressed {"
-        "   background-color: #1565C0;"
+        "   background-color: #80FFFFFF;" // 更不透明的白色
         "}"
     );
 
-    // 为控制区域创建布局
-    QHBoxLayout* controlLayout = new QHBoxLayout(controlArea);
-    controlLayout->addWidget(m_startButton, 0, Qt::AlignCenter);
-    controlLayout->addWidget(m_settingsButton, 0, Qt::AlignCenter);
-    // 全局出牌/跳过按钮，仅在玩家0回合可见
+    // 全局出牌/跳过按钮，初始隐藏
     m_globalPlayButton = new QPushButton(tr("出牌"), controlArea);
     m_globalPlayButton->setFixedSize(100, 40);
     m_globalPlayButton->hide();
-    controlLayout->addWidget(m_globalPlayButton, 0, Qt::AlignCenter);
+    m_globalPlayButton->setStyleSheet(
+        "QPushButton { background-color: #87CEEB; color: white; border-radius: 20px; font-weight: bold; }"
+        "QPushButton:hover { background-color: #7AC5CD; }"
+        "QPushButton:pressed { background-color: #6AADB4; }"
+    );
+
     m_globalSkipButton = new QPushButton(tr("跳过"), controlArea);
     m_globalSkipButton->setFixedSize(100, 40);
     m_globalSkipButton->hide();
-    controlLayout->addWidget(m_globalSkipButton, 0, Qt::AlignCenter);
+    m_globalSkipButton->setStyleSheet(
+        "QPushButton { background-color: #87CEEB; color: white; border-radius: 20px; font-weight: bold; }"
+        "QPushButton:hover { background-color: #7AC5CD; }"
+        "QPushButton:pressed { background-color: #6AADB4; }"
+    );
+
+    // 为控制区域创建布局，将设置按钮固定在左侧
+    QHBoxLayout* controlLayout = new QHBoxLayout(controlArea);
+    controlLayout->addWidget(m_settingsButton); // 按钮居左
+    controlLayout->addStretch(); // 添加伸缩项
+    controlLayout->addWidget(m_startButton);
+    controlLayout->addWidget(m_globalPlayButton);
+    controlLayout->addWidget(m_globalSkipButton);
+    controlLayout->addStretch(); // 添加伸缩项，使中间的按钮组居中
 
     // 将控制区域添加到主布局
     m_mainLayout->addWidget(controlArea);

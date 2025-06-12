@@ -59,4 +59,7 @@
     <qresource prefix="/mus">
         <file>res/BackGroundMusic.mp3</file>
     </qresource>
+    <qresource prefix="/icon">
+        <file>res/Setting_icon.jpg</file>
+    </qresource>
 </RCC>
