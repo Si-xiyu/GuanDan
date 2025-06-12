@@ -21,6 +21,7 @@ GuanDan::GuanDan(QWidget* parent)
     , m_mainLayout(nullptr)
     , m_cardCounterWidget(nullptr)
     , m_gameInProgress(false)
+    , m_settingsButton(nullptr)
 {
     ui.setupUi(this);
     initializeUI();
@@ -78,9 +79,29 @@ void GuanDan::initializeUI()
         "}"
     );
 
+    // 创建设置按钮
+    m_settingsButton = new QPushButton(tr("设置"), controlArea);
+    m_settingsButton->setFixedSize(100, 40);
+    m_settingsButton->setStyleSheet(
+        "QPushButton {"
+        "   background-color: #2196F3;"
+        "   color: white;"
+        "   border: none;"
+        "   border-radius: 20px;"
+        "   font-size: 16px;"
+        "}"
+        "QPushButton:hover {"
+        "   background-color: #1976D2;"
+        "}"
+        "QPushButton:pressed {"
+        "   background-color: #1565C0;"
+        "}"
+    );
+
     // 为控制区域创建布局
     QHBoxLayout* controlLayout = new QHBoxLayout(controlArea);
     controlLayout->addWidget(m_startButton, 0, Qt::AlignCenter);
+    controlLayout->addWidget(m_settingsButton, 0, Qt::AlignCenter);
     // 全局出牌/跳过按钮，仅在玩家0回合可见
     m_globalPlayButton = new QPushButton(tr("出牌"), controlArea);
     m_globalPlayButton->setFixedSize(100, 40);
@@ -170,6 +191,9 @@ void GuanDan::setupConnections()
 {
     // 连接开始游戏按钮
     connect(m_startButton, &QPushButton::clicked, this, &GuanDan::startGame);
+
+    // 连接设置按钮
+    connect(m_settingsButton, &QPushButton::clicked, this, &GuanDan::showSettingsDialog);
 
     // 连接全局出牌/跳过按钮
     connect(m_globalPlayButton, &QPushButton::clicked, this, [this]() {
@@ -397,6 +421,12 @@ void GuanDan::arrangePlayerWidgets()
     }
 }
 
+void GuanDan::showSettingsDialog()
+{
+    SettingsDialog dialog(this);
+    dialog.exec();
+}
+
 void GuanDan::startGame()
 {
     if (!m_gameInProgress) {
@@ -404,6 +434,9 @@ void GuanDan::startGame()
         m_gameInProgress = true;
         m_startButton->setEnabled(false);
         m_startButton->hide(); // 隐藏开始按钮
+        
+        // 播放BGM
+        SoundManager::instance().playBGM();
         
         // 设置玩家和队伍
         QVector<Team*> teams;
@@ -497,6 +530,16 @@ void GuanDan::onGameOver(int winningTeamId, const QString& winningTeamName, cons
     m_gameInProgress = false;
     m_startButton->setEnabled(true);
     m_startButton->show(); // 重新显示开始按钮
+    
+    // 停止BGM
+    SoundManager::instance().stopBGM();
+    
+    // 播放胜负音效
+    if (winningTeamId == 0) { // 假设0是玩家所在队伍
+        SoundManager::instance().playWinSound();
+    } else {
+        SoundManager::instance().playLoseSound();
+    }
     
     QString title;
     QString message;

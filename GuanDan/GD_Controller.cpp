@@ -10,6 +10,7 @@
 #include "carddeck.h"
 #include "WildCardDialog.h"
 #include "NPCPlayer.h"
+#include "SoundManager.h"
 
 GD_Controller::GD_Controller(QObject* parent)
     : QObject(parent)
@@ -114,6 +115,9 @@ void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
 
     // 核心修改：只执行出牌，然后转到下一位
     executePlay(playerId, playedCombo);
+
+    // 在出牌时播放音效
+    SoundManager::instance().playCardPlaySound();
 }
 
 // 处理玩家过牌操作(总方法)
@@ -132,6 +136,9 @@ void GD_Controller::onPlayerPass(int playerId)
 
     // 只执行过牌，然后转到下一位
     executePass(playerId);
+
+    // 在过牌时播放音效
+    SoundManager::instance().playButtonClickSound();
 }
 
 // 实现提示功能
@@ -311,6 +318,9 @@ void GD_Controller::dealCardsToPlayers()
             qDebug() << "错误：玩家ID" << playerIds[i] << "不存在，无法发牌";
         }
     }
+
+    // 在发牌时播放音效
+    SoundManager::instance().playCardDealSound();
 }
 
 void GD_Controller::determineFirstPlayerForRound()
