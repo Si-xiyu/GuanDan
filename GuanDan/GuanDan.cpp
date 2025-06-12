@@ -38,8 +38,8 @@ GuanDan::~GuanDan()
 void GuanDan::initializeUI()
 {
     // 设置窗口标题和固定大小，使用更合适的尺寸
-    setWindowTitle(tr("掼蛋游戏"));
-    setFixedSize(1440, 1080);
+    setWindowTitle(tr("GuanDan -By Si-xiyu"));
+    setFixedSize(1640, 1080); // 将宽度从1440增加到1640，为记牌器腾出空间
 
     // 创建中央窗口部件和主布局
     m_centralWidget = new QWidget(this);
@@ -327,14 +327,16 @@ void GuanDan::arrangePlayerWidgets()
     QWidget* gameArea = m_centralWidget->findChild<QWidget*>();
     if (!gameArea) return;
 
-    QSize gameSize = gameArea->size(); // 游戏区大小现在应为 1440 x 1000
+    QSize gameSize = gameArea->size();
 
-    // 为1440x1080窗口重新设计的布局参数
+    const int LAYOUT_OFFSET_X = 200;
+
+    // 为1640x1080窗口重新设计的布局参数
     int horizontalWidth = 900;   // 上下玩家区域的宽度
-    int bottomHeight = 320;      // 底部玩家区域的高度，确保手牌能完全显示
-    int topHeight = 240;         // 增加顶部玩家区域的高度，从 200 增加到 240
-    int verticalWidth = 300;     // 左右玩家区域的宽度
-    int verticalHeight = 420;    // 适当减小左右玩家区域高度以适应整体布局，从 450 减少到 420
+    int bottomHeight = 360;      // 底部玩家区域的高度
+    int topHeight = 340;         // 增加顶部玩家区域的高度，从280增加到320
+    int verticalWidth = 340;     // 左右玩家区域的宽度
+    int verticalHeight = 420;    // 左右玩家区域高度
 
     // 修正垂直位置计算，避免重叠
     // 此计算逻辑旨在将侧边区域放置在顶部和底部区域之间的中心
@@ -343,7 +345,6 @@ void GuanDan::arrangePlayerWidgets()
     int centralFreeSpace = bottomAreaTopEdge - topAreaBottomEdge; // 中间可用空间高度
     int verticalY = topAreaBottomEdge + (centralFreeSpace - verticalHeight) / 2; // 计算侧边区域的起始Y坐标使其居中
 
-    // 遍历所有widget，根据其position属性来设置固定的、无重叠的几何位置
     for (PlayerAreaWidget* widget : m_playerWidgets)
     {
         if (!widget) continue;
@@ -352,8 +353,8 @@ void GuanDan::arrangePlayerWidgets()
         {
         case PlayerPosition::Bottom:
             widget->setGeometry(
-                (gameSize.width() - horizontalWidth) / 2,  // 居中
-                gameSize.height() - bottomHeight,          // 紧贴底部
+                LAYOUT_OFFSET_X + (gameSize.width() - LAYOUT_OFFSET_X - horizontalWidth) / 2,
+                gameSize.height() - bottomHeight,
                 horizontalWidth,
                 bottomHeight
             );
@@ -361,8 +362,8 @@ void GuanDan::arrangePlayerWidgets()
 
         case PlayerPosition::Left:
             widget->setGeometry(
-                20,                                        // 留出边距
-                verticalY,                                 // **【修复】** 使用新的垂直位置
+                LAYOUT_OFFSET_X + 20,  // 左侧留出边距
+                verticalY,  // 垂直居中
                 verticalWidth,
                 verticalHeight
             );
@@ -370,8 +371,8 @@ void GuanDan::arrangePlayerWidgets()
 
         case PlayerPosition::Top:
             widget->setGeometry(
-                (gameSize.width() - horizontalWidth) / 2,  // 居中
-                20,                                        // 留出边距
+                LAYOUT_OFFSET_X + (gameSize.width() - LAYOUT_OFFSET_X - horizontalWidth) / 2,
+                20,
                 horizontalWidth,
                 topHeight
             );
@@ -379,14 +380,14 @@ void GuanDan::arrangePlayerWidgets()
 
         case PlayerPosition::Right:
             widget->setGeometry(
-                gameSize.width() - verticalWidth - 20,     // 留出边距
-                verticalY,                                 // **【修复】** 使用新的垂直位置
+                // 修正：去掉 LAYOUT_OFFSET_X，直接从窗口右边计算位置
+                gameSize.width() - verticalWidth - 20,
+                verticalY,
                 verticalWidth,
                 verticalHeight
             );
             break;
         }
-
         widget->show();
     }
 
