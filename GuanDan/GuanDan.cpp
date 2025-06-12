@@ -19,6 +19,7 @@ GuanDan::GuanDan(QWidget* parent)
     , m_globalSkipButton(nullptr)
     , m_centralWidget(nullptr)
     , m_mainLayout(nullptr)
+    , m_cardCounterWidget(nullptr)
     , m_gameInProgress(false)
 {
     ui.setupUi(this);
@@ -92,6 +93,10 @@ void GuanDan::initializeUI()
 
     // 将控制区域添加到主布局
     m_mainLayout->addWidget(controlArea);
+
+    // 创建记牌器部件
+    m_cardCounterWidget = new CardCounterWidget(gameArea);
+    m_cardCounterWidget->hide(); // 初始时隐藏
 
     // 确保初始布局正确
     QTimer::singleShot(0, this, &GuanDan::arrangePlayerWidgets);
@@ -311,6 +316,10 @@ void GuanDan::setupConnections()
     // 连接进贡/还贡请求，弹出TributeDialog
     connect(m_gameController, &GD_Controller::sigAskForTribute,
         this, &GuanDan::onAskForTribute);
+        
+    // 连接记牌器更新信号
+    connect(m_gameController, &GD_Controller::sigCardCountsUpdated,
+        m_cardCounterWidget, &CardCounterWidget::updateCounts);
 }
 
 void GuanDan::arrangePlayerWidgets()
@@ -380,6 +389,11 @@ void GuanDan::arrangePlayerWidgets()
 
         widget->show();
     }
+
+    // 布局记牌器，放在左上角
+    if (m_cardCounterWidget) {
+        m_cardCounterWidget->setGeometry(20, 20, 150, 450);
+    }
 }
 
 void GuanDan::startGame()
@@ -431,6 +445,11 @@ void GuanDan::onGameStarted()
 {
     qDebug() << "GuanDan::onGameStarted - 游戏开始";
     updateGameStatus();
+    
+    // 显示记牌器
+    if (m_cardCounterWidget) {
+        m_cardCounterWidget->show();
+    }
     
     // 添加调试代码，检查所有玩家控件的状态
     QTimer::singleShot(500, this, [this]() {

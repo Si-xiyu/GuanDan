@@ -85,6 +85,9 @@
     <ClCompile Include="ShowCardWidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="CardCounterWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Card.h">
@@ -132,6 +135,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="ShowCardWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="CardCounterWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

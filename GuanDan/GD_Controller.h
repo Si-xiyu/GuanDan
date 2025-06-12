@@ -75,6 +75,9 @@ signals:
     void sigAskForTribute(int tributingPlayerId, const QString& tributingPlayerName, int receivingPlayerId, const QString& receivingPlayerName, bool isReturningTribute); 
 	void sigTributePhaseEnded(); // 进贡阶段结束
 
+    // 记牌器相关信号
+    void sigCardCountsUpdated(const QMap<Card::CardPoint, int>& counts); // 通知UI更新记牌器
+
 private:
     // --- 游戏状态成员 ---
     QMap<int, Player*> m_players; // 通过ID映射玩家指针
@@ -92,6 +95,9 @@ private:
 
     QVector<Card> m_lastPlayedCards;       // 记录上次出牌时玩家选中的原始卡牌，用于正确移除手牌
     int m_currentRoundNumber;              // 当前是第几局
+
+    // 记牌器相关成员
+    QMap<Card::CardPoint, int> m_remainingCardCounts; // 追踪每种牌的剩余数量
 
     // --游戏阶段管理--
     enum class GamePhase {
@@ -142,6 +148,9 @@ private:
     void processNextTributeAction();    // 处理当前待办的进贡/还贡项
     void completeTribute(const TributeInfo& tribute); // 完成一次贡牌/还牌的转移
 
+    // 记牌器相关方法
+    void initializeCardCounts(); // 初始化记牌器数据
+    void updateCardCounts(const QVector<Card>& playedCards); // 更新记牌器数据
 
     // --- 辅助方法 ---
     Player* getPlayerById(int id) const; // 通过ID获取玩家指针
