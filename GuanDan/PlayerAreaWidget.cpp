@@ -40,8 +40,6 @@ void PlayerAreaWidget::arrangeComponents()
         m_mainLayout = nullptr;
     }
 
-    // 【关键修复】 根据位置决定并创建布局对象
-    // 这段代码在您之前的文件中缺失了，导致 m_mainLayout 为空指针
     switch (m_position) {
     case PlayerPosition::Bottom:
     case PlayerPosition::Top:
@@ -69,18 +67,18 @@ void PlayerAreaWidget::arrangeComponents()
         break;
     case PlayerPosition::Top:
         // 顶部玩家: 手牌区在上，出牌区在下
-        m_mainLayout->addWidget(m_playerWidget, 1);   // 占1份空间
-        m_mainLayout->addWidget(m_showCardWidget, 2); // 占2份空间
+        m_mainLayout->addWidget(m_playerWidget, 1);     // 从0.5调整到1，给手牌区合理空间
+        m_mainLayout->addWidget(m_showCardWidget, 4);   // 从6调整到4，保持出牌区足够大但不过分
         break;
     case PlayerPosition::Left:
         // 左侧玩家: 手牌区在左，出牌区在右
-        m_mainLayout->addWidget(m_playerWidget, 1);
-        m_mainLayout->addWidget(m_showCardWidget, 2);
+        m_mainLayout->addWidget(m_playerWidget, 2);   // 从1份增加到2份，增大手牌区
+        m_mainLayout->addWidget(m_showCardWidget, 1); // 从2份减少到1份，减小出牌区
         break;
     case PlayerPosition::Right:
         // 右侧玩家: 出牌区在左，手牌区在右
-        m_mainLayout->addWidget(m_showCardWidget, 2);
-        m_mainLayout->addWidget(m_playerWidget, 1);
+        m_mainLayout->addWidget(m_showCardWidget, 1); // 从2份减少到1份，减小出牌区
+        m_mainLayout->addWidget(m_playerWidget, 2);   // 从1份增加到2份，增大手牌区
         break;
     }
 
