@@ -19,10 +19,7 @@ public:
     // 音效播放
     void playBGM();
     void stopBGM();
-    void playCardDealSound();
     void playCardPlaySound();
-    void playWinSound();
-    void playLoseSound();
     void playButtonClickSound();
 
 private:

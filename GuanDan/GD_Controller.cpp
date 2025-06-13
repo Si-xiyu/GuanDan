@@ -280,8 +280,8 @@ void GD_Controller::dealCardsToPlayers()
     QVector<Card> allCards = deck.getDeckCards(); // 得到乱序的牌组（注意，是无所有者的牌组！）
 
     // 检查牌组大小是否足够
-    const int cardsPerPlayer = 4; // 测试
-    //const int cardsPerPlayer = 27;
+    //const int cardsPerPlayer = 4; // 测试
+    const int cardsPerPlayer = 27;
     const int totalPlayers = 4;
     if (allCards.size() < cardsPerPlayer * totalPlayers) {
         qWarning() << "错误：牌组大小不足，无法发牌";
@@ -318,9 +318,6 @@ void GD_Controller::dealCardsToPlayers()
             qDebug() << "错误：玩家ID" << playerIds[i] << "不存在，无法发牌";
         }
     }
-
-    // 在发牌时播放音效
-    SoundManager::instance().playCardDealSound();
 }
 
 void GD_Controller::determineFirstPlayerForRound()
