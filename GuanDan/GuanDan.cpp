@@ -24,6 +24,7 @@ GuanDan::GuanDan(QWidget* parent)
     , m_cardCounterWidget(nullptr)
     , m_gameInProgress(false)
     , m_settingsButton(nullptr)
+    , m_hintButton(nullptr)
 {
     ui.setupUi(this);
     initializeUI();
@@ -119,14 +120,36 @@ void GuanDan::initializeUI()
         "QPushButton:pressed { background-color: #6AADB4; }"
     );
 
-    // 为控制区域创建布局，将设置按钮固定在左侧
+    // 创建提示按钮
+    m_hintButton = new QPushButton(tr("提示"), controlArea);
+    m_hintButton->setFixedSize(80, 40);
+    m_hintButton->setStyleSheet(
+        "QPushButton {"
+        "   background-color: #FFE4B5;"  // 淡黄色
+        "   color:rgb(30, 28, 26);"            
+        "   border: none;"
+        "   border-radius: 20px;"
+        "   font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "   background-color: #FFD700;"  // 鼠标悬停时变为金黄色
+        "}"
+        "QPushButton:pressed {"
+        "   background-color: #DAA520;"  // 点击时变为深金色
+        "}"
+    );
+    m_hintButton->hide(); // 初始时隐藏
+
+    // 修改控制区域布局，添加提示按钮
     QHBoxLayout* controlLayout = new QHBoxLayout(controlArea);
-    controlLayout->addWidget(m_settingsButton); // 按钮居左
+    controlLayout->addWidget(m_settingsButton); // 设置按钮居左
     controlLayout->addStretch(); // 添加伸缩项
     controlLayout->addWidget(m_startButton);
     controlLayout->addWidget(m_globalPlayButton);
     controlLayout->addWidget(m_globalSkipButton);
     controlLayout->addStretch(); // 添加伸缩项，使中间的按钮组居中
+    controlLayout->addWidget(m_hintButton); // 提示按钮固定在最右边
+    controlLayout->setContentsMargins(10, 10, 10, 10);
 
     // 将控制区域添加到主布局
     m_mainLayout->addWidget(controlArea);
@@ -230,9 +253,12 @@ void GuanDan::setupConnections()
                 m_globalPlayButton->setEnabled(canPlay);
                 m_globalSkipButton->setVisible(canPass);
                 m_globalSkipButton->setEnabled(canPass);
+                m_hintButton->setVisible(canPlay); // 当可以出牌时显示提示按钮
+                m_hintButton->setEnabled(canPlay);
             } else {
                 m_globalPlayButton->hide();
                 m_globalSkipButton->hide();
+                m_hintButton->hide();
             }
         });
 
@@ -362,6 +388,9 @@ void GuanDan::setupConnections()
     // 连接记牌器更新信号
     connect(m_gameController, &GD_Controller::sigCardCountsUpdated,
         m_cardCounterWidget, &CardCounterWidget::updateCounts);
+
+    // 连接提示按钮
+    connect(m_hintButton, &QPushButton::clicked, this, &GuanDan::requestHint);
 }
 
 void GuanDan::arrangePlayerWidgets()
@@ -635,5 +664,12 @@ void GuanDan::onAskForTribute(int fromPlayerId, const QString& fromPlayerName, i
     if (dialog.exec() == QDialog::Accepted) {
         Card selectedCard = dialog.getSelectedCard();
         m_gameController->onPlayerTributeCardSelected(fromPlayerId, selectedCard);
+    }
+}
+
+void GuanDan::requestHint()
+{
+    if (m_gameController) {
+        m_gameController->onPlayerRequestHint(0); // 0是人类玩家的ID
     }
 }
