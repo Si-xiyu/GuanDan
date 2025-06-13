@@ -123,13 +123,7 @@
     <ClInclude Include="HMPlayer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="SoundManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SettingsManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SettingsDialog.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -164,11 +158,22 @@
     <QtMoc Include="CardCounterWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
-        <QtMoc Include="LeftWidget.h">
+    <QtMoc Include="LeftWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="SettingsDialog.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="SoundManager.h">
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="LevelIndicatorWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
+  </ItemGroup>
+  <ItemGroup>
+    <QtUic Include="LevelIndicatorWidget.ui">
+      <Filter>Form Files</Filter>
+    </QtUic>
   </ItemGroup>
 </Project>
