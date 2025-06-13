@@ -379,8 +379,8 @@ void GuanDan::setupConnections()
     // 连接当前玩家回合信号
     connect(m_gameController, &GD_Controller::sigSetCurrentTurnPlayer,
         this, [this](int playerId, const QString& playerName) {
-            Q_UNUSED(playerId);
             m_leftWidget->setCurrentPlayer(playerName);
+            m_leftWidget->updateTurnIndicator(playerId);
         });
 
     // 连接进贡/还贡请求，弹出TributeDialog
@@ -399,6 +399,13 @@ void GuanDan::setupConnections()
     
     connect(m_gameController, &GD_Controller::sigMultiplierUpdated,
         m_leftWidget, &LeftWidget::updateMultiplier);
+        
+    // 添加计时器相关信号连接
+    connect(m_gameController, &GD_Controller::sigTurnTimerTick,
+        m_leftWidget, &LeftWidget::updateTimerDisplay);
+        
+    connect(m_gameController, &GD_Controller::sigSetCurrentTurnPlayer,
+        m_leftWidget, &LeftWidget::updateTurnIndicator);
 }
 
 void GuanDan::arrangePlayerWidgets()
@@ -412,7 +419,7 @@ void GuanDan::arrangePlayerWidgets()
 
     // 为1640x1080窗口重新设计的布局参数
     int horizontalWidth = 900;   // 上下玩家区域的宽度
-    int bottomHeight = 440;      // 底部玩家区域的高度
+    int bottomHeight = 460;      // 底部玩家区域的高度
     int topHeight = 340;         // 增加顶部玩家区域的高度，从280增加到320
     int verticalWidth = 500;     // 左右玩家区域的宽度
     int verticalHeight = 620;    // 左右玩家区域高度

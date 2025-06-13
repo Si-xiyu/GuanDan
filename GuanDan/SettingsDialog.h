@@ -4,6 +4,7 @@
 #include <QSlider>
 #include <QLabel>
 #include <QPushButton>
+#include <QSpinBox>
 
 class SettingsDialog : public QDialog
 {
@@ -21,5 +22,6 @@ private:
     QLabel* m_volumeLabel;
     QPushButton* m_confirmButton;
     int m_currentVolume;
+    QSpinBox* m_durationSpinBox;
 };
 

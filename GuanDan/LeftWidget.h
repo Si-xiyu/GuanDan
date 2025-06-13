@@ -22,6 +22,8 @@ public slots:
     void updateMultiplier(int multiplier);
     void updateCardCounts(const QMap<Card::CardPoint, int>& counts);
     void setCurrentPlayer(const QString& playerName);
+    void updateTurnIndicator(int currentPlayerId);
+    void updateTimerDisplay(int secondsRemaining, int totalSeconds);
 
 private:
     void setupUI();
@@ -37,4 +39,5 @@ private:
     QGroupBox* m_currentTurnBox;
     QLabel* m_currentPlayerNameLabel;
     QProgressBar* m_turnTimerBar;
+    QLabel* m_timeRemainingLabel;
 }; 

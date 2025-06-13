@@ -11,7 +11,7 @@ SoundManager& SoundManager::instance()
 
 SoundManager::SoundManager(QObject* parent)
     : QObject(parent)
-    , m_Player(nullptr)
+    , m_BGMPlayer(nullptr)
     , m_volume(50) // 默认音量50%
 {
     initializeSounds();
@@ -21,13 +21,13 @@ SoundManager::~SoundManager()
 {
     stopBGM();
     qDeleteAll(m_soundEffects);
-    delete m_Player;
+    delete m_BGMPlayer;
 }
 
 void SoundManager::initializeSounds()
 {
     // 初始化BGM播放器
-    m_Player = new QMediaPlayer(this);
+    m_BGMPlayer = new QMediaPlayer(this);
     
     // 初始化BGM列表
     m_bgmList.clear();
@@ -36,7 +36,7 @@ void SoundManager::initializeSounds()
               << "qrc:/mus/res/BGM_3.wav";
 
     // 设置播放完成后的处理
-    connect(m_Player, &QMediaPlayer::stateChanged, this, [this](QMediaPlayer::State state) {
+    connect(m_BGMPlayer, &QMediaPlayer::stateChanged, this, [this](QMediaPlayer::State state) {
         if (state == QMediaPlayer::StoppedState) {
             // 当一首BGM播放完成后，随机播放下一首
             playRandomBGM();
@@ -73,8 +73,8 @@ void SoundManager::playRandomBGM()
     int randomIndex = QRandomGenerator::global()->bounded(m_bgmList.size());
     
     // 设置并播放随机选择的BGM
-    m_Player->setMedia(QUrl(m_bgmList[randomIndex]));
-    m_Player->play();
+    m_BGMPlayer->setMedia(QUrl(m_bgmList[randomIndex]));
+    m_BGMPlayer->play();
 }
 
 void SoundManager::setVolume(int volume)
@@ -91,7 +91,7 @@ int SoundManager::getVolume() const
 void SoundManager::updateVolume()
 {
     float volume = m_volume / 100.0f;
-    m_Player->setVolume(qRound(volume * 100));
+    m_BGMPlayer->setVolume(qRound(volume * 100));
 
     for (QMediaPlayer* effectPlayer : m_soundEffects) {
         effectPlayer->setVolume(m_volume);
@@ -100,14 +100,14 @@ void SoundManager::updateVolume()
 
 void SoundManager::playBGM()
 {
-    if (m_Player->state() != QMediaPlayer::PlayingState) {
+    if (m_BGMPlayer->state() != QMediaPlayer::PlayingState) {
         playRandomBGM();
     }
 }
 
 void SoundManager::stopBGM()
 {
-    m_Player->stop();
+    m_BGMPlayer->stop();
 }
 
 void SoundManager::playCardPlaySound()

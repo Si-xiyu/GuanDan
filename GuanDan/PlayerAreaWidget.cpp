@@ -58,7 +58,6 @@ void PlayerAreaWidget::arrangeComponents()
     m_mainLayout->setSpacing(5);
 
     // 根据位置决定控件顺序，让ShowCardWidget总是靠近屏幕中心
-    // 现在 m_mainLayout 是一个有效的指针，可以安全地添加控件
     switch (m_position) {
     case PlayerPosition::Bottom:
         // 底部玩家: 出牌区(ShowCardWidget)在上，手牌区(PlayerWidget)在下
@@ -77,8 +76,8 @@ void PlayerAreaWidget::arrangeComponents()
         break;
     case PlayerPosition::Right:
         // 右侧玩家: 出牌区在左，手牌区在右
-        m_mainLayout->addWidget(m_showCardWidget, 2); // 从2份减少到1份，减小出牌区
-        m_mainLayout->addWidget(m_playerWidget, 3);   // 从1份增加到2份，增大手牌区
+        m_mainLayout->addWidget(m_showCardWidget, 1); // 从2份减少到1份，减小出牌区
+        m_mainLayout->addWidget(m_playerWidget, 1);   // 从1份增加到2份，增大手牌区
         break;
     }
 

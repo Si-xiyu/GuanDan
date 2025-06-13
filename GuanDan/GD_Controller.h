@@ -7,6 +7,7 @@
 #include <QVector>
 #include <QMap>
 #include <QSet> // 用于记录已pass的玩家
+#include <QTimer>
 
 #include "Card.h"
 #include "Player.h"
@@ -42,6 +43,10 @@ public slots:
     // 当玩家完成了进贡/还贡操作 (槽函数)
     void onPlayerTributeCardSelected(int tributingPlayerId, const Card& tributeCard);
 
+private slots:
+    // 计时器相关槽函数
+    void onTurnTimeout();
+    void onTick();
 
 signals:
     // --- 通知UI更新 ---
@@ -85,6 +90,9 @@ signals:
     void sigScoresUpdated(int team1Score, int team2Score);
     void sigMultiplierUpdated(int multiplier);
 
+    // 计时器相关信号
+    void sigTurnTimerTick(int secondsRemaining, int totalSeconds);
+
 private:
     // --- 游戏状态成员 ---
     QMap<int, Player*> m_players; // 通过ID映射玩家指针
@@ -105,6 +113,12 @@ private:
 
     // 记牌器相关成员
     QMap<Card::CardPoint, int> m_remainingCardCounts; // 追踪每种牌的剩余数量
+
+    // 计时器相关成员
+    QTimer* m_turnTimeoutTimer;            // 用于触发超时事件的单次定时器
+    QTimer* m_tickTimer;                   // 用于每秒更新UI的重复定时器
+    int m_turnDuration;                    // 当前回合的总时长
+    int m_timeRemaining;                   // 当前回合的剩余时长
 
     // --游戏阶段管理--
     enum class GamePhase {
@@ -158,6 +172,10 @@ private:
     // 记牌器相关方法
     void initializeCardCounts(); // 初始化记牌器数据
     void updateCardCounts(const QVector<Card>& playedCards); // 更新记牌器数据
+
+    // 计时器相关方法
+    void startTurnTimer();
+    void stopTurnTimer();
 
     // --- 辅助方法 ---
     Player* getPlayerById(int id) const; // 通过ID获取玩家指针
