@@ -109,6 +109,7 @@ QString Card::PointToString() const
     case CardPoint::Card_K: return "K";
     case CardPoint::Card_LJ: return "2";
     case CardPoint::Card_BJ: return "1";
+	default:return "Unknown"; // 默认返回值
     }
 }
 

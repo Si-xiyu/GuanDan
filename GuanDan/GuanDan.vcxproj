@@ -99,7 +99,7 @@
     <ClCompile Include="GD_Controller.cpp" />
     <ClCompile Include="HMPlayer.cpp" />
     <ClCompile Include="LeftWidget.cpp" />
-    <QtMoc Include="LevelIndicatorWidget.cpp" />
+    <ClCompile Include="LevelIndicatorWidget.cpp" />
     <ClCompile Include="Levelstatus.cpp" />
     <ClCompile Include="NPCPlayer.cpp" />
     <ClCompile Include="Player.cpp" />
@@ -118,6 +118,7 @@
     <ClCompile Include="Card.cpp" />
     <ClCompile Include="GuanDan.cpp" />
     <ClCompile Include="main.cpp" />
+    <QtUic Include="LevelIndicatorWidget.ui" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Card.h" />
