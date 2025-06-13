@@ -25,19 +25,20 @@ void CardCounterWidget::initializeUI()
         "}"
         "QLabel {"
         "   color: white;"
-        "   font-size: 12px;"
+        "   font-size: 16px;"
         "   padding: 2px;"
+        "   min-height: 15px;"
         "}"
     );
 
     // 创建网格布局
     m_layout = new QGridLayout(this);
     m_layout->setContentsMargins(8, 8, 8, 8);
-    m_layout->setSpacing(8);
+    m_layout->setSpacing(6);
     
     // 添加标题
     QLabel* titleLabel = new QLabel(tr("记牌器"), this);
-    titleLabel->setStyleSheet("font-weight: bold; font-size: 14px;");
+    titleLabel->setStyleSheet("font-weight: bold; font-size: 18px;");
     titleLabel->setAlignment(Qt::AlignCenter);
     m_layout->addWidget(titleLabel, 0, 0, 1, 2);
 }
@@ -102,8 +103,8 @@ QString CardCounterWidget::getCardPointName(Card::CardPoint point) const
     case Card::CardPoint::Card_Q:  return tr("Q");
     case Card::CardPoint::Card_K:  return tr("K");
     case Card::CardPoint::Card_A:  return tr("A");
-    case Card::CardPoint::Card_LJ: return tr("小王");
-    case Card::CardPoint::Card_BJ: return tr("大王");
+    case Card::CardPoint::Card_LJ: return tr("小 王");
+    case Card::CardPoint::Card_BJ: return tr("大 王");
     default: return tr("未知");
     }
 }
