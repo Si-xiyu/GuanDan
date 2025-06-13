@@ -80,31 +80,10 @@ void SoundManager::stopBGM()
     m_bgmPlayer->stop();
 }
 
-void SoundManager::playCardDealSound()
-{
-    if (m_soundEffects.contains("card_deal")) {
-        m_soundEffects["card_deal"]->play();
-    }
-}
-
 void SoundManager::playCardPlaySound()
 {
     if (m_soundEffects.contains("card_play")) {
         m_soundEffects["card_play"]->play();
-    }
-}
-
-void SoundManager::playWinSound()
-{
-    if (m_soundEffects.contains("win")) {
-        m_soundEffects["win"]->play();
-    }
-}
-
-void SoundManager::playLoseSound()
-{
-    if (m_soundEffects.contains("lose")) {
-        m_soundEffects["lose"]->play();
     }
 }
 

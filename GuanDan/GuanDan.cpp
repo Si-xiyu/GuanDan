@@ -1,7 +1,6 @@
 #include "GuanDan.h" 
 #include "GD_Controller.h" 
 #include "Team.h"         
-
 #include "NPCPlayer.h"
 #include "TributeDialog.h"
 
@@ -552,13 +551,6 @@ void GuanDan::onGameOver(int winningTeamId, const QString& winningTeamName, cons
     
     // 停止BGM
     SoundManager::instance().stopBGM();
-    
-    // 播放胜负音效
-    if (winningTeamId == 0) { // 假设0是玩家所在队伍
-        SoundManager::instance().playWinSound();
-    } else {
-        SoundManager::instance().playLoseSound();
-    }
     
     QString title;
     QString message;
