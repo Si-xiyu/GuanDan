@@ -41,17 +41,24 @@ PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurre
     QVBoxLayout* labelsLayout = new QVBoxLayout();
     
     m_nameLabel = new QLabel(this);
-    m_nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     m_nameLabel->setStyleSheet("QLabel { color: white; font-size: 14px; font-weight: bold; }");
     labelsLayout->addWidget(m_nameLabel);
     
     m_statusLabel = new QLabel(this);
-    m_statusLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     m_statusLabel->setStyleSheet("QLabel { color: white; font-size: 12px; }");
     labelsLayout->addWidget(m_statusLabel);
     
-    infoLayout->addLayout(labelsLayout);
-    infoLayout->addStretch();
+    if (m_position == PlayerPosition::Left) {
+        infoLayout->addStretch();
+        infoLayout->addLayout(labelsLayout);
+        m_nameLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        m_statusLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    } else {
+        infoLayout->addLayout(labelsLayout);
+        infoLayout->addStretch();
+        m_nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        m_statusLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    }
     
     m_mainLayout->addLayout(infoLayout);
     
