@@ -9,6 +9,8 @@ public:
     static void saveVolume(int volume);
     static int loadVolume();
     static QString getConfigFilePath();
+    static void saveTurnDuration(int seconds);
+    static int loadTurnDuration();
 
 private:
     SettingsManager() = delete; // 禁止实例化

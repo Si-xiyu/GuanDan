@@ -27,3 +27,19 @@ int SettingsManager::loadVolume()
     delete settings;
     return volume;
 }
+
+void SettingsManager::saveTurnDuration(int seconds)
+{
+    QSettings* settings = createSettings();
+    settings->setValue("Game/TurnDuration", seconds);
+    delete settings;
+}
+
+int SettingsManager::loadTurnDuration()
+{
+    QSettings* settings = createSettings();
+    // 默认30秒，0表示不限时
+    int duration = settings->value("Game/TurnDuration", 30).toInt();
+    delete settings;
+    return duration;
+}

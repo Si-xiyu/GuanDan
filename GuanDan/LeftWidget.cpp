@@ -108,6 +108,12 @@ void LeftWidget::setupUI() {
     m_currentPlayerNameLabel->setStyleSheet("font-weight: bold; color: #87CEEB;"); // 天蓝色
     currentTurnLayout->addWidget(m_currentPlayerNameLabel);
 
+    // 添加剩余时间标签
+    m_timeRemainingLabel = new QLabel("30s", this);
+    m_timeRemainingLabel->setAlignment(Qt::AlignCenter);
+    m_timeRemainingLabel->setStyleSheet("font-weight: bold; color: #FFFFFF;");
+    currentTurnLayout->addWidget(m_timeRemainingLabel);
+
     m_turnTimerBar = new QProgressBar(this);
     m_turnTimerBar->setRange(0, 100);
     m_turnTimerBar->setValue(100);
@@ -134,4 +140,64 @@ void LeftWidget::updateCardCounts(const QMap<Card::CardPoint, int>& counts) {
 
 void LeftWidget::setCurrentPlayer(const QString& playerName) {
     m_currentPlayerNameLabel->setText(playerName);
+}
+
+void LeftWidget::updateTurnIndicator(int currentPlayerId) {
+    if (currentPlayerId == 0) { // 轮到我方（人类玩家）
+        m_currentTurnBox->setStyleSheet(R"(
+            QGroupBox {
+                color: white;
+                font-weight: bold;
+                font-size: 16px;
+                border: 2px solid #4CAF50; /* 绿色边框 */
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 0 5px;
+            }
+        )");
+    } else { // 轮到其他玩家
+        m_currentTurnBox->setStyleSheet(R"(
+            QGroupBox {
+                color: white;
+                font-weight: bold;
+                font-size: 16px;
+                border: 2px solid #F44336; /* 红色边框 */
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 0 5px;
+            }
+        )");
+    }
+}
+
+void LeftWidget::updateTimerDisplay(int secondsRemaining, int totalSeconds) {
+    // 更新文字
+    m_timeRemainingLabel->setText(QString("%1s").arg(secondsRemaining));
+
+    // 更新进度条
+    if (totalSeconds <= 0) return; // 防止除零
+    int percentage = (secondsRemaining * 100) / totalSeconds;
+    m_turnTimerBar->setValue(percentage);
+
+    // 根据百分比更新颜色
+    QString styleSheet;
+    if (percentage > 60) {
+        // 绿色
+        styleSheet = "QProgressBar::chunk { background-color: #4CAF50; border-radius: 4px; }";
+    } else if (percentage > 25) {
+        // 黄色
+        styleSheet = "QProgressBar::chunk { background-color: #FFC107; border-radius: 4px; }";
+    } else {
+        // 红色
+        styleSheet = "QProgressBar::chunk { background-color: #F44336; border-radius: 4px; }";
+    }
+    m_turnTimerBar->setStyleSheet(styleSheet);
 } 

@@ -35,7 +35,7 @@ private:
     void updateVolume();
     void playRandomBGM();
 
-    QMediaPlayer* m_Player;
+    QMediaPlayer* m_BGMPlayer;
     QMap<QString, QMediaPlayer*> m_soundEffects;
     QVector<QString> m_bgmList;
     int m_volume;

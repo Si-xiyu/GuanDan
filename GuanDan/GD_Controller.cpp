@@ -11,6 +11,7 @@
 #include "WildCardDialog.h"
 #include "NPCPlayer.h"
 #include "SoundManager.h"
+#include "SettingsManager.h"
 
 GD_Controller::GD_Controller(QObject* parent)
     : QObject(parent)
@@ -20,10 +21,22 @@ GD_Controller::GD_Controller(QObject* parent)
     , m_currentRoundNumber(0)
     , m_currentPhase(GamePhase::NotStarted)
     , m_currentTributeIndex(0)
+    , m_turnTimeoutTimer(nullptr)
+    , m_tickTimer(nullptr)
+    , m_turnDuration(30)
+    , m_timeRemaining(30)
 {
     // 初始化当前桌面牌型为空
     m_currentTableCombo.type = CardComboType::Invalid;
     m_currentTableCombo.cards_in_combo.clear();
+
+    // 初始化计时器
+    m_turnTimeoutTimer = new QTimer(this);
+    m_turnTimeoutTimer->setSingleShot(true); // 超时只触发一次
+    connect(m_turnTimeoutTimer, &QTimer::timeout, this, &GD_Controller::onTurnTimeout);
+
+    m_tickTimer = new QTimer(this);
+    connect(m_tickTimer, &QTimer::timeout, this, &GD_Controller::onTick);
 }
 
 GD_Controller::~GD_Controller()
@@ -948,14 +961,16 @@ bool GD_Controller::canPerformAction(int playerId, QString& errorMsg)
 
 void GD_Controller::executePlay(int playerId, const CardCombo::ComboInfo& playedCombo)
 {
+    stopTurnTimer(); // 停止计时器
+    
     // 更新手牌并广播出牌信息
     processPlayerPlay(playerId, playedCombo); // 这个函数会设置 m_circleLeaderId
     QString message = QString("%1 出牌: %2").arg(getPlayerById(playerId)->getName()).arg(playedCombo.getDescription());
     emit sigBroadcastMessage(message);
-    
+
     // 通知UI更新显示出牌
     emit sigUpdateTableCards(playerId, playedCombo, m_lastPlayedCards);
-    
+
     qDebug() << "GD_Controller::executePlay： 出牌处理完成, playerId=" << playerId;
 
     // 推进游戏
@@ -964,14 +979,16 @@ void GD_Controller::executePlay(int playerId, const CardCombo::ComboInfo& played
 
 void GD_Controller::executePass(int playerId)
 {
+    stopTurnTimer(); // 停止计时器
+    
     // 处理过牌并广播信息
     processPlayerPass(playerId);
     QString message = QString("%1 选择过牌").arg(getPlayerById(playerId)->getName());
     emit sigBroadcastMessage(message);
-    
+
     // 发出玩家过牌信号
     emit sigPlayerPassed(playerId);
-    
+
     qDebug() << "GD_Controller::executePass： 过牌处理完成, playerId=" << playerId;
 
     // 推进游戏
@@ -1104,6 +1121,9 @@ void GD_Controller::enterState(GamePhase newPhase)
 
                 // 广播轮到谁出牌
                 emit sigBroadcastMessage(QString("轮到 %1 出牌！").arg(currentPlayer->getName()));
+                
+                // 启动计时器
+                startTurnTimer();
 
         		// 如果是AI玩家，触发自动出牌
                 QTimer::singleShot(0, [this]() {
@@ -1243,6 +1263,9 @@ void GD_Controller::advanceToNextPlayer()
             
             // 新一圈的领出者不能Pass
             emit sigEnablePlayerControls(m_currentPlayerId, true, false);
+            
+            // 启动计时器
+            startTurnTimer();
 
             // 如果是AI玩家，触发其行动
             if (leader->getType() == Player::AI) {
@@ -1273,6 +1296,9 @@ void GD_Controller::advanceToNextPlayer()
         
         // 圈未结束时，玩家可以选择出牌或过牌
         emit sigEnablePlayerControls(m_currentPlayerId, true, true);
+        
+        // 启动计时器
+        startTurnTimer();
     }
     
     // 4. 如果圈未结束，触发AI行动
@@ -1339,4 +1365,67 @@ void GD_Controller::updateCardCounts(const QVector<Card>& playedCards)
     
     // 发送信号通知UI更新记牌器
     emit sigCardCountsUpdated(m_remainingCardCounts);
+}
+
+// 计时器相关方法实现
+void GD_Controller::startTurnTimer()
+{
+    m_turnDuration = SettingsManager::loadTurnDuration();
+    if (m_turnDuration > 0) { 
+        m_timeRemaining = m_turnDuration;
+        emit sigTurnTimerTick(m_timeRemaining, m_turnDuration); // 立即更新一次UI
+        m_turnTimeoutTimer->start(m_turnDuration * 1000);
+        m_tickTimer->start(1000); // 每秒更新一次
+    }
+}
+
+void GD_Controller::stopTurnTimer()
+{
+    m_turnTimeoutTimer->stop();
+    m_tickTimer->stop();
+}
+
+void GD_Controller::onTick()
+{
+    m_timeRemaining--;
+    emit sigTurnTimerTick(m_timeRemaining, m_turnDuration);
+    if (m_timeRemaining <= 0) {
+        m_tickTimer->stop(); // 避免重复触发
+    }
+}
+
+void GD_Controller::onTurnTimeout()
+{
+    qDebug() << "玩家 " << m_currentPlayerId << " 操作超时!";
+    stopTurnTimer(); // 确保所有计时器都停了
+
+    Player* currentPlayer = getPlayerById(m_currentPlayerId);
+    if (!currentPlayer || currentPlayer->getHandCards().isEmpty()) return;
+
+    if (currentPlayer->getType() == Player::AI) {
+        // AI玩家超时，直接调用其自动出牌逻辑
+        currentPlayer->autoPlay(this, m_currentTableCombo);
+    } else {
+        // 人类玩家超时，使用临时AI来决定出牌
+        if (m_currentTableCombo.type == CardComboType::Invalid) {
+            // 轮到自己出牌，必须出
+            // 使用临时AI
+            NPCPlayer tempAI("HintBot", -1);
+            tempAI.setHandCards(currentPlayer->getHandCards());
+            tempAI.setTeam(currentPlayer->getTeam());
+            
+            // 让AI找一个最小的牌打出去
+            QVector<Card> cardsToPlay = tempAI.getBestPlay(m_currentTableCombo);
+            if (cardsToPlay.isEmpty()) { // 极端情况，AI也找不到牌
+                // 打出最小的一张单牌
+                QVector<Card> sortedHand = currentPlayer->getHandCards();
+                std::sort(sortedHand.begin(), sortedHand.end());
+                cardsToPlay.append(sortedHand.first());
+            }
+            onPlayerPlay(m_currentPlayerId, cardsToPlay);
+        } else {
+            // 跟牌，可以直接过
+            onPlayerPass(m_currentPlayerId);
+        }
+    }
 }
