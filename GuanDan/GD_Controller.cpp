@@ -274,7 +274,7 @@ void GD_Controller::startNewRound()
     qDebug() << "GD_Controller::startNewRound - 准备开始新一局，局数: " << m_currentRoundNumber;
     
     // 初始化本局积分状态
-    m_roundBaseScore = 10;  // 设置基础分为10
+    m_roundBaseScore = 1;  // 设置基础分为1
     m_roundDynamicMultiplier = 1;  // 重置动态倍率为1
     emit sigMultiplierUpdated(m_roundBaseScore * m_roundDynamicMultiplier);
     

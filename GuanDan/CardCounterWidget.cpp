@@ -33,7 +33,7 @@ void CardCounterWidget::initializeUI()
     // 创建网格布局
     m_layout = new QGridLayout(this);
     m_layout->setContentsMargins(8, 8, 8, 8);
-    m_layout->setSpacing(4);
+    m_layout->setSpacing(8);
     
     // 添加标题
     QLabel* titleLabel = new QLabel(tr("记牌器"), this);
