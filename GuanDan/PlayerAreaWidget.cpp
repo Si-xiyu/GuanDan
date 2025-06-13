@@ -200,4 +200,9 @@ void PlayerAreaWidget::updateHandDisplay(const QVector<Card>& cards, bool showFr
 void PlayerAreaWidget::updateHandDisplayNoAnimation(const QVector<Card>& cards, bool showFront)
 {
     m_playerWidget->updateHandDisplayNoAnimation(cards, showFront);
+}
+
+void PlayerAreaWidget::selectCards(const QVector<Card>& cardsToSelect)
+{
+    m_playerWidget->selectCards(cardsToSelect);
 } 

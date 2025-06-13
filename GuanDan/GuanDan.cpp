@@ -390,7 +390,7 @@ void GuanDan::setupConnections()
         m_cardCounterWidget, &CardCounterWidget::updateCounts);
 
     // 连接提示按钮
-    connect(m_hintButton, &QPushButton::clicked, this, &GuanDan::requestHint);
+    connect(m_gameController, &GD_Controller::sigShowHint, this, &GuanDan::onShowHint);
 }
 
 void GuanDan::arrangePlayerWidgets()
@@ -472,6 +472,32 @@ void GuanDan::showSettingsDialog()
 {
     SettingsDialog dialog(this);
     dialog.exec();
+}
+
+void GuanDan::onShowHint(int playerId, const QVector<Card>& suggestedCards)
+{
+    qDebug() << "GuanDan: 接收到提示信号，准备高亮玩家" << playerId << "的" << suggestedCards.size() << "张牌";
+
+    // 提示功能只对人类玩家（ID为0）有效
+    if (playerId != 0) {
+        qWarning() << "GuanDan::onShowHint: 接收到非人类玩家的提示信号，已忽略。PlayerID:" << playerId;
+        return;
+    }
+
+    // 遍历所有玩家界面，找到对应ID的那个玩家
+    bool playerWidgetFound = false;
+    for (PlayerAreaWidget* widget : m_playerWidgets) {
+        if (widget && widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
+            // 命令这个玩家的界面选中推荐的牌
+            widget->selectCards(suggestedCards);
+            playerWidgetFound = true;
+            break; 
+        }
+    }
+
+    if (!playerWidgetFound) {
+        qWarning() << "GuanDan::onShowHint: 未能找到ID为" << playerId << "的玩家界面控件。";
+    }
 }
 
 void GuanDan::startGame()
@@ -664,12 +690,5 @@ void GuanDan::onAskForTribute(int fromPlayerId, const QString& fromPlayerName, i
     if (dialog.exec() == QDialog::Accepted) {
         Card selectedCard = dialog.getSelectedCard();
         m_gameController->onPlayerTributeCardSelected(fromPlayerId, selectedCard);
-    }
-}
-
-void GuanDan::requestHint()
-{
-    if (m_gameController) {
-        m_gameController->onPlayerRequestHint(0); // 0是人类玩家的ID
     }
 }

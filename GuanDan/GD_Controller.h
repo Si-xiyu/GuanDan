@@ -51,6 +51,9 @@ signals:
     void sigCardsDealt(int playerId, const QVector<Card>& hand); // 通知玩家手牌已经发好
     void sigUpdatePlayerHand(int playerId, const QVector<Card>& newHand); // 手牌变化时更新
 
+	// 提示信号
+	void sigShowHint(int playerId, const QVector<Card>& suggestedCards);
+
 	// Round结束信号
     void sigRoundOver(const QString& summary, const QVector<int>& playerRanks); // 一局结束，附带总结和排名
 

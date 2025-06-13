@@ -10,6 +10,85 @@
 NPCPlayer::NPCPlayer(const QString& name, int id)
     : Player(name, id) {}
 
+QVector<Card> NPCPlayer::getBestPlay(const CardCombo::ComboInfo& currentTableCombo)
+{
+    // 获取当前手牌
+    QVector<Card> hand = getHandCards();
+
+    // 如果手牌为空，直接返回空列表
+    if (hand.isEmpty()) {
+        qDebug() << "NPCPlayer::getBestPlay: Hand is empty, cannot play.";
+        return {};
+    }
+
+    // 调用内部的 findValidPlays 方法来找出所有能打的牌
+    QVector<CardCombo::ComboInfo> validPlays = findValidPlays(hand, currentTableCombo);
+
+    // 如果找不到任何可以出的牌
+    if (validPlays.isEmpty()) {
+        qDebug() << "NPCPlayer::getBestPlay: No valid plays found.";
+
+        // 如果是跟牌阶段，返回空列表是正确的（表示“要不起”）
+        if (currentTableCombo.type != CardComboType::Invalid) {
+            return {};
+        }
+        // 如果是自由出牌阶段,返回最小的一张单牌
+        else {
+            QVector<Card> sortedHand = hand;
+            // Card类已重载<运算符，可以直接排序
+            std::sort(sortedHand.begin(), sortedHand.end());
+            if (!sortedHand.isEmpty()) {
+                qDebug() << "NPCPlayer::getBestPlay: Forcing smallest single card play.";
+                return { sortedHand.first() };
+            }
+            return {}; // 极端情况，手牌排序后还是空的
+        }
+    }
+
+    // --- AI 决策核心：对所有可行的出牌组合进行排序，选出最优解 ---
+    // 排序策略：
+    // 1. 非炸弹 优先于 炸弹（避免轻易浪费炸弹）
+    // 2. 牌力等级（level）低的 优先于 等级高的（先出小牌）
+    // 3. 使用癞子（wild_cards_used）少的 优先于 多的（节省万能牌）
+    // 4. 牌数（original_cards.size()）少的 优先于 多的（尽快打出手牌）
+    std::sort(validPlays.begin(), validPlays.end(),
+        [](const CardCombo::ComboInfo& a, const CardCombo::ComboInfo& b) {
+            bool a_is_bomb = (a.type == CardComboType::Bomb);
+            bool b_is_bomb = (b.type == CardComboType::Bomb);
+
+            // 规则1：非炸弹优先
+            if (a_is_bomb != b_is_bomb) {
+                return !a_is_bomb; // 如果a不是炸弹而b是，a排在前面 (return true)
+            }
+
+            // 规则2：牌力等级低的优先
+            if (a.level != b.level) {
+                return a.level < b.level;
+            }
+
+            // 规则3：使用癞子少的优先
+            if (a.wild_cards_used != b.wild_cards_used) {
+                return a.wild_cards_used < b.wild_cards_used;
+            }
+
+            // 规则4：牌数少的优先
+            if (a.original_cards.size() != b.original_cards.size()) {
+                return a.original_cards.size() < b.original_cards.size();
+            }
+
+            // 如果所有条件都相同，保持原有顺序
+            return false;
+        });
+
+    // 排序后，第一个元素就是最优选择
+    CardCombo::ComboInfo bestPlay = validPlays.first();
+
+    qDebug() << "NPCPlayer::getBestPlay: Found" << validPlays.size() << "valid plays. Best choice:" << bestPlay.getDescription();
+
+    // 返回最优组合的原始卡牌（包含癞子）
+    return bestPlay.original_cards;
+}
+
 // 辅助函数：按点数对手牌进行分类
 QMap<Card::CardPoint, QVector<Card>> NPCPlayer::classifyHandByPoint(const QVector<Card>& hand) {
     QMap<Card::CardPoint, QVector<Card>> pointGroups;
@@ -151,7 +230,6 @@ QVector<CardCombo::ComboInfo> NPCPlayer::findValidPlays(const QVector<Card>& han
     auto pointGroups = classifyHandByPoint(hand);
     QVector<QVector<Card>> potentialPlays;
 
-    // FIX: 使用 if-else if 结构代替错误的 switch
     if (tableCombo.type == CardComboType::Invalid) {
         potentialPlays.append(findSingles(pointGroups));
         potentialPlays.append(findPairs(pointGroups));

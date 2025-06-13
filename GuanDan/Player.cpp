@@ -56,6 +56,13 @@ QVector<Card> Player::getHandCards() const
     return m_handCards;
 }
 
+void Player::setHandCards(const QVector<Card>& cards)
+{
+    m_handCards = cards;
+    // 整理手牌
+    std::sort(m_handCards.begin(), m_handCards.end());
+}
+
 void Player::clearHandCards()
 {
     m_handCards.clear();

@@ -148,27 +148,30 @@ void GD_Controller::onPlayerRequestHint(int playerId)
         return;
     }
 
-    Player* player = getPlayerById(playerId);
-    if (!player) return;
+    Player* humanPlayer = getPlayerById(playerId);
+    if (!humanPlayer) return;
 
-    // 获取所有可能的出牌组合
-    QVector<CardCombo::ComboInfo> possiblePlays = CardCombo::getAllPossibleValidPlays(
-        player->getHandCards(),  // 玩家当前的所有手牌
-        player,                  // 当前玩家
-        m_currentTableCombo.type,  // 当前桌面牌型
-        m_currentTableCombo.level  // 当前桌面牌型等级
-    );
+    // 1. 创建一个临时的 NPCPlayer 实例
+    // 名字和ID不重要，因为我们只是借用它的算法
+    NPCPlayer tempAI("HintBot", -1);
+    
+    // 2. 把当前人类玩家的手牌和队伍信息“借”给这个临时AI
+    tempAI.setHandCards(humanPlayer->getHandCards());
+    tempAI.setTeam(humanPlayer->getTeam());
 
-    if (possiblePlays.isEmpty()) { // 可出牌为空
+    // 3. 调用我们新增的方法来获取最佳出牌建议
+    QVector<Card> suggestedCards = tempAI.getBestPlay(m_currentTableCombo);
+
+    if (suggestedCards.isEmpty()) {
+        // AI也找不到牌，说明真的要不起
         emit sigShowPlayerMessage(playerId, "没有找到可以出的牌，建议过牌", false);
         return;
     }
 
-	// 随机选择一个建议的出牌组合
-    int randomIndex = QRandomGenerator::global()->bounded(possiblePlays.size());
-    CardCombo::ComboInfo suggestion = possiblePlays[randomIndex];
-    QString hintMessage = QString("建议出牌：%1").arg(suggestion.getDescription());
-    emit sigShowPlayerMessage(playerId, hintMessage, false);
+    // 4. 成功获取建议，发射信号让UI高亮这些牌
+    // （这部分逻辑与上一个方案完全相同）
+    emit sigShowHint(playerId, suggestedCards);
+    emit sigBroadcastMessage(QString("已为 %1 提供出牌提示。").arg(humanPlayer->getName()));
 }
 
 void GD_Controller::onPlayerTributeCardSelected(int tributingPlayerId, const Card& tributeCard)

@@ -54,6 +54,7 @@ public:
     void addCards(const QVector<Card>& cards);
     void clearSelection();
     QVector<Card> getSelectedCards() const;
+    void selectCards(const QVector<Card>& cardsToSelect);
 
     // 状态设置
     void setCardsVisible(bool visible);
