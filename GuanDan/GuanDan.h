@@ -28,6 +28,7 @@ private slots:
     void onGameOver(int winningTeamId, const QString& winningTeamName, const QString& finalMessage); // 游戏结束
     void onAskForTribute(int fromPlayerId, const QString& fromPlayerName, int toPlayerId, const QString& toPlayerName, bool isReturn);
     void showSettingsDialog();
+    void requestHint();                  // 新增：请求提示功能
 
 private:
     void initializeUI();                // 初始化界面
@@ -44,6 +45,7 @@ private:
     QPushButton* m_globalPlayButton;    // 全局出牌按钮
     QPushButton* m_globalSkipButton;    // 全局跳过按钮
     QPushButton* m_settingsButton;      // 新增：设置按钮
+    QPushButton* m_hintButton;          // 新增：提示按钮
     QWidget* m_centralWidget;           // 中央窗口部件
     QVBoxLayout* m_mainLayout;          // 主布局
     
