@@ -3,6 +3,7 @@
 #include <QWidget>
 #include <QMap>
 #include "Card.h"
+#include "LevelIndicatorWidget.h"
 
 // 前向声明
 class QLabel;
@@ -24,11 +25,13 @@ public slots:
     void setCurrentPlayer(const QString& playerName);
     void updateTurnIndicator(int currentPlayerId);
     void updateTimerDisplay(int secondsRemaining, int totalSeconds);
+    void updateTeamLevels(Card::CardPoint team1Level, Card::CardPoint team2Level);
 
 private:
     void setupUI();
 
     CardCounterWidget* m_cardCounterWidget;
+    LevelIndicatorWidget* m_levelIndicator;
 
     QGroupBox* m_gameStateBox;
     QLabel* m_team1ScoreLabel;

@@ -97,6 +97,12 @@
     <ClCompile Include="SettingsDialog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="LeftWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LevelIndicatorWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Card.h">
@@ -156,6 +162,12 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="CardCounterWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+        <QtMoc Include="LeftWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="LevelIndicatorWidget.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
