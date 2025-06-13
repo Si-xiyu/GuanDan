@@ -587,6 +587,9 @@ void GD_Controller::processRoundResults()
                 // 获取新的级别
                 Card::CardPoint newLevelFromStatus = m_levelStatus.getTeamPlayingLevel(winningTeam->getId());
                 
+                // 发送级牌更新信号
+                emit sigTeamLevelsUpdated(m_levelStatus.getTeamPlayingLevel(0), m_levelStatus.getTeamPlayingLevel(1));
+                
                 // 计算升级了几级
                 levelIncrement = static_cast<int>(newLevelFromStatus) - static_cast<int>(oldLevelFromStatus);
 
@@ -1077,8 +1080,15 @@ void GD_Controller::enterState(GamePhase newPhase)
             // 2. 发送新一轮开始的信号和消息
             emit sigNewRoundStarted(m_currentRoundNumber);
             {
+                Card::CardPoint team1Level = m_levelStatus.getTeamPlayingLevel(0);
+                Card::CardPoint team2Level = m_levelStatus.getTeamPlayingLevel(1);
+                
+                // 发送级牌更新信号
+                emit sigTeamLevelsUpdated(team1Level, team2Level);
+                
+                // 创建临时卡片用于显示文本消息
                 Card currentLevel_card;
-                currentLevel_card.setPoint(m_levelStatus.getTeamPlayingLevel(0));
+                currentLevel_card.setPoint(team1Level);
                 QString levelStr = currentLevel_card.PointToString();
                 emit sigBroadcastMessage(QString("第%1局开始！当前级牌：%2").arg(m_currentRoundNumber).arg(levelStr));
             }

@@ -46,6 +46,8 @@ public:
     void setZValue(int z);
     int zValue() const;
 
+    void loadCardImages(); // 加载图片
+
 protected:
     //重写事件处理函数
     void paintEvent(QPaintEvent* event) override;
@@ -55,8 +57,6 @@ protected:
     void resizeEvent(QResizeEvent* event) override;
 
 private:
-    void loadCardImages(); // 私有辅助函数加载图片
-
     //QPixmap储存卡片图像
     QPixmap m_front;
     QPixmap m_back;

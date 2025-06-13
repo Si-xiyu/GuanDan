@@ -55,12 +55,16 @@ void LeftWidget::setupUI() {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(15);
 
-    // 1. 记牌器
+    // 1. 级牌显示器
+    m_levelIndicator = new LevelIndicatorWidget(this);
+    mainLayout->addWidget(m_levelIndicator);
+    
+    // 2. 记牌器
     m_cardCounterWidget = new CardCounterWidget(this);
     m_cardCounterWidget->setStyleSheet("background-color: transparent; border: none; padding: 0px;"); // 透明化记牌器背景
     mainLayout->addWidget(m_cardCounterWidget);
 
-    // 2. 积分状态 GroupBox
+    // 3. 积分状态 GroupBox
     m_gameStateBox = new QGroupBox("积分状态", this);
     QVBoxLayout* gameStateLayout = new QVBoxLayout(m_gameStateBox);
 
@@ -98,7 +102,7 @@ void LeftWidget::setupUI() {
     gameStateLayout->addLayout(multiplierLayout);
     mainLayout->addWidget(m_gameStateBox);
 
-    // 3. 当前回合 GroupBox
+    // 4. 当前回合 GroupBox
     m_currentTurnBox = new QGroupBox("当前回合", this);
     QVBoxLayout* currentTurnLayout = new QVBoxLayout(m_currentTurnBox);
     currentTurnLayout->setSpacing(5);
@@ -200,4 +204,9 @@ void LeftWidget::updateTimerDisplay(int secondsRemaining, int totalSeconds) {
         styleSheet = "QProgressBar::chunk { background-color: #F44336; border-radius: 4px; }";
     }
     m_turnTimerBar->setStyleSheet(styleSheet);
+}
+
+void LeftWidget::updateTeamLevels(Card::CardPoint team1Level, Card::CardPoint team2Level) {
+    // 将级牌更新传递给级牌显示器
+    m_levelIndicator->updateLevels(team1Level, team2Level);
 } 

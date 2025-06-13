@@ -406,6 +406,10 @@ void GuanDan::setupConnections()
         
     connect(m_gameController, &GD_Controller::sigSetCurrentTurnPlayer,
         m_leftWidget, &LeftWidget::updateTurnIndicator);
+        
+    // 连接级牌更新信号
+    connect(m_gameController, &GD_Controller::sigTeamLevelsUpdated,
+        m_leftWidget, &LeftWidget::updateTeamLevels);
 }
 
 void GuanDan::arrangePlayerWidgets()

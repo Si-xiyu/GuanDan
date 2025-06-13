@@ -73,7 +73,7 @@ signals:
 	// 更新全局状态
 	void sigSetCurrentTurnPlayer(int playerId, const QString& playerName); // 轮到谁出牌
     void sigEnablePlayerControls(int playerId, bool canPlay, bool canPass); // 控制玩家操作按钮的可用性
-    void sigUpdateTeamLevel(int teamId, Card::CardPoint newLevel); // 更新队伍的级别
+    void sigTeamLevelsUpdated(Card::CardPoint team1Level, Card::CardPoint team2Level); // 更新队伍级牌
 
     // 消息显示
 	void sigShowPlayerMessage(int playerId, const QString& message, bool isError = false); // 给特定玩家显示消息

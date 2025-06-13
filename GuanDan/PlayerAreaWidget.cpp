@@ -77,7 +77,7 @@ void PlayerAreaWidget::arrangeComponents()
     case PlayerPosition::Right:
         // 右侧玩家: 出牌区在左，手牌区在右
         m_mainLayout->addWidget(m_showCardWidget, 1); // 从2份减少到1份，减小出牌区
-        m_mainLayout->addWidget(m_playerWidget, 1);   // 从1份增加到2份，增大手牌区
+        m_mainLayout->addWidget(m_playerWidget, 1);
         break;
     }
 
