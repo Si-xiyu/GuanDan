@@ -245,6 +245,10 @@ void GuanDan::setupConnections()
     connect(m_globalSkipButton, &QPushButton::clicked, this, [this]() {
         m_gameController->onPlayerPass(0);
     });
+    // 新增：连接提示按钮点击
+    connect(m_hintButton, &QPushButton::clicked, this, [this]() {
+        m_gameController->onPlayerRequestHint(0);
+    });
     // 根据控制器启用信号控制全局按钮显示
     connect(m_gameController, &GD_Controller::sigEnablePlayerControls,
         this, [this](int playerId, bool canPlay, bool canPass) {

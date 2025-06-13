@@ -155,30 +155,37 @@ QVector<Card> PlayerWidget::getSelectedCards() const
 
 void PlayerWidget::selectCards(const QVector<Card>& cardsToSelect)
 {
+    qDebug() << "PlayerWidget::selectCards: 收到选择" << cardsToSelect.size() << "张牌的请求。";
+
     // 1. 先清除所有旧的选择
     for (CardWidget* widget : m_cardWidgets) {
         widget->setSelected(false);
     }
 
-    // 2. 遍历所有手牌控件，并选中需要高亮的牌
-    for (CardWidget* cardWidget : m_cardWidgets) {
-        bool shouldSelect = false;
-        for (const Card& cardToSelect : cardsToSelect) {
-            if (cardWidget->getCard() == cardToSelect) {
-                shouldSelect = true;
-                break;
-            }
-        }
-        cardWidget->setSelected(shouldSelect);
+    // 2. 统计需要选中的每种牌的数量
+    // 为了让Card能做QMap的key，Card.h中必须有 operator< 的重载，你的代码已经有了，这很好！
+    QMap<Card, int> selectionCounts;
+    for (const Card& card : cardsToSelect) {
+        selectionCounts[card]++;
     }
 
-    // 3. 通知外部选择已更新
+    // 3. 遍历UI上的所有牌控件，精确地选中所需数量的牌
+    for (CardWidget* widget : m_cardWidgets) {
+        const Card& widgetCard = widget->getCard();
+
+        // 检查这张牌是否在我们的待选列表中，并且数量还 > 0
+        if (selectionCounts.contains(widgetCard) && selectionCounts[widgetCard] > 0) {
+            widget->setSelected(true);
+            // 将该牌的待选数量减一
+            selectionCounts[widgetCard]--;
+        }
+    }
+
+    // 4. 通知外部选择已更新，这会触发按钮状态的更新
     emit cardsSelected(getSelectedCards());
 
-    qDebug() << "PlayerWidget: 已根据提示选中" << cardsToSelect.size() << "张牌";
-
-    // 4. 强制重绘，确保选中效果立即可见
-    update();
+    qDebug() << "PlayerWidget: 最终选中了" << getSelectedCards().size() << "张牌。";
+	// setSelected内部会调用update()
 }
 
 void PlayerWidget::clearSelection()

@@ -144,6 +144,7 @@ void GD_Controller::onPlayerPass(int playerId)
 // 实现提示功能
 void GD_Controller::onPlayerRequestHint(int playerId)
 {
+	qDebug() << "GD_Controller::onPlayerRequestHint: 玩家" << playerId << "请求出牌提示";
     if (m_currentPhase != GamePhase::Playing || playerId != m_currentPlayerId) {
         return;
     }
