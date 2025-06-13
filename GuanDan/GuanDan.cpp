@@ -375,7 +375,7 @@ void GuanDan::arrangePlayerWidgets()
 
     // 为1640x1080窗口重新设计的布局参数
     int horizontalWidth = 900;   // 上下玩家区域的宽度
-    int bottomHeight = 420;      // 底部玩家区域的高度
+    int bottomHeight = 440;      // 底部玩家区域的高度
     int topHeight = 340;         // 增加顶部玩家区域的高度，从280增加到320
     int verticalWidth = 500;     // 左右玩家区域的宽度
     int verticalHeight = 620;    // 左右玩家区域高度
