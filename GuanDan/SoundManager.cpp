@@ -38,22 +38,19 @@ void SoundManager::initializeSounds()
 
     // 定义音效文件列表
     QMap<QString, QString> soundFiles;
-    soundFiles["card_play"] = "qrc:/mus/res/card_play.MP3";
-    // 你的代码中，点击按钮播放的是"card_deal"音效，所以我们加载这个文件
-    soundFiles["card_deal"] = "qrc:/mus/res/card_deal.MP3";
+    soundFiles["card_play"] = "qrc:/mus/res/card_play.mp3";
+    soundFiles["card_deal"] = "qrc:/mus/res/card_deal.mp3";
 
     // 清理并重新加载音效
     qDeleteAll(m_soundEffects);
     m_soundEffects.clear();
 
-    // 使用正确的循环方式来遍历QMap
+	// 遍历音效文件列表，设置音频文件
     for (auto it = soundFiles.constBegin(); it != soundFiles.constEnd(); ++it) {
-        QSoundEffect* effect = new QSoundEffect(this);
-        // 使用 it.value() 获取文件路径
-        effect->setSource(QUrl(it.value()));
-        effect->setVolume(m_volume / 100.0f);
-        // 使用 it.key() 获取别名作为键
-        m_soundEffects[it.key()] = effect;
+        // 创建 QMediaPlayer 对象
+        QMediaPlayer* effectPlayer = new QMediaPlayer(this);
+        effectPlayer->setMedia(QUrl(it.value()));
+        m_soundEffects[it.key()] = effectPlayer;
     }
 
     updateVolume();
@@ -75,8 +72,8 @@ void SoundManager::updateVolume()
     float volume = m_volume / 100.0f;
     m_Player->setVolume(qRound(volume * 100));
 
-    for (QSoundEffect* effect : m_soundEffects) {
-        effect->setVolume(volume);
+    for (QMediaPlayer* effectPlayer : m_soundEffects) {
+        effectPlayer->setVolume(m_volume);
     }
 }
 
@@ -95,14 +92,22 @@ void SoundManager::stopBGM()
 void SoundManager::playCardPlaySound()
 {
     if (m_soundEffects.contains("card_play")) {
-        m_soundEffects["card_play"]->play();
+        QMediaPlayer* player = m_soundEffects["card_play"];
+        // 如果正在播放，先停止并回到开头，再播放，以实现快速重复触发
+        if (player->state() == QMediaPlayer::PlayingState) {
+            player->stop();
+        }
+        player->play();
     }
 }
 
 void SoundManager::playButtonClickSound()
 {
-    // 这个函数会播放 "card_deal" 音效，因为这是你在 soundFiles 中定义的
     if (m_soundEffects.contains("card_deal")) {
-        m_soundEffects["card_deal"]->play();
+        QMediaPlayer* player = m_soundEffects["card_deal"];
+        if (player->state() == QMediaPlayer::PlayingState) {
+            player->stop();
+        }
+        player->play();
     }
 }

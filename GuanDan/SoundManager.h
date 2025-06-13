@@ -34,7 +34,7 @@ private:
     void updateVolume();
 
     QMediaPlayer* m_Player;
-    QMap<QString, QSoundEffect*> m_soundEffects;
+    QMap<QString, QMediaPlayer*> m_soundEffects;
     int m_volume;
 };
 

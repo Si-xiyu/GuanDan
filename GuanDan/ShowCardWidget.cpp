@@ -21,12 +21,6 @@ ShowCardWidget::ShowCardWidget(QWidget* parent)
     m_cardFrame->setStyleSheet("QFrame { background-color: transparent; }");
     m_mainLayout->addWidget(m_cardFrame, 1); // 占主要空间
     
-    // 创建牌型标签，放在底部
-    m_comboTypeLabel = new QLabel(this);
-    m_comboTypeLabel->setAlignment(Qt::AlignCenter);
-    m_comboTypeLabel->setStyleSheet("QLabel { color: white; font-size: 14px; font-weight: bold; }");
-    m_mainLayout->addWidget(m_comboTypeLabel, 0, Qt::AlignCenter); // 居中显示，不拉伸
-    
     // 设置背景色
     setStyleSheet("ShowCardWidget { background-color: rgba(0, 80, 0, 150); border-radius: 5px; }");
 }
@@ -44,9 +38,6 @@ void ShowCardWidget::updateDisplay(const CardCombo::ComboInfo& combo, const QVec
     // 保存当前牌型信息
     m_currentCombo = combo;
     m_originalCards = originalCards;
-    
-    // 设置牌型标签
-    m_comboTypeLabel->setText(combo.getDescription());
     
     // 如果是无效牌型，直接返回
     if (combo.type == CardComboType::Invalid) {
@@ -109,7 +100,6 @@ void ShowCardWidget::clearDisplay()
     qDeleteAll(m_cardWidgets);
     m_cardWidgets.clear();
     m_wildToRepresentMap.clear();
-    m_comboTypeLabel->setText("");
     
     // 清空牌型信息
     m_currentCombo.type = CardComboType::Invalid;

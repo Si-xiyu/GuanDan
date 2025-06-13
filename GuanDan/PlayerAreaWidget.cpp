@@ -63,7 +63,7 @@ void PlayerAreaWidget::arrangeComponents()
     case PlayerPosition::Bottom:
         // 底部玩家: 出牌区(ShowCardWidget)在上，手牌区(PlayerWidget)在下
         m_mainLayout->addWidget(m_showCardWidget, 1); // 占1份空间
-        m_mainLayout->addWidget(m_playerWidget, 4);   // 占4份空间
+        m_mainLayout->addWidget(m_playerWidget, 5);   // 占5份空间
         break;
     case PlayerPosition::Top:
         // 顶部玩家: 手牌区在上，出牌区在下
