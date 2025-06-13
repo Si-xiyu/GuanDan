@@ -28,7 +28,7 @@ private slots:
     void onGameOver(int winningTeamId, const QString& winningTeamName, const QString& finalMessage); // 游戏结束
     void onAskForTribute(int fromPlayerId, const QString& fromPlayerName, int toPlayerId, const QString& toPlayerName, bool isReturn);
     void showSettingsDialog();
-    void requestHint();                  // 新增：请求提示功能
+    void onShowHint(int playerId, const QVector<Card>& suggestedCards); // 提示功能
 
 private:
     void initializeUI();                // 初始化界面

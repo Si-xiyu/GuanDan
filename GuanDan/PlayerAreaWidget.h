@@ -34,9 +34,10 @@ public:
     void setPlayerBackground(const QString& backgroundPath);
     void setDefaultBackground();
     
-    // 添加手牌显示更新方法
+    // 手牌显示更新方法
     void updateHandDisplay(const QVector<Card>& cards, bool showFront);
     void updateHandDisplayNoAnimation(const QVector<Card>& cards, bool showFront);
+    void selectCards(const QVector<Card>& cardsToSelect);
 
     // 获取内部控件
     PlayerWidget* getPlayerWidget() const { return m_playerWidget; }

@@ -153,6 +153,34 @@ QVector<Card> PlayerWidget::getSelectedCards() const
     return selectedCards;
 }
 
+void PlayerWidget::selectCards(const QVector<Card>& cardsToSelect)
+{
+    // 1. 先清除所有旧的选择
+    for (CardWidget* widget : m_cardWidgets) {
+        widget->setSelected(false);
+    }
+
+    // 2. 遍历所有手牌控件，并选中需要高亮的牌
+    for (CardWidget* cardWidget : m_cardWidgets) {
+        bool shouldSelect = false;
+        for (const Card& cardToSelect : cardsToSelect) {
+            if (cardWidget->getCard() == cardToSelect) {
+                shouldSelect = true;
+                break;
+            }
+        }
+        cardWidget->setSelected(shouldSelect);
+    }
+
+    // 3. 通知外部选择已更新
+    emit cardsSelected(getSelectedCards());
+
+    qDebug() << "PlayerWidget: 已根据提示选中" << cardsToSelect.size() << "张牌";
+
+    // 4. 强制重绘，确保选中效果立即可见
+    update();
+}
+
 void PlayerWidget::clearSelection()
 {
     for (CardWidget* widget : m_cardWidgets) {
