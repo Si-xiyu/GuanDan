@@ -7,7 +7,7 @@
 #include "GD_Controller.h"
 #include "PlayerAreaWidget.h"
 #include "Player.h"
-#include "CardCounterWidget.h"
+#include "LeftWidget.h"
 
 class GuanDan : public QMainWindow
 {
@@ -49,7 +49,7 @@ private:
     QWidget* m_centralWidget;           // 中央窗口部件
     QVBoxLayout* m_mainLayout;          // 主布局
     
-    CardCounterWidget* m_cardCounterWidget; // 记牌器部件
+    LeftWidget* m_leftWidget;  // 替换原来的 CardCounterWidget
     
     bool m_gameInProgress;              // 游戏进行状态
 };
