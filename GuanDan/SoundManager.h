@@ -4,6 +4,7 @@
 #include <QMediaPlayer>
 #include <QSoundEffect>
 #include <QMap>
+#include <QVector>
 
 class SoundManager : public QObject
 {
@@ -32,9 +33,11 @@ private:
 
     void initializeSounds();
     void updateVolume();
+    void playRandomBGM();
 
     QMediaPlayer* m_Player;
     QMap<QString, QMediaPlayer*> m_soundEffects;
+    QVector<QString> m_bgmList;
     int m_volume;
 };
 

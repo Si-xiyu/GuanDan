@@ -1,6 +1,7 @@
 #include "SoundManager.h"
 #include <QDebug>
 #include <QMediaPlaylist>
+#include <QRandomGenerator>
 
 SoundManager& SoundManager::instance()
 {
@@ -27,14 +28,20 @@ void SoundManager::initializeSounds()
 {
     // 初始化BGM播放器
     m_Player = new QMediaPlayer(this);
-    QMediaPlaylist* playlist = new QMediaPlaylist(this);
+    
+    // 初始化BGM列表
+    m_bgmList.clear();
+    m_bgmList << "qrc:/mus/res/BGM_1.wav"
+              << "qrc:/mus/res/BGM_2.wav"
+              << "qrc:/mus/res/BGM_3.wav";
 
-    playlist->addMedia(QUrl("qrc:/mus/res/BGM_1.wav"));
-    playlist->addMedia(QUrl("qrc:/mus/res/BGM_2.wav"));
-    playlist->addMedia(QUrl("qrc:/mus/res/BGM_3.wav"));
-
-    playlist->setPlaybackMode(QMediaPlaylist::Loop);
-    m_Player->setPlaylist(playlist);
+    // 设置播放完成后的处理
+    connect(m_Player, &QMediaPlayer::stateChanged, this, [this](QMediaPlayer::State state) {
+        if (state == QMediaPlayer::StoppedState) {
+            // 当一首BGM播放完成后，随机播放下一首
+            playRandomBGM();
+        }
+    });
 
     // 定义音效文件列表
     QMap<QString, QString> soundFiles;
@@ -45,7 +52,7 @@ void SoundManager::initializeSounds()
     qDeleteAll(m_soundEffects);
     m_soundEffects.clear();
 
-	// 遍历音效文件列表，设置音频文件
+    // 遍历音效文件列表，设置音频文件
     for (auto it = soundFiles.constBegin(); it != soundFiles.constEnd(); ++it) {
         // 创建 QMediaPlayer 对象
         QMediaPlayer* effectPlayer = new QMediaPlayer(this);
@@ -54,6 +61,20 @@ void SoundManager::initializeSounds()
     }
 
     updateVolume();
+}
+
+void SoundManager::playRandomBGM()
+{
+    if (m_bgmList.isEmpty()) {
+        return;
+    }
+
+    // 生成随机索引
+    int randomIndex = QRandomGenerator::global()->bounded(m_bgmList.size());
+    
+    // 设置并播放随机选择的BGM
+    m_Player->setMedia(QUrl(m_bgmList[randomIndex]));
+    m_Player->play();
 }
 
 void SoundManager::setVolume(int volume)
@@ -80,7 +101,7 @@ void SoundManager::updateVolume()
 void SoundManager::playBGM()
 {
     if (m_Player->state() != QMediaPlayer::PlayingState) {
-        m_Player->play();
+        playRandomBGM();
     }
 }
 
