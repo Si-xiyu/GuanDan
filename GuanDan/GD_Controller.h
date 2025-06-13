@@ -81,6 +81,10 @@ signals:
     // 记牌器相关信号
     void sigCardCountsUpdated(const QMap<Card::CardPoint, int>& counts); // 通知UI更新记牌器
 
+    // 新增：积分系统相关信号
+    void sigScoresUpdated(int team1Score, int team2Score);
+    void sigMultiplierUpdated(int multiplier);
+
 private:
     // --- 游戏状态成员 ---
     QMap<int, Player*> m_players; // 通过ID映射玩家指针
@@ -176,6 +180,10 @@ private:
 
     // 切换到下一个玩家并发出控制信号
     void nextPlayer();
+
+    // 新增：积分系统相关成员
+    int m_roundBaseScore;           // 本局基础分
+    int m_roundDynamicMultiplier;   // 本局动态倍率
 };
 
 #endif // GD_CONTROLLER_H
