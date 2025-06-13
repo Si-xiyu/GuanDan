@@ -28,20 +28,32 @@ void SoundManager::initializeSounds()
     // 初始化BGM播放器
     m_bgmPlayer = new QMediaPlayer(this);
     QMediaPlaylist* playlist = new QMediaPlaylist(this);
-    playlist->addMedia(QUrl("qrc:/sounds/res/sounds/bgm.mp3"));
+
+    playlist->addMedia(QUrl("qrc:/mus/res/BGM_1.wav"));
+    playlist->addMedia(QUrl("qrc:/mus/res/BGM_2.wav"));
+    playlist->addMedia(QUrl("qrc:/mus/res/BGM_3.wav"));
+
     playlist->setPlaybackMode(QMediaPlaylist::Loop);
     m_bgmPlayer->setPlaylist(playlist);
 
-    // 初始化音效
-    QStringList soundFiles = {
-        "card_deal", "card_play", "win", "lose", "button_click"
-    };
+    // 定义音效文件列表
+    QMap<QString, QString> soundFiles;
+    soundFiles["card_play"] = "qrc:/mus/res/card_play.MP3";
+    // 你的代码中，点击按钮播放的是"card_deal"音效，所以我们加载这个文件
+    soundFiles["card_deal"] = "qrc:/mus/res/card_deal.MP3";
 
-    for (const QString& sound : soundFiles) {
+    // 清理并重新加载音效
+    qDeleteAll(m_soundEffects);
+    m_soundEffects.clear();
+
+    // 使用正确的循环方式来遍历QMap
+    for (auto it = soundFiles.constBegin(); it != soundFiles.constEnd(); ++it) {
         QSoundEffect* effect = new QSoundEffect(this);
-        effect->setSource(QUrl(QString("qrc:/sounds/res/sounds/%1.wav").arg(sound)));
+        // 使用 it.value() 获取文件路径
+        effect->setSource(QUrl(it.value()));
         effect->setVolume(m_volume / 100.0f);
-        m_soundEffects[sound] = effect;
+        // 使用 it.key() 获取别名作为键
+        m_soundEffects[it.key()] = effect;
     }
 
     updateVolume();
@@ -62,7 +74,7 @@ void SoundManager::updateVolume()
 {
     float volume = m_volume / 100.0f;
     m_bgmPlayer->setVolume(qRound(volume * 100));
-    
+
     for (QSoundEffect* effect : m_soundEffects) {
         effect->setVolume(volume);
     }
@@ -89,7 +101,8 @@ void SoundManager::playCardPlaySound()
 
 void SoundManager::playButtonClickSound()
 {
-    if (m_soundEffects.contains("button_click")) {
-        m_soundEffects["button_click"]->play();
+    // 这个函数会播放 "card_deal" 音效，因为这是你在 soundFiles 中定义的
+    if (m_soundEffects.contains("card_deal")) {
+        m_soundEffects["card_deal"]->play();
     }
 }

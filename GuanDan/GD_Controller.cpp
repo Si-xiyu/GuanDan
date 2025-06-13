@@ -113,7 +113,7 @@ void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
         return;
     }
 
-    // 核心修改：只执行出牌，然后转到下一位
+    // 只执行出牌，然后转到下一位
     executePlay(playerId, playedCombo);
 
     // 在出牌时播放音效
@@ -138,7 +138,7 @@ void GD_Controller::onPlayerPass(int playerId)
     executePass(playerId);
 
     // 在过牌时播放音效
-    SoundManager::instance().playButtonClickSound();
+    SoundManager::instance().playCardPlaySound();
 }
 
 // 实现提示功能

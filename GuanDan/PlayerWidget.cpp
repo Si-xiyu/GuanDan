@@ -11,6 +11,8 @@
 #include <QContextMenuEvent>
 #include <QMenu>
 
+#include "SoundManager.h"
+
 PlayerWidget::PlayerWidget(Player* player, PlayerPosition position, bool isCurrentPlayer, QWidget* parent)
     : QWidget(parent)
     , m_player(player)
@@ -820,6 +822,8 @@ void PlayerWidget::cardClicked(CardWidget* clickedWidget)
         qDebug() << "忽略卡牌点击 - 卡牌不属于该玩家";
         return;
     }
+
+    SoundManager::instance().playButtonClickSound();
 
     // 切换卡片的选中状态
     clickedWidget->setSelected(!clickedWidget->isSelected());
