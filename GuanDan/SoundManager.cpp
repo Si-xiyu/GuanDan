@@ -10,7 +10,7 @@ SoundManager& SoundManager::instance()
 
 SoundManager::SoundManager(QObject* parent)
     : QObject(parent)
-    , m_bgmPlayer(nullptr)
+    , m_Player(nullptr)
     , m_volume(50) // 默认音量50%
 {
     initializeSounds();
@@ -20,13 +20,13 @@ SoundManager::~SoundManager()
 {
     stopBGM();
     qDeleteAll(m_soundEffects);
-    delete m_bgmPlayer;
+    delete m_Player;
 }
 
 void SoundManager::initializeSounds()
 {
     // 初始化BGM播放器
-    m_bgmPlayer = new QMediaPlayer(this);
+    m_Player = new QMediaPlayer(this);
     QMediaPlaylist* playlist = new QMediaPlaylist(this);
 
     playlist->addMedia(QUrl("qrc:/mus/res/BGM_1.wav"));
@@ -34,7 +34,7 @@ void SoundManager::initializeSounds()
     playlist->addMedia(QUrl("qrc:/mus/res/BGM_3.wav"));
 
     playlist->setPlaybackMode(QMediaPlaylist::Loop);
-    m_bgmPlayer->setPlaylist(playlist);
+    m_Player->setPlaylist(playlist);
 
     // 定义音效文件列表
     QMap<QString, QString> soundFiles;
@@ -73,7 +73,7 @@ int SoundManager::getVolume() const
 void SoundManager::updateVolume()
 {
     float volume = m_volume / 100.0f;
-    m_bgmPlayer->setVolume(qRound(volume * 100));
+    m_Player->setVolume(qRound(volume * 100));
 
     for (QSoundEffect* effect : m_soundEffects) {
         effect->setVolume(volume);
@@ -82,14 +82,14 @@ void SoundManager::updateVolume()
 
 void SoundManager::playBGM()
 {
-    if (m_bgmPlayer->state() != QMediaPlayer::PlayingState) {
-        m_bgmPlayer->play();
+    if (m_Player->state() != QMediaPlayer::PlayingState) {
+        m_Player->play();
     }
 }
 
 void SoundManager::stopBGM()
 {
-    m_bgmPlayer->stop();
+    m_Player->stop();
 }
 
 void SoundManager::playCardPlaySound()
