@@ -57,11 +57,11 @@
         <file>res/Spades_Q.png</file>
     </qresource>
     <qresource prefix="/mus">
-        <file>res/BGM_1.m4a</file>
-        <file>res/BGM_2.m4a</file>
-        <file>res/BGM_3.m4a</file>
         <file>res/card_deal.MP3</file>
         <file>res/card_play.MP3</file>
+        <file>res/BGM_1.wav</file>
+        <file>res/BGM_2.wav</file>
+        <file>res/BGM_3.wav</file>
     </qresource>
     <qresource prefix="/icon">
         <file>res/Setting_icon.jpg</file>
