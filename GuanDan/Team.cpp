@@ -4,7 +4,9 @@
 #include <QDebug>  // 用于调试
 
 Team::Team(int id)
-    : m_id(id), m_currentLevelRank(Card::CardPoint::Card_2) // 初始级牌默认为 2
+    : m_id(id)
+    , m_currentLevelRank(Card::Card_2)
+    , m_score(0) // 初始化积分为0
 {
 }
 
@@ -17,7 +19,7 @@ void Team::addPlayer(Player* player)
     }
 }
 
-const QList<Player*>& Team::getPlayers() const
+QVector<Player*> Team::getPlayers() const
 {
     return m_players;
 }
@@ -29,7 +31,7 @@ Card::CardPoint Team::getCurrentLevelRank() const
 
 void Team::setCurrentLevelRank(Card::CardPoint rank)
 {
-    // 具体升级逻辑由全局状态管理(Status类)
+    // 具体升级逻辑由全局状态管理(LevelStatus类)
     m_currentLevelRank = rank;
     qDebug() << "Team" << m_id << "level rank set to:" << static_cast<int>(rank);
 }
@@ -37,4 +39,19 @@ void Team::setCurrentLevelRank(Card::CardPoint rank)
 int Team::getId() const
 {
     return m_id;
+}
+
+void Team::setScore(int score)
+{
+    m_score = score;
+}
+
+void Team::addScore(int amount)
+{
+    m_score += amount;
+}
+
+int Team::getScore() const
+{
+    return m_score;
 }

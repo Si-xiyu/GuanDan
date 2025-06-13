@@ -70,6 +70,11 @@ void GD_Controller::setupNewGame(const QVector<Player*>& players, const QVector<
     // 初始化等级状态
     m_levelStatus.initializeGameLevels(*teams[0], *teams[1]);
 
+    // 初始化队伍积分
+    for (Team* team : teams) {
+        team->setScore(0);
+    }
+
     qDebug() << "游戏设置完成，玩家数量:" << m_players.size() << "，队伍数量:" << m_teams.size();
 }
 
@@ -156,7 +161,7 @@ void GD_Controller::onPlayerRequestHint(int playerId)
     // 名字和ID不重要，因为我们只是借用它的算法
     NPCPlayer tempAI("HintBot", -1);
     
-    // 2. 把当前人类玩家的手牌和队伍信息“借”给这个临时AI
+    // 2. 把当前人类玩家的手牌和队伍信息"借"给这个临时AI
     tempAI.setHandCards(humanPlayer->getHandCards());
     tempAI.setTeam(humanPlayer->getTeam());
 
@@ -267,6 +272,11 @@ void GD_Controller::onPlayerTributeCardSelected(int tributingPlayerId, const Car
 void GD_Controller::startNewRound()
 {
     qDebug() << "GD_Controller::startNewRound - 准备开始新一局，局数: " << m_currentRoundNumber;
+    
+    // 初始化本局积分状态
+    m_roundBaseScore = 10;  // 设置基础分为10
+    m_roundDynamicMultiplier = 1;  // 重置动态倍率为1
+    emit sigMultiplierUpdated(m_roundBaseScore * m_roundDynamicMultiplier);
     
     // 初始化记牌器数据
     initializeCardCounts();
@@ -452,6 +462,12 @@ void GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& 
     emit sigUpdatePlayerHand(playerId, player->getHandCards());
     emit sigUpdateTableCards(playerId, playedCombo, m_lastPlayedCards);
 
+    // 检查是否需要更新倍率
+    if (playedCombo.type == CardComboType::Bomb) {
+        m_roundDynamicMultiplier *= 2;
+        emit sigMultiplierUpdated(m_roundBaseScore * m_roundDynamicMultiplier);
+    }
+
     QString message = QString("%1 出牌：%2")
         .arg(player->getName())
         .arg(playedCombo.getDescription());
@@ -516,35 +532,61 @@ void GD_Controller::processRoundResults()
             return;
         }
 
-        // 获取获胜队伍
+        // 找到获胜队伍和失败队伍
         Team* winningTeam = nullptr;
-        int winnerRank = -1;
+        Team* losingTeam = nullptr;
+        int levelIncrement = 0;
 
-        // 找到第一名玩家所在的队伍
-        Player* winner = getPlayerById(m_roundFinishOrder.first());
-        if (winner) {
-            winningTeam = winner->getTeam();
-            // 找到队友的排名
-            for (int i = 1; i < m_roundFinishOrder.size(); ++i) {
-                Player* player = getPlayerById(m_roundFinishOrder[i]);
-                if (player && player->getTeam() == winningTeam) {
-                    winnerRank = i + 1;
+        // 根据完成顺序确定获胜队伍
+        if (!m_roundFinishOrder.isEmpty()) {
+            int firstFinisherId = m_roundFinishOrder.first();
+            winningTeam = getTeamOfPlayer(firstFinisherId);
+            
+            // 找到失败队伍
+            for (const auto& team : m_teams) {
+                if (team != winningTeam) {
+                    losingTeam = team;
                     break;
                 }
             }
+
+            // 计算升级级数
+            Card::CardPoint oldLevel = winningTeam->getCurrentLevelRank();
+            
+            // 先记录旧的级别
+            Card::CardPoint oldLevelFromStatus = m_levelStatus.getTeamPlayingLevel(winningTeam->getId());
+            
+            // 更新级别
+            // 将一基于1的名次转换为0基索引再传入升级逻辑
+            int partnerIndex = -1;
+            for (int i = 1; i < m_roundFinishOrder.size(); ++i) {
+                Player* player = getPlayerById(m_roundFinishOrder[i]);
+                if (player && player->getTeam() == winningTeam) {
+                    partnerIndex = i;
+                    break;
+                }
+            }
+            
+            if (partnerIndex != -1) {
+                m_levelStatus.updateLevelsAfterRound(winningTeam->getId(), partnerIndex,
+                    *m_teams[0], *m_teams[1]);
+                    
+                // 获取新的级别
+                Card::CardPoint newLevelFromStatus = m_levelStatus.getTeamPlayingLevel(winningTeam->getId());
+                
+                // 计算升级了几级
+                levelIncrement = static_cast<int>(newLevelFromStatus) - static_cast<int>(oldLevelFromStatus);
+
+                // 计算并更新积分
+                if (levelIncrement > 0) {
+                    int scoreChange = levelIncrement * m_roundBaseScore * m_roundDynamicMultiplier;
+                    winningTeam->addScore(scoreChange);
+                    
+                    // 发出积分更新信号
+                    emit sigScoresUpdated(m_teams[0]->getScore(), m_teams[1]->getScore());
+                }
+            }
         }
-
-        if (!winningTeam || winnerRank == -1) {
-            qDebug() << "错误：无法确定获胜队伍或队友排名";
-            return;
-        }
-
-        qDebug() << "获胜队伍ID:" << winningTeam->getId() << "队友排名:" << winnerRank;
-
-        // 将一基于1的名次转换为0基索引再传入升级逻辑
-        int partnerIndex = winnerRank - 1;  // winnerRank 是 1=第一,2=第二,3=第三,4=第四
-        m_levelStatus.updateLevelsAfterRound(winningTeam->getId(), partnerIndex,
-            *m_teams[0], *m_teams[1]);
 
         // 生成本局总结
         QString summary = generateRoundSummary();
