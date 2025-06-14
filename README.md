@@ -2,9 +2,7 @@
 ##### 本项目由Si-xiyu完成，系华南理工大学24级C++实训作业，仅供学习交流，请勿用于学术造假或商业用途。
 ##### This project was completed by Si-xiyu as a C++ training assignment for the Class of 2024 at South China University of Technology(SCUT). It is for academic exchange only and should not be used for academic fraud or commercial purposes. 
 欢迎报考华南理工大学OwO（）
-# 功能介绍
-本项目实现掼蛋游戏的逻辑，并提供GUI界面和人机对战的逻辑，以及数据库和局域网联机的接口。
-此模式需要两副牌（每一副牌包含2到A各4张，包括红桃、黑桃、红方、梅花四个花色，大小王各1张，共54张），**初始级牌为2**，具有下列牌型：
+# 规则介绍
 
 1.  单牌：牌的大小顺序为：大王、小王、级牌、A、K、…、2.
 
@@ -59,10 +57,39 @@
     
 
 这些规则从第二局开始生效，第一局游戏结束后根据玩家的名次确定是否需要进贡
+# 功能介绍
+本项目实现了以下任务    
+**任务一**
+
+1.  简易图形界面、规则介绍；
+
+2.  随机发牌、确定头家、确定首出玩家；
+
+3.  正确判断牌型、出牌是否符合规则；
+
+4.  简易人机对战（AI有牌就出，默认出最小牌）。
+
+**任务二**
+
+1.  记牌器（需要显示外面的牌还剩几张，以及玩家曾经出过什么牌）；
+
+2.  倍数（分数）计算：每出一个炸弹或同花顺则分数乘以2；
+
+3.  游戏排行榜：正确排出四个玩家的排名
+
+**任务三**
+
+1.  各种参数设置与保存（出牌时间限制、声音大小、开启或关闭声音等）；
+
+2.  出牌提示（提示如何出牌可以大过上一个出牌者）、要不起（即提示玩家没有大过上一个出牌者的牌）等更精巧的交互界面。
+
+3.  更精美的图形界面、声音效果。
+
+
 # 软件架构
 本项目采用MVC架构，通过GD_Controller类控制游戏主流程。  
 **Module**包括Card，Team，Player等用于数据类，以及CardCombo等方法类。
-**View**包括CardWidget，PlayerWidget，GuanDan等类，用于负责视图逻辑。
+**View**包括CardWidget，PlayerAreaWidget，LeftWidget，GuanDan等类，用于负责视图逻辑。
 
 # 开发环境
-本项目基于VS2022 + Qt Tool插件开发，基于Qt Creator开发的项目https://gitee.com/Si-xiyu/qt_-guan-dan
+本项目基于Qt 5.12.5和MSVC环境，由VS2022 + Qt Tool插件开发
