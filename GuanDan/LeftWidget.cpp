@@ -55,7 +55,7 @@ void LeftWidget::setupUI() {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(15);
 
-    // 1. 级牌显示器
+    // 1. 级牌显示器 - 放在最上面
     m_levelIndicator = new LevelIndicatorWidget(this);
     mainLayout->addWidget(m_levelIndicator);
     
@@ -125,7 +125,6 @@ void LeftWidget::setupUI() {
     currentTurnLayout->addWidget(m_turnTimerBar);
     
     mainLayout->addWidget(m_currentTurnBox);
-    mainLayout->addStretch();
 }
 
 // --- 槽函数实现 ---
