@@ -2,6 +2,7 @@
 
 #include <QWidget>
 #include <QMap>
+#include <QVector>
 #include "Card.h"
 #include "LevelIndicatorWidget.h"
 
@@ -26,6 +27,8 @@ public slots:
     void updateTurnIndicator(int currentPlayerId);
     void updateTimerDisplay(int secondsRemaining, int totalSeconds);
     void updateTeamLevels(Card::CardPoint team1Level, Card::CardPoint team2Level);
+    void updateRanking(const QStringList& rankedPlayerNames);
+    void clearRanking();
 
 private:
     void setupUI();
@@ -43,4 +46,7 @@ private:
     QLabel* m_currentPlayerNameLabel;
     QProgressBar* m_turnTimerBar;
     QLabel* m_timeRemainingLabel;
+    
+    QGroupBox* m_rankingBox;
+    QVector<QLabel*> m_rankLabels;
 }; 

@@ -410,6 +410,35 @@ void GuanDan::setupConnections()
     // 连接级牌更新信号
     connect(m_gameController, &GD_Controller::sigTeamLevelsUpdated,
         m_leftWidget, &LeftWidget::updateTeamLevels);
+    
+    // 1. 当一局结束时更新排行榜
+    // 使用lambda函数将玩家ID转换为玩家名字
+    connect(m_gameController, &GD_Controller::sigRoundOver, this,
+        [this](const QString& summary, const QVector<int>& playerRanks) {
+            QStringList rankedNames;
+            for (int playerId : playerRanks) {
+                // 查找对应ID的玩家对象
+                Player* foundPlayer = nullptr;
+                for (Player* p : m_players) {
+                    if (p->getID() == playerId) {
+                        foundPlayer = p;
+                        break;
+                    }
+                }
+                
+                if (foundPlayer) {
+                    rankedNames.append(foundPlayer->getName());
+                } else {
+                    rankedNames.append(tr("未知玩家")); // 后备显示文本
+                }
+            }
+            // 将玩家名字列表传递给LeftWidget
+            m_leftWidget->updateRanking(rankedNames);
+        });
+
+    // 2. 当新的一局开始时清空排行榜
+    connect(m_gameController, &GD_Controller::sigNewRoundStarted,
+        m_leftWidget, &LeftWidget::clearRanking);
 }
 
 void GuanDan::arrangePlayerWidgets()
