@@ -105,6 +105,7 @@
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="PlayerAreaWidget.cpp" />
     <ClCompile Include="PlayerWidget.cpp" />
+    <ClCompile Include="RulesDialog.cpp" />
     <ClCompile Include="SettingsDialog.cpp" />
     <ClCompile Include="SettingsManager.cpp" />
     <ClCompile Include="ShowCardWidget.cpp" />
@@ -137,6 +138,7 @@
     <QtMoc Include="NPCPlayer.h" />
     <QtMoc Include="ShowCardWidget.h" />
     <QtMoc Include="SettingsDialog.h" />
+    <QtMoc Include="RulesDialog.h" />
     <ClInclude Include="SettingsManager.h" />
     <QtMoc Include="SoundManager.h" />
     <ClInclude Include="Team.h" />

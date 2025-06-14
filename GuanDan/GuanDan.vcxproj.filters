@@ -103,6 +103,9 @@
     <ClCompile Include="LevelIndicatorWidget.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="RulesDialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Card.h">
@@ -168,6 +171,9 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="LevelIndicatorWidget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="RulesDialog.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>
