@@ -7,6 +7,9 @@
 RulesDialog::RulesDialog(QWidget* parent)
 	: QDialog(parent)
 {
+	// 移除窗口标题栏的问号（帮助）按钮
+	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
+	
 	setupUI();
 }
 

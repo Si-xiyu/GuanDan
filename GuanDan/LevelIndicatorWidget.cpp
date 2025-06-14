@@ -7,6 +7,9 @@ LevelIndicatorWidget::LevelIndicatorWidget(QWidget* parent)
     , m_team1Label(nullptr)
     , m_team2Label(nullptr)
 {
+    // 设置整体背景为透明
+    setStyleSheet("background-color: transparent;");
+    
     setupUI();
 
     // Set initial level cards (default to 2)
@@ -30,25 +33,30 @@ void LevelIndicatorWidget::setupUI()
     // Main layout
     QHBoxLayout* mainLayout = new QHBoxLayout(this);
     mainLayout->setSpacing(10);
+    mainLayout->setContentsMargins(2, 2, 2, 2); // 减小边距
 
     // Team 1 (My Team) layout
     QVBoxLayout* team1Layout = new QVBoxLayout();
+    team1Layout->setSpacing(2); // 减小间距
+    
     m_team1CardWidget = new CardWidget(this);
-    m_team1CardWidget->setFixedSize(72, 100);
+    m_team1CardWidget->setFixedSize(50, 70); // 缩小卡牌尺寸
     m_team1Label = new QLabel("我方级牌", this);
     m_team1Label->setAlignment(Qt::AlignCenter);
-    m_team1Label->setStyleSheet("color: white; font-weight: bold;");
+    m_team1Label->setStyleSheet("color: gold; font-weight: bold; background-color: transparent;");
 
     team1Layout->addWidget(m_team1CardWidget, 0, Qt::AlignCenter);
     team1Layout->addWidget(m_team1Label, 0, Qt::AlignCenter);
 
     // Team 2 (Opponent Team) layout
     QVBoxLayout* team2Layout = new QVBoxLayout();
+    team2Layout->setSpacing(2); // 减小间距
+    
     m_team2CardWidget = new CardWidget(this);
-    m_team2CardWidget->setFixedSize(72, 100);
+    m_team2CardWidget->setFixedSize(50,70); // 缩小卡牌尺寸
     m_team2Label = new QLabel("对方级牌", this);
     m_team2Label->setAlignment(Qt::AlignCenter);
-    m_team2Label->setStyleSheet("color: white; font-weight: bold;");
+    m_team2Label->setStyleSheet("color: gold; font-weight: bold; background-color: transparent;");
 
     team2Layout->addWidget(m_team2CardWidget, 0, Qt::AlignCenter);
     team2Layout->addWidget(m_team2Label, 0, Qt::AlignCenter);
