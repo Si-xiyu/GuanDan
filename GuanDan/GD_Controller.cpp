@@ -353,11 +353,22 @@ void GD_Controller::determineFirstPlayerForRound()
     qDebug() << "当前局数:" << m_currentRoundNumber;
     qDebug() << "上局排名数量:" << m_lastRoundFinishOrder.size();
 
-    // 第一局：玩家0先出
+    // 第一局：随机选择一名玩家先出
     if (m_currentRoundNumber == 1) {
-        m_currentPlayerId = 0;
+        // 获取所有玩家ID
+        QVector<int> playerIds = m_players.keys().toVector();
+        if (playerIds.isEmpty()) {
+            qWarning() << "错误：没有可用的玩家";
+            m_currentPlayerId = 0;
+        } else {
+            // 使用 QRandomGenerator 随机选择一名玩家
+            int randomIndex = QRandomGenerator::global()->bounded(playerIds.size());
+            m_currentPlayerId = playerIds[randomIndex];
+            
+            qDebug() << "第一局随机选择玩家ID:" << m_currentPlayerId << "作为首个出牌玩家";
+        }
+        
         m_circleLeaderId = m_currentPlayerId;
-        qDebug() << "第一局强制设置玩家ID:" << m_currentPlayerId << "作为首个出牌玩家";
         return;
     }
 
