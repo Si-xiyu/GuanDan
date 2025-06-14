@@ -16,11 +16,13 @@ public:
 private slots:
     void onVolumeChanged(int value);
     void onConfirmClicked();
+    void onShowRulesClicked();
 
 private:
     QSlider* m_volumeSlider;
     QLabel* m_volumeLabel;
     QPushButton* m_confirmButton;
+    QPushButton* m_rulesButton;
     int m_currentVolume;
     QSpinBox* m_durationSpinBox;
 };

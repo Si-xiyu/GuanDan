@@ -1,6 +1,7 @@
 #include "SettingsDialog.h"
 #include "SoundManager.h"
 #include "SettingsManager.h"
+#include "RulesDialog.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 
@@ -31,14 +32,19 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     m_durationSpinBox->setSingleStep(5);
     m_durationSpinBox->setValue(SettingsManager::loadTurnDuration());
 
-    // 创建确认按钮
+    // 创建按钮
     m_confirmButton = new QPushButton(tr("确认"), this);
     m_confirmButton->setFixedSize(80, 30);
+    
+    // 创建规则按钮
+    m_rulesButton = new QPushButton(tr("规则介绍"), this);
+    m_rulesButton->setFixedSize(80, 30);
 
     // 创建布局
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     QHBoxLayout* volumeLayout = new QHBoxLayout();
     QHBoxLayout* durationLayout = new QHBoxLayout();
+    QHBoxLayout* buttonLayout = new QHBoxLayout(); // 新增按钮布局
     
     volumeLayout->addWidget(new QLabel(tr("音量："), this));
     volumeLayout->addWidget(m_volumeSlider);
@@ -46,14 +52,22 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     durationLayout->addWidget(new QLabel(tr("出牌时间："), this));
     durationLayout->addWidget(m_durationSpinBox);
+    
+    // 将按钮添加到按钮布局
+    buttonLayout->addStretch();
+    buttonLayout->addWidget(m_rulesButton);
+    buttonLayout->addWidget(m_confirmButton);
+    buttonLayout->addStretch();
 
     mainLayout->addLayout(volumeLayout);
     mainLayout->addLayout(durationLayout);
-    mainLayout->addWidget(m_confirmButton, 0, Qt::AlignCenter);
+    mainLayout->addStretch(); // 添加弹性空间
+    mainLayout->addLayout(buttonLayout); // 添加按钮布局
 
     // 连接信号
     connect(m_volumeSlider, &QSlider::valueChanged, this, &SettingsDialog::onVolumeChanged);
     connect(m_confirmButton, &QPushButton::clicked, this, &SettingsDialog::onConfirmClicked);
+    connect(m_rulesButton, &QPushButton::clicked, this, &SettingsDialog::onShowRulesClicked); // 连接规则按钮信号
 }
 
 void SettingsDialog::onVolumeChanged(int value)
@@ -68,4 +82,12 @@ void SettingsDialog::onConfirmClicked()
     SettingsManager::saveVolume(m_currentVolume);
     SettingsManager::saveTurnDuration(m_durationSpinBox->value());
     accept();
+}
+
+// 实现显示规则对话框的槽函数
+void SettingsDialog::onShowRulesClicked()
+{
+    RulesDialog* dialog = new RulesDialog(this);
+    dialog->exec(); // 以模态方式显示对话框，阻塞与父窗口的交互，直到对话框关闭
+    delete dialog; // 对话框关闭后清理实例
 }
