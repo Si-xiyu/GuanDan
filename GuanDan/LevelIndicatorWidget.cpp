@@ -10,8 +10,8 @@ LevelIndicatorWidget::LevelIndicatorWidget(QWidget* parent)
     setupUI();
 
     // Set initial level cards (default to 2)
-    Card team1Card(Card::Card_2, Card::Spade);
-    Card team2Card(Card::Card_2, Card::Spade);
+    Card team1Card(Card::Card_2, Card::Heart);
+    Card team2Card(Card::Card_2, Card::Heart);
 
     m_team1CardWidget->setCard(team1Card);
     m_team1CardWidget->loadCardImages();
@@ -22,7 +22,7 @@ LevelIndicatorWidget::LevelIndicatorWidget(QWidget* parent)
 
 LevelIndicatorWidget::~LevelIndicatorWidget()
 {
-    // Qt will handle deletion of child widgets
+    
 }
 
 void LevelIndicatorWidget::setupUI()
@@ -69,11 +69,11 @@ void LevelIndicatorWidget::setupUI()
 void LevelIndicatorWidget::updateLevels(Card::CardPoint team1Level, Card::CardPoint team2Level)
 {
     // Create temporary cards with the specified levels
-    Card team1Card(team1Level, Card::Spade);
+    Card team1Card(team1Level, Card::Heart);
     m_team1CardWidget->setCard(team1Card);
     m_team1CardWidget->loadCardImages(); // Must call to refresh the card image
 
-    Card team2Card(team2Level, Card::Spade);
+    Card team2Card(team2Level, Card::Heart);
     m_team2CardWidget->setCard(team2Card);
     m_team2CardWidget->loadCardImages(); // Must call to refresh the card image
 }
