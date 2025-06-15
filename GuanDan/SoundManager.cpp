@@ -45,8 +45,10 @@ void SoundManager::initializeSounds()
 
     // 定义音效文件列表
     QMap<QString, QString> soundFiles;
-    soundFiles["card_play"] = "qrc:/mus/res/card_play.mp3";
-    soundFiles["card_deal"] = "qrc:/mus/res/card_deal.mp3";
+    soundFiles["card_play"] = "qrc:/mus/res/card_play.MP3"; // 修正为大写MP3
+    soundFiles["card_deal"] = "qrc:/mus/res/card_deal.MP3"; // 修正为大写MP3
+
+    qDebug() << "SoundManager: 正在初始化音效...";
 
     // 清理并重新加载音效
     qDeleteAll(m_soundEffects);
@@ -57,6 +59,7 @@ void SoundManager::initializeSounds()
         // 创建 QMediaPlayer 对象
         QMediaPlayer* effectPlayer = new QMediaPlayer(this);
         effectPlayer->setMedia(QUrl(it.value()));
+        qDebug() << "SoundManager: 尝试加载音效" << it.key() << "从路径:" << it.value();
         m_soundEffects[it.key()] = effectPlayer;
     }
 
@@ -94,7 +97,7 @@ void SoundManager::updateVolume()
     m_BGMPlayer->setVolume(qRound(volume * 100));
 
     for (QMediaPlayer* effectPlayer : m_soundEffects) {
-        effectPlayer->setVolume(m_volume);
+        effectPlayer->setVolume(100); // 将音效音量固定为最大
     }
 }
 
@@ -112,6 +115,7 @@ void SoundManager::stopBGM()
 
 void SoundManager::playCardPlaySound()
 {
+    qDebug() << "SoundManager::playCardPlaySound 被调用";
     if (m_soundEffects.contains("card_play")) {
         QMediaPlayer* player = m_soundEffects["card_play"];
         // 如果正在播放，先停止并回到开头，再播放，以实现快速重复触发
@@ -119,16 +123,23 @@ void SoundManager::playCardPlaySound()
             player->stop();
         }
         player->play();
+        qDebug() << "播放出牌音效 card_play.mp3";
+    } else {
+        qDebug() << "错误：找不到出牌音效";
     }
 }
 
 void SoundManager::playButtonClickSound()
 {
+    qDebug() << "SoundManager::playButtonClickSound 被调用";
     if (m_soundEffects.contains("card_deal")) {
         QMediaPlayer* player = m_soundEffects["card_deal"];
         if (player->state() == QMediaPlayer::PlayingState) {
             player->stop();
         }
         player->play();
+        qDebug() << "播放选牌音效 card_deal.mp3";
+    } else {
+        qDebug() << "错误：找不到选牌音效";
     }
 }
