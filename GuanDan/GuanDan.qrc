@@ -65,5 +65,6 @@
     </qresource>
     <qresource prefix="/icon">
         <file>res/Setting_icon.jpg</file>
+        <file>res/App_icon.png</file>
     </qresource>
 </RCC>
