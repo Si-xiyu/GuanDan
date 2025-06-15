@@ -245,10 +245,24 @@ void GuanDan::setupConnections()
     connect(m_globalSkipButton, &QPushButton::clicked, this, [this]() {
         m_gameController->onPlayerPass(0);
     });
-    // 新增：连接提示按钮点击
+    // 连接提示按钮点击
     connect(m_hintButton, &QPushButton::clicked, this, [this]() {
         m_gameController->onPlayerRequestHint(0);
     });
+
+    // 连接消息显示信号
+    connect(m_gameController, &GD_Controller::sigShowPlayerMessage,
+        this, [this](int playerId, const QString& message, bool isError) {
+            // 只对人类玩家（ID为0）显示消息框
+            if (playerId == 0) {
+                QMessageBox msgBox(this);
+                msgBox.setText(message);
+                msgBox.setWindowTitle(isError ? "错误" : "提示");
+                msgBox.setIcon(isError ? QMessageBox::Warning : QMessageBox::Information);
+                msgBox.exec();
+            }
+        });
+
     // 根据控制器启用信号控制全局按钮显示
     connect(m_gameController, &GD_Controller::sigEnablePlayerControls,
         this, [this](int playerId, bool canPlay, bool canPass) {
