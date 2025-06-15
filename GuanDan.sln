@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.36202.13 d17.14
+VisualStudioVersion = 17.14.36202.13
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "GuanDan", "GuanDan\GuanDan.vcxproj", "{11946B66-814E-445E-9766-1FB36B9AEEEF}"
+EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "GuanDan_setup", "GuanDan_setup\GuanDan_setup.vdproj", "{6E8E0A62-A4C2-810C-6CA8-2210C4730EBA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,8 @@ Global
 		{11946B66-814E-445E-9766-1FB36B9AEEEF}.Debug|x64.Build.0 = Debug|x64
 		{11946B66-814E-445E-9766-1FB36B9AEEEF}.Release|x64.ActiveCfg = Release|x64
 		{11946B66-814E-445E-9766-1FB36B9AEEEF}.Release|x64.Build.0 = Release|x64
+		{6E8E0A62-A4C2-810C-6CA8-2210C4730EBA}.Debug|x64.ActiveCfg = Debug
+		{6E8E0A62-A4C2-810C-6CA8-2210C4730EBA}.Release|x64.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
