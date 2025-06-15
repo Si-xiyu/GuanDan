@@ -162,7 +162,7 @@ void GD_Controller::onPlayerPass(int playerId)
 // 实现提示功能
 void GD_Controller::onPlayerRequestHint(int playerId)
 {
-	qDebug() << "GD_Controller::onPlayerRequestHint: 玩家" << playerId << "请求出牌提示";
+    qDebug() << "GD_Controller::onPlayerRequestHint: 玩家" << playerId << "请求出牌提示";
     if (m_currentPhase != GamePhase::Playing || playerId != m_currentPlayerId) {
         return;
     }
@@ -183,12 +183,11 @@ void GD_Controller::onPlayerRequestHint(int playerId)
 
     if (suggestedCards.isEmpty()) {
         // AI也找不到牌，说明真的要不起
-        emit sigShowPlayerMessage(playerId, "没有找到可以出的牌，建议过牌", false);
+        emit sigShowPlayerMessage(playerId, "没有找到可以打得过上家的牌，建议过牌。", false);
         return;
     }
 
     // 4. 成功获取建议，发射信号让UI高亮这些牌
-    // （这部分逻辑与上一个方案完全相同）
     emit sigShowHint(playerId, suggestedCards);
     emit sigBroadcastMessage(QString("已为 %1 提供出牌提示。").arg(humanPlayer->getName()));
 }
