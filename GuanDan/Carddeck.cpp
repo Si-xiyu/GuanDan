@@ -6,7 +6,7 @@
 
 CardDeck::CardDeck()
 {
-    initializeDecks();
+	initializeDecks(); // 初始化牌库
     shuffle(); // 构造时默认洗牌
 }
 
@@ -57,12 +57,12 @@ void CardDeck::shuffle()
     // 检查牌库是否为空
     if (m_cards.isEmpty()) {
         qWarning() << "CardDeck::shuffle: Deck is empty, cannot shuffle. Re-initializing.";
-        initializeDecks(); // 重新初始化牌库
+        initializeDecks(); // 如果为空，重新初始化牌库
         if (m_cards.isEmpty()) return; // 如果初始化后仍然为空，直接返回(错误)
     }
 
     // 使用随机数生成器打乱牌库
-    std::random_device rd; // 获取随机数种子
+    std::random_device rd;    // 获取随机数种子
     std::mt19937 g(rd()); // 利用rd的随机数生成器
     std::shuffle(m_cards.begin(), m_cards.end(), g);
     qDebug() << "CardDeck shuffled.";
@@ -71,6 +71,7 @@ void CardDeck::shuffle()
 // 检查牌堆是否为空
 bool CardDeck::isEmpty() const
 {
+	// 如果牌库中的牌数量为0，则认为牌堆为空
     if (m_cards.size() == 0) {
         return true;
     }

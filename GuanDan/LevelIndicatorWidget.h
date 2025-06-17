@@ -18,13 +18,16 @@ public:
 	~LevelIndicatorWidget();
 
 public slots:
+	// 更新队伍级牌显示
 	void updateLevels(Card::CardPoint team1Level, Card::CardPoint team2Level);
 
 private:
 	Ui::LevelIndicatorWidgetClass ui;
 
+	// 设置UI布局和元素
 	void setupUI();
 
+	// ---UI元素---
 	CardWidget* m_team1CardWidget;
 	CardWidget* m_team2CardWidget;
 	QLabel* m_team1Label;

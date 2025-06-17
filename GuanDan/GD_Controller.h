@@ -1,4 +1,4 @@
-// 这部分代码太逆天了，主播要崩溃了
+// 这部分代码太逆天了
 
 #ifndef GD_CONTROLLER_H
 #define GD_CONTROLLER_H

@@ -43,19 +43,21 @@ void GuanDan::initializeUI()
 {
     // 设置窗口标题和固定大小，使用更合适的尺寸
     setWindowTitle(tr("GuanDan -By Si-xiyu"));
-    setFixedSize(1640, 1080); // 将宽度从1440增加到1640，为记牌器腾出空间
+    setFixedSize(1640, 1080); // 将宽度从1440增加到1640，为记牌器腾出空间(LeftWidget和PlayerAreaWidget)
 
-    // 创建中央窗口部件和主布局
+    // 创建中央窗口部件
     m_centralWidget = new QWidget(this);
     setCentralWidget(m_centralWidget);
-    m_mainLayout = new QVBoxLayout(m_centralWidget);
-    m_mainLayout->setContentsMargins(0, 0, 0, 0);
-    m_mainLayout->setSpacing(0);
+
+    // 创建主布局
+	m_mainLayout = new QVBoxLayout(m_centralWidget); // 中心部件使用垂直布局
+    m_mainLayout->setContentsMargins(0, 0, 0, 0); // 设置无边距
+	m_mainLayout->setSpacing(0); // 设置无间距
 
     // 创建游戏区域
     QWidget* gameArea = new QWidget(this);
     gameArea->setStyleSheet("QWidget { background-color: #1B5E20; }");
-    m_mainLayout->addWidget(gameArea, 1);
+	m_mainLayout->addWidget(gameArea, 1); // 加入游戏区域 
 
     // 创建底部控制区域
     QWidget* controlArea = new QWidget(this);
@@ -82,8 +84,10 @@ void GuanDan::initializeUI()
         "}"
     );
 
-    // 将设置按钮修改为图标
+    // 设置按钮初始化
     m_settingsButton = new QPushButton(this);
+
+    // 将设置按钮修改为图标
     m_settingsButton->setIcon(QIcon(":/icon/res/Setting_icon.jpg"));
     m_settingsButton->setIconSize(QSize(32, 32));
     m_settingsButton->setFixedSize(40, 40);
@@ -140,7 +144,7 @@ void GuanDan::initializeUI()
     );
     m_hintButton->hide(); // 初始时隐藏
 
-    // 修改控制区域布局，添加提示按钮
+    // 添加提示按钮
     QHBoxLayout* controlLayout = new QHBoxLayout(controlArea);
     controlLayout->addWidget(m_settingsButton); // 设置按钮居左
     controlLayout->addStretch(); // 添加伸缩项
@@ -235,16 +239,19 @@ void GuanDan::setupConnections()
     connect(m_settingsButton, &QPushButton::clicked, this, &GuanDan::showSettingsDialog);
 
     // 连接全局出牌/跳过按钮
+    // 将出牌按钮与被选中的牌连接
     connect(m_globalPlayButton, &QPushButton::clicked, this, [this]() {
-        // 从底部玩家获取选中牌
+        // 从底部玩家获取选中牌(人类玩家选牌信号)
         QVector<Card> cards = m_playerWidgets[0]->getSelectedCards();
         if (!cards.isEmpty()) {
-            m_gameController->onPlayerPlay(0, cards);
+			m_gameController->onPlayerPlay(0, cards); // 将选中牌传给onPlayerPlay方法
         }
     });
+	// 连接跳过按钮
     connect(m_globalSkipButton, &QPushButton::clicked, this, [this]() {
         m_gameController->onPlayerPass(0);
     });
+
     // 连接提示按钮点击
     connect(m_hintButton, &QPushButton::clicked, this, [this]() {
         m_gameController->onPlayerRequestHint(0);
@@ -267,10 +274,10 @@ void GuanDan::setupConnections()
     connect(m_gameController, &GD_Controller::sigEnablePlayerControls,
         this, [this](int playerId, bool canPlay, bool canPass) {
             if (playerId == 0) {
-                m_globalPlayButton->setVisible(canPlay);
-                m_globalPlayButton->setEnabled(canPlay);
-                m_globalSkipButton->setVisible(canPass);
-                m_globalSkipButton->setEnabled(canPass);
+				m_globalPlayButton->setVisible(canPlay); // 仅当人类玩家可以出牌时显示按钮
+				m_globalPlayButton->setEnabled(canPlay); // 启用按钮
+				m_globalSkipButton->setVisible(canPass); // 仅当人类玩家可以跳过时显示按钮
+				m_globalSkipButton->setEnabled(canPass); // 启用按钮
                 m_hintButton->setVisible(canPlay); // 当可以出牌时显示提示按钮
                 m_hintButton->setEnabled(canPlay);
             } else {
@@ -280,37 +287,44 @@ void GuanDan::setupConnections()
             }
         });
 
-    // 连接游戏控制器信号
+	// 连接游戏控制器信号&视图更新信号
+    // 游戏开始
     connect(m_gameController, &GD_Controller::sigGameStarted,
         this, &GuanDan::onGameStarted);
+	// 新一轮开始
     connect(m_gameController, &GD_Controller::sigNewRoundStarted,
         this, &GuanDan::onNewRoundStarted);
+	// Round结束
     connect(m_gameController, &GD_Controller::sigRoundOver,
         this, &GuanDan::onRoundOver);
+	// 连接游戏结束信号
     connect(m_gameController, &GD_Controller::sigGameOver,
         this, &GuanDan::onGameOver);
         
-    // 连接出牌和过牌显示信号
+    // 连接更新桌面牌型信号
     connect(m_gameController, &GD_Controller::sigUpdateTableCards,
+		// [this]表示捕获当前类的this指针
         this, [this](int playerId, const CardCombo::ComboInfo& combo, const QVector<Card>& originalCards) {
             // 更新所有玩家的出牌显示区域
             for (PlayerAreaWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
-                    widget->updatePlayedCards(combo, originalCards);
+                    widget->updatePlayedCards(combo, originalCards); // 出牌区刷新
                 }
             }
         });
-        
+
+	// 连接玩家已过牌信号
     connect(m_gameController, &GD_Controller::sigPlayerPassed,
         this, [this](int playerId) {
-            // 清空过牌玩家的出牌显示
+            // 清空过牌玩家的出牌区
             for (PlayerAreaWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
                     widget->clearPlayedCards();
                 }
             }
         });
-        
+
+	// 连接清空桌面牌信号
     connect(m_gameController, &GD_Controller::sigClearTableCards,
         this, [this]() {
             // 清空所有玩家的出牌显示
@@ -318,16 +332,20 @@ void GuanDan::setupConnections()
                 widget->clearPlayedCards();
             }
         });
+
+	// 连接已发牌信号
     connect(m_gameController, &GD_Controller::sigCardsDealt,
         this, [this](int playerId, const QVector<Card>& cards) {
             qDebug() << "收到发牌信号 - 玩家ID:" << playerId << "牌数:" << cards.size();
             for (PlayerAreaWidget* widget : m_playerWidgets) {
                 if (widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
+					// 更新手牌区显示，底部玩家显示正面，其他玩家显示背面
                     widget->updateHandDisplay(cards, widget->getPlayer()->getID() == 0);
                     break;
                 }
             }
         });
+
     // 当玩家出牌或过牌后更新手牌显示
     connect(m_gameController, &GD_Controller::sigUpdatePlayerHand,
         this, [this](int playerId, const QVector<Card>& cards) {
@@ -342,21 +360,22 @@ void GuanDan::setupConnections()
             }
         });
 
-    // 连接玩家界面信号
+    // 连接每个玩家界面的信号
     for (PlayerAreaWidget* widget : m_playerWidgets) {
-        // 当玩家选择卡牌时更新按钮状态，但不重新显示所有卡牌
+		// 为游戏中的每一个玩家区域（PlayerAreaWidget）建立一个响应机制，输出选中卡牌数量
         connect(widget, &PlayerAreaWidget::cardsSelected,
             [this, widget](const QVector<Card>& cards) {
                 qDebug() << "收到卡牌选择信号 - 玩家:" << widget->getPlayer()->getName()
                          << "选中卡牌数量:" << cards.size();
             });
         
-        // 当玩家选择卡牌时通知游戏控制器
+        // 当玩家出牌卡牌时
         connect(widget, &PlayerAreaWidget::playCardsRequested,
             [this, widget]() {
                 if (widget->getPlayer()) {
                     QVector<Card> selectedCards = widget->getSelectedCards();
                     if (!selectedCards.isEmpty()) {
+						// 如果选中卡牌不为空，调用游戏控制器的出牌方法onPlayerPlay
                         m_gameController->onPlayerPlay(widget->getPlayer()->getID(), selectedCards);
                     }
                 }
@@ -366,6 +385,7 @@ void GuanDan::setupConnections()
         connect(widget, &PlayerAreaWidget::skipTurnRequested,
             [this, widget]() {
                 if (widget->getPlayer()) {
+					// 调用游戏控制器的跳过方法onPlayerPass
                     m_gameController->onPlayerPass(widget->getPlayer()->getID());
                 }
             });
@@ -393,6 +413,7 @@ void GuanDan::setupConnections()
     // 连接当前玩家回合信号
     connect(m_gameController, &GD_Controller::sigSetCurrentTurnPlayer,
         this, [this](int playerId, const QString& playerName) {
+			// 调用GuanDan类的方法来更新左侧信息面板
             m_leftWidget->setCurrentPlayer(playerName);
             m_leftWidget->updateTurnIndicator(playerId);
         });
@@ -455,6 +476,7 @@ void GuanDan::setupConnections()
         m_leftWidget, &LeftWidget::clearRanking);
 }
 
+// 布局函数
 void GuanDan::arrangePlayerWidgets()
 {
     QWidget* gameArea = m_centralWidget->findChild<QWidget*>();
@@ -467,12 +489,11 @@ void GuanDan::arrangePlayerWidgets()
     // 为1640x1080窗口重新设计的布局参数
     int horizontalWidth = 900;   // 上下玩家区域的宽度
     int bottomHeight = 460;      // 底部玩家区域的高度
-    int topHeight = 340;         // 增加顶部玩家区域的高度，从280增加到320
+    int topHeight = 340;         // 顶部玩家区域的高度
     int verticalWidth = 500;     // 左右玩家区域的宽度
     int verticalHeight = 620;    // 左右玩家区域高度
 
-    // 修正垂直位置计算，避免重叠
-    // 此计算逻辑旨在将侧边区域放置在顶部和底部区域之间的中心
+    // 将侧边区域放置在顶部和底部区域之间的中心
     int topAreaBottomEdge = 20 + topHeight; // 顶部区域下边缘 Y 坐标 (20是顶部边距)
     int bottomAreaTopEdge = gameSize.height() - bottomHeight; // 底部区域上边缘 Y 坐标
     int centralFreeSpace = bottomAreaTopEdge - topAreaBottomEdge; // 中间可用空间高度
@@ -531,15 +552,17 @@ void GuanDan::arrangePlayerWidgets()
     }
 }
 
+// 调用设置窗口函数
 void GuanDan::showSettingsDialog()
 {
     SettingsDialog dialog(this);
     dialog.exec();
 }
 
+// 处理提示信号，选中玩家的可出牌型
 void GuanDan::onShowHint(int playerId, const QVector<Card>& suggestedCards)
 {
-    qDebug() << "GuanDan: 接收到提示信号，准备高亮玩家" << playerId << "的" << suggestedCards.size() << "张牌";
+    qDebug() << "GuanDan: 接收到提示信号，准备选中玩家" << playerId << "的" << suggestedCards.size() << "张牌";
 
     // 提示功能只对人类玩家（ID为0）有效
     if (playerId != 0) {
@@ -551,7 +574,7 @@ void GuanDan::onShowHint(int playerId, const QVector<Card>& suggestedCards)
     bool playerWidgetFound = false;
     for (PlayerAreaWidget* widget : m_playerWidgets) {
         if (widget && widget->getPlayer() && widget->getPlayer()->getID() == playerId) {
-            // 命令这个玩家的界面选中推荐的牌
+            // 命令这个玩家的PlayerAreaWidget选中推荐的牌
             widget->selectCards(suggestedCards);
             playerWidgetFound = true;
             break; 
@@ -614,6 +637,7 @@ void GuanDan::startGame()
 void GuanDan::onGameStarted()
 {
     qDebug() << "GuanDan::onGameStarted - 游戏开始";
+	// 更新游戏状态显示
     updateGameStatus();
     
     // 显示左侧信息面板
@@ -621,7 +645,7 @@ void GuanDan::onGameStarted()
         m_leftWidget->show();
     }
     
-    // 添加调试代码，检查所有玩家控件的状态
+    // 调试代码，检查所有玩家控件的状态
     QTimer::singleShot(500, this, [this]() {
         qDebug() << "检查玩家控件状态:";
         for (int i = 0; i < m_playerWidgets.size(); ++i) {
@@ -637,7 +661,7 @@ void GuanDan::onGameStarted()
 
 void GuanDan::onNewRoundStarted(int roundNumber)
 {
-    // 新一轮开始时，清空所有玩家的出牌区域，解决状态残留问题
+    // 新一轮开始时，清空所有玩家的出牌区域
     for (PlayerAreaWidget* widget : m_playerWidgets) {
         if (widget) {
             widget->clearPlayedCards();

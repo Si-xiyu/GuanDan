@@ -51,6 +51,7 @@ public slots:
 
 signals:
     // 转发PlayerWidget的信号
+    // 接受信号的对象也是信号，Qt会自动调用转发
     void cardsSelected(const QVector<Card>& cards);
     void playCardsRequested();
     void skipTurnRequested();

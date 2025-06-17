@@ -10,6 +10,7 @@
 NPCPlayer::NPCPlayer(const QString& name, int id)
     : Player(name, id) {}
 
+// 获取(AI认为的)当前玩家的最佳出牌组合
 QVector<Card> NPCPlayer::getBestPlay(const CardCombo::ComboInfo& currentTableCombo)
 {
     // 获取当前手牌
@@ -50,7 +51,7 @@ QVector<Card> NPCPlayer::getBestPlay(const CardCombo::ComboInfo& currentTableCom
     // 1. 非炸弹 优先于 炸弹（避免轻易浪费炸弹）
     // 2. 牌力等级（level）低的 优先于 等级高的（先出小牌）
     // 3. 使用癞子（wild_cards_used）少的 优先于 多的（节省万能牌）
-    // 4. 牌数（original_cards.size()）少的 优先于 多的（尽快打出手牌）
+    // 4. 牌数（original_cards.size()）少的 优先于 多的（保留大牌型）
     std::sort(validPlays.begin(), validPlays.end(),
         [](const CardCombo::ComboInfo& a, const CardCombo::ComboInfo& b) {
             bool a_is_bomb = (a.type == CardComboType::Bomb);
@@ -89,7 +90,7 @@ QVector<Card> NPCPlayer::getBestPlay(const CardCombo::ComboInfo& currentTableCom
     return bestPlay.original_cards;
 }
 
-// 辅助函数：按点数对手牌进行分类
+// 辅助函数：按点数对手牌进行分类，返回QMap
 QMap<Card::CardPoint, QVector<Card>> NPCPlayer::classifyHandByPoint(const QVector<Card>& hand) {
     QMap<Card::CardPoint, QVector<Card>> pointGroups;
     for (const Card& card : hand) {
@@ -136,6 +137,7 @@ QVector<QVector<Card>> NPCPlayer::findPairs(const QMap<Card::CardPoint, QVector<
 // 辅助函数：找出所有单牌
 QVector<QVector<Card>> NPCPlayer::findSingles(const QMap<Card::CardPoint, QVector<Card>>& pointGroups) {
     QVector<QVector<Card>> singles;
+	// 遍历点数QMap，取出每个点数的第一张牌作为单牌
     for (auto it = pointGroups.constBegin(); it != pointGroups.constEnd(); ++it) {
         singles.append(QVector<Card>{it.value().first()});
     }
@@ -145,28 +147,54 @@ QVector<QVector<Card>> NPCPlayer::findSingles(const QMap<Card::CardPoint, QVecto
 // 辅助函数：找出所有可能的顺子
 QVector<QVector<Card>> NPCPlayer::findStraights(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, int requiredLength) {
     QVector<QVector<Card>> straights;
-    QVector<Card::CardPoint> points = pointGroups.keys().toVector();
-    std::sort(points.begin(), points.end());
+    QVector<Card::CardPoint> availablePoints = pointGroups.keys().toVector(); // 生成可用点数数组
 
-    if (points.size() < requiredLength) return straights;
-
-    for (int i = 0; i <= points.size() - requiredLength; ++i) {
-        bool isConsecutive = true;
-        // NOTE: 这个判断对A作为顺子一部分的情况处理不完善，但能处理大部分情况
-        for (int j = 0; j < requiredLength - 1; ++j) {
-            if (static_cast<int>(points[i + j + 1]) != static_cast<int>(points[i + j]) + 1) {
-                isConsecutive = false;
-                break;
-            }
-        }
-        if (isConsecutive) {
-            QVector<Card> straight;
-            for (int j = 0; j < requiredLength; ++j) {
-                straight.append(pointGroups[points[i + j]].first());
-            }
-            straights.append(straight);
-        }
+    // 如果可用点数少于顺子所需长度，直接返回
+    if (availablePoints.size() < requiredLength) {
+        return straights;
     }
+
+    // --- 采用“枚举子集 + 规则验证”的思路 ---
+    // 1. 生成所有长度为 requiredLength 的点数子集
+    std::function<void(int, QVector<Card::CardPoint>)> findSubsets =
+        [&](int start_index, QVector<Card::CardPoint> current_subset)
+        {
+            // 当子集达到所需长度时，进行验证
+            if (current_subset.size() == requiredLength) {
+                Card::CardPoint leading_point; // 用于接收顺子的最大点，这里我们不关心它的值
+                // 2. 使用 CardCombo::checkConsecutive 进行权威验证
+                if (CardCombo::checkConsecutive(current_subset, leading_point)) {
+                    // 如果验证通过，说明这是一个有效的顺子点数组合
+                    QVector<Card> straight_cards;
+                    // 从手牌中取出对应的牌来构成顺子
+                    for (Card::CardPoint p : current_subset) {
+                        if (!pointGroups[p].isEmpty()) {
+                            straight_cards.append(pointGroups[p].first());
+                        }
+                    }
+                    // 确保我们真的找到了所有需要的牌
+                    if (straight_cards.size() == requiredLength) {
+                        straights.append(straight_cards);
+                    }
+                }
+                return;
+            }
+
+            // 递归地构建子集
+            if (start_index >= availablePoints.size()) {
+                return;
+            }
+
+            for (int i = start_index; i < availablePoints.size(); ++i) {
+                current_subset.push_back(availablePoints[i]);
+                findSubsets(i + 1, current_subset);
+                current_subset.pop_back(); // 回溯
+            }
+        };
+
+    // 从索引0开始，用一个空子集启动递归搜索
+    findSubsets(0, {});
+
     return straights;
 }
 
@@ -224,12 +252,27 @@ QVector<QVector<Card>> NPCPlayer::findTripleWithPairs(const QMap<Card::CardPoint
     return result;
 }
 
-// 辅助函数：找出所有可能的合法出牌组合
-QVector<CardCombo::ComboInfo> NPCPlayer::findValidPlays(const QVector<Card>& hand, const CardCombo::ComboInfo& tableCombo) {
+// 核心算法函数：找出所有可能的合法出牌组合
+QVector<CardCombo::ComboInfo> NPCPlayer::findValidPlays(const QVector<Card>& hand, const CardCombo::ComboInfo& tableCombo)
+{
+	// 初始化结果容器
     QVector<CardCombo::ComboInfo> allValidPlays;
-    auto pointGroups = classifyHandByPoint(hand);
     QVector<QVector<Card>> potentialPlays;
+	// 按点数对手牌进行分类
+    auto pointGroups = classifyHandByPoint(hand);
 
+    // 分离癞子和普通牌
+    QVector<Card> wild_cards;
+    QVector<Card> normal_cards;
+    for (const Card& card : hand) {
+        if (card.isWildCard()) {
+            wild_cards.append(card);
+        }
+        else {
+            normal_cards.append(card);
+        }
+    }
+    // 如果是自由出牌阶段
     if (tableCombo.type == CardComboType::Invalid) {
         potentialPlays.append(findSingles(pointGroups));
         potentialPlays.append(findPairs(pointGroups));
@@ -238,8 +281,10 @@ QVector<CardCombo::ComboInfo> NPCPlayer::findValidPlays(const QVector<Card>& han
         potentialPlays.append(findDoubleSequences(pointGroups));
         potentialPlays.append(findTripleWithPairs(pointGroups));
         potentialPlays.append(findBombs(pointGroups));
-    } else {
-        // FIX: CardComboType 名称修正
+    }
+	// 如果是跟牌阶段，根据场上牌型找牌
+	else {
+
         if (tableCombo.type == CardComboType::Single) {
             potentialPlays.append(findSingles(pointGroups));
         } else if (tableCombo.type == CardComboType::Pair) {
@@ -258,8 +303,8 @@ QVector<CardCombo::ComboInfo> NPCPlayer::findValidPlays(const QVector<Card>& han
     }
 
     QSet<QString> foundSignatures; // 用于防止重复添加完全相同的牌组
+	// 遍历所有可能的出牌组合，筛选生成合法的CardCombo::ComboInfo对象
     for (const auto& play : potentialPlays) {
-        // FIX: 调用正确的4参数版本的 getAllPossibleValidPlays
         QVector<CardCombo::ComboInfo> combos = CardCombo::getAllPossibleValidPlays(
             play, this, tableCombo.type, tableCombo.level);
         

@@ -25,15 +25,19 @@ public:
     ~CardWidget();
 
     QPixmap getImage();
+
     //正反面的设置
     void setFrontSide(bool flag);
     bool isFrontSide();
+
     //是否被选中的设置
     void setSelected(bool flag);
     bool isSelected();
+
     //卡片内容的设置
     void setCard(const Card& card);
-    Card getCard();
+    Card getCard(); // 返回卡牌内容
+
     //所属于玩家的设置
     void setOwner(Player* player);
     Player* getOwner();

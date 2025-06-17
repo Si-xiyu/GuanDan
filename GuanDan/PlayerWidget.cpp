@@ -149,6 +149,7 @@ void PlayerWidget::addCards(const QVector<Card>& cards)
     relayoutCards();
 }
 
+// 获取当前选中的卡牌列表
 QVector<Card> PlayerWidget::getSelectedCards() const
 {
     QVector<Card> selectedCards;
@@ -170,19 +171,20 @@ void PlayerWidget::selectCards(const QVector<Card>& cardsToSelect)
     }
 
     // 2. 统计需要选中的每种牌的数量
-    // 为了让Card能做QMap的key，Card.h中必须有 operator< 的重载，你的代码已经有了，这很好！
+    // 通过operator< 的重载，让Card能处理QMap的key
     QMap<Card, int> selectionCounts;
+	// 遍历传入的卡牌数组，对应的卡牌数量加一
     for (const Card& card : cardsToSelect) {
         selectionCounts[card]++;
     }
 
     // 3. 遍历UI上的所有牌控件，精确地选中所需数量的牌
     for (CardWidget* widget : m_cardWidgets) {
-        const Card& widgetCard = widget->getCard();
+		const Card& widgetCard = widget->getCard(); // 获取当前卡片的实际Card对象
 
         // 检查这张牌是否在我们的待选列表中，并且数量还 > 0
         if (selectionCounts.contains(widgetCard) && selectionCounts[widgetCard] > 0) {
-            widget->setSelected(true);
+			widget->setSelected(true); // 选中该牌
             // 将该牌的待选数量减一
             selectionCounts[widgetCard]--;
         }

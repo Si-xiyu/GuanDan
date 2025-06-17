@@ -56,6 +56,7 @@ void CardCounterWidget::initializeUI()
 
 void CardCounterWidget::setupCardLabels()
 {
+    // 所有卡牌的点数
     QVector<Card::CardPoint> allPoints = {
         Card::CardPoint::Card_BJ, Card::CardPoint::Card_LJ, Card::CardPoint::Card_A,
         Card::CardPoint::Card_K, Card::CardPoint::Card_Q, Card::CardPoint::Card_J,
@@ -64,8 +65,9 @@ void CardCounterWidget::setupCardLabels()
         Card::CardPoint::Card_4, Card::CardPoint::Card_3, Card::CardPoint::Card_2
     };
 
+	// 牌点的数量
     const int numPoints = allPoints.size();
-    // 计算中点，用于分列
+	// 计算第一列的数量 (8行放左边, 7行放右边)
     const int firstColCount = (numPoints + 1) / 2; // 8项放左边, 7项放右边
 
     for (int i = 0; i < numPoints; ++i) {
@@ -76,33 +78,39 @@ void CardCounterWidget::setupCardLabels()
         if (i < firstColCount) {
             // 左侧两列 (列0: 牌名, 列1: 数量)
             row = 1 + i;
-            col = 0;
+            col = 0; // 放在第0列
         }
+        // 
         else {
             // 右侧两列 (列2: 牌名, 列3: 数量)
             row = 1 + (i - firstColCount);
-            col = 2;
+			col = 2; // 放在第2列
         }
 
+        // 
         QLabel* nameLabel = new QLabel(getCardPointName(point), this);
         nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
         nameLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
         QLabel* countLabel = new QLabel("0", this);
         countLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-        countLabel->setStyleSheet("background-color: white; color: black; border-radius: 4px; padding: 1px 4px;");
+		// 设置样式表，背景为白色，文本颜色为黑色
+    	countLabel->setStyleSheet("background-color: white; color: black; border-radius: 4px; padding: 1px 4px;");
         countLabel->setFixedWidth(24);
 
         // 添加到计算出的新行列位置
         m_layout->addWidget(nameLabel, row, col);
         m_layout->addWidget(countLabel, row, col + 1);
 
+        // 存储标签引用
         m_countLabels[point] = countLabel;
     }
 }
 
+// 获取牌点名称的函数
 QString CardCounterWidget::getCardPointName(Card::CardPoint point) const
 {
+    // 对每一种卡牌点数进行处理
     switch (point) {
     case Card::CardPoint::Card_2:  return tr("2");
     case Card::CardPoint::Card_3:  return tr("3");
@@ -123,6 +131,7 @@ QString CardCounterWidget::getCardPointName(Card::CardPoint point) const
     }
 }
 
+// 更新牌点计数的函数
 void CardCounterWidget::updateCounts(const QMap<Card::CardPoint, int>& counts)
 {
     // 遍历传入的牌点数和数量映射

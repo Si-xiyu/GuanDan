@@ -12,12 +12,15 @@ LeftWidget::LeftWidget(QWidget *parent) : QWidget(parent)
     setupUI();
 }
 
+// 初始化并布局所有UI子控件
 void LeftWidget::setupUI() {
-    this->setFixedWidth(200); // 适度增加宽度
+    this->setFixedWidth(200); // 设置LeftWidget宽度
     this->setMinimumHeight(600); // 设置最小高度
     
     // --- 样式表 ---
-    this->setStyleSheet(R"(
+    // 通过setStyleSheet设置了统一的视觉样式
+    // 使用原始字符串字面量(R"()")来写入多行CSS
+    this->setStyleSheet(R"( 
         QGroupBox {
             color: white;
             font-weight: bold;
@@ -48,28 +51,30 @@ void LeftWidget::setupUI() {
         }
     )");
 
+    // 创建主垂直布局
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
-    mainLayout->setSpacing(6); // 减小控件间距
-    mainLayout->setContentsMargins(5, 5, 5, 5); // 减小边距
+    mainLayout->setSpacing(6); // 设置控件间距
+    mainLayout->setContentsMargins(5, 5, 5, 5); // 设置内边距
 
     // 1. 级牌显示器
     m_levelIndicator = new LevelIndicatorWidget(this);
-    m_levelIndicator->setFixedHeight(90); // 增加高度
+    m_levelIndicator->setFixedHeight(90); // 设置高度
     mainLayout->addWidget(m_levelIndicator);
 
     // 2. 记牌器
     m_cardCounterWidget = new CardCounterWidget(this);
     m_cardCounterWidget->setStyleSheet("background-color: transparent; border: none; padding: 0px;");
-    m_cardCounterWidget->setFixedHeight(180); // 增加高度
+    m_cardCounterWidget->setFixedHeight(180); // 设置高度
     mainLayout->addWidget(m_cardCounterWidget, 1); // 给予较大的拉伸因子
 
     // 3. 排行榜
     m_rankingBox = new QGroupBox("本局排名", this);
     QVBoxLayout* rankingLayout = new QVBoxLayout(m_rankingBox);
     rankingLayout->setSpacing(2); // 减小间距
-    rankingLayout->setContentsMargins(5, 12, 5, 5); // 减小内边距，但保持顶部空间给标题
+    rankingLayout->setContentsMargins(5, 12, 5, 5); // 设置内边距，保持顶部空间给标题
 
-    m_rankLabels.clear();
+    m_rankLabels.clear(); // 清空标签容器
+    // 循环创建4个排名标签，并添加到布局和容器中
     for (int i = 0; i < 4; ++i) {
         QLabel* rankLabel = new QLabel(QString("第 %1 名: -").arg(i + 1), this);
         rankLabel->setStyleSheet("color: #E0E0E0;");
@@ -87,11 +92,11 @@ void LeftWidget::setupUI() {
     m_gameStateBox->setMinimumHeight(100); // 设置最小高度
     mainLayout->addWidget(m_gameStateBox, 1); // 给予拉伸因子
 
-    // -- 基础底分 --
+    // -- 内部布局：基础底分 --
     QHBoxLayout* baseScoreLayout = new QHBoxLayout();
     baseScoreLayout->addWidget(new QLabel("基础底分:", this));
     m_baseScoreLabel = new QLabel("1", this);
-    m_baseScoreLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+	m_baseScoreLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter); // 文本右对齐,居中垂直对齐
     baseScoreLayout->addWidget(m_baseScoreLabel);
     gameStateLayout->addLayout(baseScoreLayout);
 
@@ -99,7 +104,7 @@ void LeftWidget::setupUI() {
     QHBoxLayout* team1Layout = new QHBoxLayout();
     team1Layout->addWidget(new QLabel("我方积分:", this));
     m_team1ScoreLabel = new QLabel("0", this);
-    m_team1ScoreLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    m_team1ScoreLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter); // 文本右对齐,居中垂直对齐
     team1Layout->addWidget(m_team1ScoreLabel);
     gameStateLayout->addLayout(team1Layout);
 
@@ -142,13 +147,14 @@ void LeftWidget::setupUI() {
     m_turnTimerBar = new QProgressBar(this);
     m_turnTimerBar->setRange(0, 100);
     m_turnTimerBar->setValue(100);
-    m_turnTimerBar->setTextVisible(false);
+    m_turnTimerBar->setTextVisible(false); // 隐藏进度条上的百分比文本
     currentTurnLayout->addWidget(m_turnTimerBar);
     
     mainLayout->addStretch(0.5); // 减小底部拉伸因子
 }
 
 // --- 槽函数实现 ---
+
 void LeftWidget::updateScores(int team1Score, int team2Score) {
     m_team1ScoreLabel->setText(QString::number(team1Score));
     m_team2ScoreLabel->setText(QString::number(team2Score));
@@ -255,6 +261,7 @@ void LeftWidget::updateRanking(const QStringList& rankedPlayerNames)
     }
 }
 
+// 覆盖清除排行榜
 void LeftWidget::clearRanking()
 {
     for (int i = 0; i < m_rankLabels.size(); ++i) {
