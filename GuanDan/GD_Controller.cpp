@@ -118,9 +118,11 @@ void GD_Controller::onPlayerPlay(int playerId, const QVector<Card>& cardsToPlay)
         return;
     }
 
-    m_lastPlayedCards = cardsToPlay;
+    // 记录玩家所选的原始卡牌
+    m_SelectedOriginCards = cardsToPlay;
 
     CardCombo::ComboInfo playedCombo;
+	// 返回playedCombo数组为玩家选中的牌的合法牌型
     if (!PlayerPlay(playerId, cardsToPlay, playedCombo)) {
         emit sigShowPlayerMessage(playerId, "出牌不符合规则", true);
         qDebug() << "GD_Controller::onPlayerPlay: 玩家" << playerId << "出牌不符合规则 "
@@ -467,12 +469,12 @@ void GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& 
     }
     // 从玩家手牌中移除玩家选中的原始卡牌
     Player* player = getPlayerById(playerId);
-    player->removeCards(m_lastPlayedCards);
+    player->removeCards(m_SelectedOriginCards);
     
     // 更新记牌器数据
-    updateCardCounts(m_lastPlayedCards);
+    updateCardCounts(m_SelectedOriginCards);
     
-    m_lastPlayedCards.clear();
+    m_SelectedOriginCards.clear();
 
     // 更新桌面牌型
     m_currentTableCombo = playedCombo;
@@ -481,7 +483,7 @@ void GD_Controller::processPlayerPlay(int playerId, const CardCombo::ComboInfo& 
 
     // 通知UI更新
     emit sigUpdatePlayerHand(playerId, player->getHandCards());
-    emit sigUpdateTableCards(playerId, playedCombo, m_lastPlayedCards);
+    emit sigUpdateTableCards(playerId, playedCombo, m_SelectedOriginCards);
 
     // 检查是否需要更新倍率
     if (playedCombo.type == CardComboType::Bomb) {
@@ -980,7 +982,7 @@ void GD_Controller::executePlay(int playerId, const CardCombo::ComboInfo& played
     emit sigBroadcastMessage(message);
 
     // 通知UI更新显示出牌
-    emit sigUpdateTableCards(playerId, playedCombo, m_lastPlayedCards);
+    emit sigUpdateTableCards(playerId, playedCombo, m_SelectedOriginCards);
 
     qDebug() << "GD_Controller::executePlay： 出牌处理完成, playerId=" << playerId;
 
@@ -1233,11 +1235,12 @@ void GD_Controller::advanceToNextPlayer()
     bool lastPlayerFinished = !isPlayerInGame(lastPlayerId);
     
     // 2. 检查当前"圈"是否结束
-    // 条件：(A)当前有领出者，并且所有其他活跃玩家都已经Pass了
-    //      或者(B)刚才行动的玩家出完了所有牌
+    // 条件: (A)当前有领出者，并且所有其他活跃玩家都已经Pass了
+    //       (B)刚才行动的玩家出完了所有牌
     bool allOthersPassed = (m_circleLeaderId != -1 && allOtherActivePlayersPassed(m_circleLeaderId));
     bool circleEnded = allOthersPassed || lastPlayerFinished;
-    
+
+	// 如果圈结束，处理圈结束逻辑
     if (circleEnded)
     {
         qDebug() << "advanceToNextPlayer: 圈结束! " 
