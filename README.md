@@ -2,7 +2,7 @@
 ##### 本项目由Si-xiyu完成，系华南理工大学24级C++实训作业，仅供学习交流，请勿用于学术造假或商业用途。
 ##### This project was completed by Si-xiyu as a C++ training assignment for the Class of 2024 at South China University of Technology(SCUT). It is for academic exchange only and should not be used for academic fraud or commercial purposes. 
 欢迎报考华南理工大学OwO（）
-#### 🃏这个项目应该是在github上能找到完成度最高的掼蛋游戏了，如果对你有帮助请点点star~
+#### 🃏这个项目应该是在github上能找到完成度最高的基于C++的掼蛋游戏了，如果对你有帮助请点点star~
 # 规则介绍
 
 1.  单牌：牌的大小顺序为：大王、小王、级牌、A、K、…、2.
