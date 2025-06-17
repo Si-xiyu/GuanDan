@@ -100,38 +100,91 @@ QMap<Card::CardPoint, QVector<Card>> NPCPlayer::classifyHandByPoint(const QVecto
 }
 
 // 辅助函数：找出所有可能的炸弹
-QVector<QVector<Card>> NPCPlayer::findBombs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups) {
-    QVector<QVector<Card>> bombs;
+QVector<QVector<Card>> NPCPlayer::findBombs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, const QVector<Card>& wild_cards) {
+    QVector<QVector<Card>> candidates;
+    int wild_count = wild_cards.size();
+
+    // 遍历每种点数的普通牌，尝试与癞子组合成炸弹
     for (auto it = pointGroups.constBegin(); it != pointGroups.constEnd(); ++it) {
-        if (it.value().size() >= 4) {
-            // NOTE: 一个点数可以构成多种炸弹（如5张K可以出4张K或5张K）
-            // 为简化，这里只找出所有牌构成的最大炸弹。
-            bombs.append(it.value());
+        const QVector<Card>& cards_of_point = it.value();
+        int normal_count = cards_of_point.size();
+
+        // 遍历所有可能的癞子使用数量
+        for (int w = 0; w <= wild_count; ++w) {
+            if (normal_count + w >= 4) { // 只要总数能构成炸弹
+                QVector<Card> play = cards_of_point;
+                // 从癞子牌池中取出 w 张加入
+                for (int i = 0; i < w; ++i) {
+                    play.append(wild_cards[i]);
+                }
+                candidates.append(play);
+            }
         }
     }
-    return bombs;
+
+    // 单独考虑纯癞子构成的炸弹
+    if (wild_count >= 4) {
+        candidates.append(wild_cards);
+    }
+
+    return candidates;
 }
 
 // 辅助函数：找出所有可能的三条
-QVector<QVector<Card>> NPCPlayer::findTriples(const QMap<Card::CardPoint, QVector<Card>>& pointGroups) {
-    QVector<QVector<Card>> triples;
+QVector<QVector<Card>> NPCPlayer::findTriples(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, const QVector<Card>& wild_cards) {
+    QVector<QVector<Card>> candidates;
+    int wild_count = wild_cards.size();
+
+    // 1. 寻找纯普通牌构成的三条
     for (auto it = pointGroups.constBegin(); it != pointGroups.constEnd(); ++it) {
         if (it.value().size() >= 3) {
-            triples.append(QVector<Card>(it.value().begin(), it.value().begin() + 3));
+            candidates.append({ it.value()[0], it.value()[1], it.value()[2] });
         }
     }
-    return triples;
+
+    // 2. 寻找 "对子 + 1个癞子" 构成的三条
+    if (wild_count >= 1) {
+        for (auto it = pointGroups.constBegin(); it != pointGroups.constEnd(); ++it) {
+            if (it.value().size() >= 2) {
+                candidates.append({ it.value()[0], it.value()[1], wild_cards[0] });
+            }
+        }
+    }
+
+    // 3. 寻找 "单张 + 2个癞子" 构成的三条
+    if (wild_count >= 2) {
+        for (auto it = pointGroups.constBegin(); it != pointGroups.constEnd(); ++it) {
+            if (!it.value().isEmpty()) {
+                candidates.append({ it.value()[0], wild_cards[0], wild_cards[1] });
+            }
+        }
+    }
+
+    return candidates;
 }
 
 // 辅助函数：找出所有可能的对子
-QVector<QVector<Card>> NPCPlayer::findPairs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups) {
-    QVector<QVector<Card>> pairs;
+QVector<QVector<Card>> NPCPlayer::findPairs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, const QVector<Card>& wild_cards) {
+    QVector<QVector<Card>> candidates;
+
+    // 1. 寻找纯普通牌构成的对子
     for (auto it = pointGroups.constBegin(); it != pointGroups.constEnd(); ++it) {
         if (it.value().size() >= 2) {
-            pairs.append(QVector<Card>(it.value().begin(), it.value().begin() + 2));
+            candidates.append({ it.value()[0], it.value()[1] });
         }
     }
-    return pairs;
+
+    // 2. 寻找 "单张 + 1个癞子" 构成的对子
+    if (!wild_cards.isEmpty()) {
+        for (auto it = pointGroups.constBegin(); it != pointGroups.constEnd(); ++it) {
+            // 任何一张普通牌都可以和一张癞子组成对子
+            if (!it.value().isEmpty()) {
+                candidates.append({ it.value()[0], wild_cards[0] });
+            }
+        }
+    }
+
+    return candidates;
 }
 
 // 辅助函数：找出所有单牌
@@ -232,10 +285,10 @@ QVector<QVector<Card>> NPCPlayer::findDoubleSequences(const QMap<Card::CardPoint
 }
 
 // 辅助函数：找出所有可能的三带二
-QVector<QVector<Card>> NPCPlayer::findTripleWithPairs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups) {
+QVector<QVector<Card>> NPCPlayer::findTripleWithPairs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, const QVector<Card>& wild_cards) {
     QVector<QVector<Card>> result;
-    auto triples = findTriples(pointGroups);
-    auto pairs = findPairs(pointGroups);
+    auto triples = findTriples(pointGroups,wild_cards);
+    auto pairs = findPairs(pointGroups,wild_cards);
 
     if (triples.isEmpty() || pairs.isEmpty()) return result;
 
@@ -258,8 +311,6 @@ QVector<CardCombo::ComboInfo> NPCPlayer::findValidPlays(const QVector<Card>& han
 	// 初始化结果容器
     QVector<CardCombo::ComboInfo> allValidPlays;
     QVector<QVector<Card>> potentialPlays;
-	// 按点数对手牌进行分类
-    auto pointGroups = classifyHandByPoint(hand);
 
     // 分离癞子和普通牌
     QVector<Card> wild_cards;
@@ -272,34 +323,37 @@ QVector<CardCombo::ComboInfo> NPCPlayer::findValidPlays(const QVector<Card>& han
             normal_cards.append(card);
         }
     }
+    // 按点数对普通牌进行分类
+    auto normal_pointGroups = classifyHandByPoint(normal_cards);
+
     // 如果是自由出牌阶段
     if (tableCombo.type == CardComboType::Invalid) {
-        potentialPlays.append(findSingles(pointGroups));
-        potentialPlays.append(findPairs(pointGroups));
-        potentialPlays.append(findTriples(pointGroups));
-        potentialPlays.append(findStraights(pointGroups));
-        potentialPlays.append(findDoubleSequences(pointGroups));
-        potentialPlays.append(findTripleWithPairs(pointGroups));
-        potentialPlays.append(findBombs(pointGroups));
+        potentialPlays.append(findSingles(normal_pointGroups));
+        potentialPlays.append(findPairs(normal_pointGroups,wild_cards));
+        potentialPlays.append(findTriples(normal_pointGroups,wild_cards));
+        potentialPlays.append(findStraights(normal_pointGroups));
+        potentialPlays.append(findDoubleSequences(normal_pointGroups));
+        potentialPlays.append(findTripleWithPairs(normal_pointGroups, wild_cards));
+        potentialPlays.append(findBombs(normal_pointGroups,wild_cards));
     }
 	// 如果是跟牌阶段，根据场上牌型找牌
 	else {
 
         if (tableCombo.type == CardComboType::Single) {
-            potentialPlays.append(findSingles(pointGroups));
+            potentialPlays.append(findSingles(normal_pointGroups));
         } else if (tableCombo.type == CardComboType::Pair) {
-            potentialPlays.append(findPairs(pointGroups));
+            potentialPlays.append(findPairs(normal_pointGroups, wild_cards));
         } else if (tableCombo.type == CardComboType::Triple) {
-            potentialPlays.append(findTriples(pointGroups));
+            potentialPlays.append(findTriples(normal_pointGroups, wild_cards));
                  } else if (tableCombo.type == CardComboType::Straight) {
-             potentialPlays.append(findStraights(pointGroups, tableCombo.cards_in_combo.size()));
+             potentialPlays.append(findStraights(normal_pointGroups, tableCombo.cards_in_combo.size()));
         } else if (tableCombo.type == CardComboType::DoubleSequence) {
-            potentialPlays.append(findDoubleSequences(pointGroups, tableCombo.cards_in_combo.size() / 2));
+            potentialPlays.append(findDoubleSequences(normal_pointGroups, tableCombo.cards_in_combo.size() / 2));
         } else if (tableCombo.type == CardComboType::TripleWithPair) {
-            potentialPlays.append(findTripleWithPairs(pointGroups));
+            potentialPlays.append(findTripleWithPairs(normal_pointGroups, wild_cards));
         }
         // 任何情况下都可以出炸弹来压
-        potentialPlays.append(findBombs(pointGroups));
+        potentialPlays.append(findBombs(normal_pointGroups, wild_cards));
     }
 
     QSet<QString> foundSignatures; // 用于防止重复添加完全相同的牌组

@@ -30,15 +30,15 @@ private:
     static QMap<Card::CardPoint, QVector<Card>> classifyHandByPoint(const QVector<Card>& hand);
     
     // 辅助函数：找出所有可能的炸弹
-    static QVector<QVector<Card>> findBombs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups);
+    static QVector<QVector<Card>> findBombs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, const QVector<Card>& wild_cards);
     
     // 辅助函数：找出所有可能的三条
-    static QVector<QVector<Card>> findTriples(const QMap<Card::CardPoint, QVector<Card>>& pointGroups);
-    
-    // 辅助函数：找出所有可能的对子
-    static QVector<QVector<Card>> findPairs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups);
-    
-    // 辅助函数：找出所有单牌
+    static QVector<QVector<Card>> findTriples(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, const QVector<Card>& wild_cards);
+
+	// 辅助函数：找出所有可能的对子
+    static QVector<QVector<Card>> findPairs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, const QVector<Card>& wild_cards);
+
+	// 辅助函数：找出所有单牌
     static QVector<QVector<Card>> findSingles(const QMap<Card::CardPoint, QVector<Card>>& pointGroups);
     
     // 辅助函数：找出所有可能的顺子
@@ -48,7 +48,7 @@ private:
     static QVector<QVector<Card>> findDoubleSequences(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, int requiredLength = 3);
     
     // 辅助函数：找出所有可能的三带二 (TripleWithPair)
-    static QVector<QVector<Card>> findTripleWithPairs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups);
+    static QVector<QVector<Card>> findTripleWithPairs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, const QVector<Card>& wild_cards);
 
     // 核心算法函数：找出所有可能的合法出牌组合
     QVector<CardCombo::ComboInfo> findValidPlays(const QVector<Card>& hand, const CardCombo::ComboInfo& tableCombo);
