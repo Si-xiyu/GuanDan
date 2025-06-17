@@ -1,4 +1,4 @@
-# GuanDan
+# ♠️ GuanDan
 ##### 本项目由Si-xiyu完成，系华南理工大学24级C++实训作业，仅供学习交流，请勿用于学术造假或商业用途。
 ##### This project was completed by Si-xiyu as a C++ training assignment for the Class of 2024 at South China University of Technology(SCUT). It is for academic exchange only and should not be used for academic fraud or commercial purposes. 
 欢迎报考华南理工大学OwO（）
