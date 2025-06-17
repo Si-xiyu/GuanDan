@@ -253,7 +253,9 @@ namespace {
         // 4. 计算顺序结构的等级和花色
         Card::CardSuit seq_level_card_suit = cards_with_context[0].suit(); // 取第一个牌的花色作为顺子的代表花色
         // 计算顺序结构的等级
-        int sequence_final_level = get_point_comparison_value(leading_point_for_seq_level, player_context, seq_level_card_suit);
+        // 判断A在当前连续结构中是作为大牌还是小牌。
+        bool is_A_high_in_this_sequence = (leading_point_for_seq_level == Card::CardPoint::Card_A);
+        int sequence_final_level = CardCombo::getSequentialOrder(leading_point_for_seq_level, is_A_high_in_this_sequence);
 
         // 5. 判断具体牌型
         // 顺子或同花顺
