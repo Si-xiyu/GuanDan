@@ -92,11 +92,10 @@
 本项目采用MVC架构，通过GD_Controller类控制游戏主流程。  
 **Module**包括Card，Team，Player等用于数据类，以及CardCombo等方法类。
 **View**包括CardWidget，PlayerAreaWidget，LeftWidget，GuanDan等类，用于负责视图逻辑。    
+### 主要流程图如下
 ![游戏核心状态机图](./游戏核心状态机图.png)    
     
-![玩家出牌交互时序图](./玩家出牌交互时序图.png)   
-    
-![玩家出牌流程](./玩家出牌流程.png)    
+![玩家出牌交互时序图](./玩家出牌交互时序图.png)    
 
 ### 各个类的作用详解
 
