@@ -26,6 +26,7 @@ void LevelStatus::initializeGameLevels(Team& team0, Team& team1)
     qDebug() << "游戏级别已初始化：队伍0当前级别为2, 队伍1当前级别为2。";
 }
 
+// 升级逻辑与全局胜利条件判断
 void LevelStatus::updateLevelsAfterRound(int winningTeamId, int partnerRankOfWinner, Team& team0, Team& team1)
 {
     if (m_isGameOver) {
@@ -174,7 +175,7 @@ Card::CardPoint LevelStatus::levelIntToCardPoint(int level)
     case 13: return Card::CardPoint::Card_A;
     default: // 同上，一般不会调用
         qWarning() << "LevelStatus::levelIntToCardPoint: Invalid integer for level:" << level;
-        return Card::CardPoint::Card_2; // Default to 2
+		return Card::CardPoint::Card_2; // 默认设置为2级
     }
 }
 

@@ -54,7 +54,7 @@ public:
     void addCards(const QVector<Card>& cards);
     void clearSelection();
     QVector<Card> getSelectedCards() const;
-    void selectCards(const QVector<Card>& cardsToSelect);
+	void selectCards(const QVector<Card>& cardsToSelect); // 提示功能，选择指定的卡牌
 
     // 状态设置
     void setCardsVisible(bool visible);

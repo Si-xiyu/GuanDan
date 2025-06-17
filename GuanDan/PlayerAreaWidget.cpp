@@ -13,7 +13,7 @@ PlayerAreaWidget::PlayerAreaWidget(Player* player, PlayerPosition position, bool
     // 创建显示出牌控件
     m_showCardWidget = new ShowCardWidget(this);
     
-    // 连接信号
+	// 信号转发机制，连接PlayerWidget的信号到PlayerAreaWidget的信号
     connect(m_playerWidget, &PlayerWidget::cardsSelected, this, &PlayerAreaWidget::cardsSelected);
     connect(m_playerWidget, &PlayerWidget::playCardsRequested, this, &PlayerAreaWidget::playCardsRequested);
     connect(m_playerWidget, &PlayerWidget::skipTurnRequested, this, &PlayerAreaWidget::skipTurnRequested);

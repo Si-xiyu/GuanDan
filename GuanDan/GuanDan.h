@@ -1,5 +1,6 @@
 #pragma once
 
+// GuanDan主窗口类，负责游戏的界面显示逻辑和用户交互
 #include <QtWidgets/QMainWindow>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -18,17 +19,26 @@ public:
     ~GuanDan();
 
 protected:
+	// ！重写resizeEvent以适应窗口大小变化，由于表现不好，暂时不使用
     virtual void resizeEvent(QResizeEvent* event) override;
 
 private slots:
-    void startGame();                    // 开始游戏
-    void onGameStarted();               // 游戏开始
-    void onNewRoundStarted(int roundNumber); // 新一轮开始
-    void onRoundOver(const QString& summary, const QVector<int>& playerRanks); // 一局结束
-    void onGameOver(int winningTeamId, const QString& winningTeamName, const QString& finalMessage); // 游戏结束
-    void onAskForTribute(int fromPlayerId, const QString& fromPlayerName, int toPlayerId, const QString& toPlayerName, bool isReturn);
-    void showSettingsDialog();
-    void onShowHint(int playerId, const QVector<Card>& suggestedCards); // 提示功能
+	// 初始化游戏，创建玩家，设置界面
+    void startGame();
+	// 更新游戏状态后，更新显示
+    void onGameStarted(); 
+    // 新一轮开始，更新界面显示
+    void onNewRoundStarted(int roundNumber);
+	// 一局结束，更新界面，显示本局结果
+    void onRoundOver(const QString& summary, const QVector<int>& playerRanks);
+    // 游戏结束，处理视图逻辑，显示最终结果
+    void onGameOver(int winningTeamId, const QString& winningTeamName, const QString& finalMessage); 
+    // 处理进贡/还贡对话框
+	void onAskForTribute(int fromPlayerId, const QString& fromPlayerName, int toPlayerId, const QString& toPlayerName, bool isReturn);
+    // 弹出设置窗口
+	void showSettingsDialog();
+    // 提示功能 
+	void onShowHint(int playerId, const QVector<Card>& suggestedCards); 
 
 private:
     void initializeUI();                // 初始化界面
@@ -44,12 +54,12 @@ private:
     QPushButton* m_startButton;         // 开始游戏按钮
     QPushButton* m_globalPlayButton;    // 全局出牌按钮
     QPushButton* m_globalSkipButton;    // 全局跳过按钮
-    QPushButton* m_settingsButton;      // 新增：设置按钮
-    QPushButton* m_hintButton;          // 新增：提示按钮
+    QPushButton* m_settingsButton;      // 设置按钮
+    QPushButton* m_hintButton;          // 提示按钮
     QWidget* m_centralWidget;           // 中央窗口部件
     QVBoxLayout* m_mainLayout;          // 主布局
     
-    LeftWidget* m_leftWidget;  // 替换原来的 CardCounterWidget
+	LeftWidget* m_leftWidget;           // 左侧信息显示部件
     
     bool m_gameInProgress;              // 游戏进行状态
 };

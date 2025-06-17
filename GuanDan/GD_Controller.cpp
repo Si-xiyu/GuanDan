@@ -1,5 +1,3 @@
-// 这部分代码太逆天了，主播要崩溃了
-
 #include "GD_Controller.h"
 #include <QRandomGenerator>
 #include <QDebug>
@@ -174,11 +172,11 @@ void GD_Controller::onPlayerRequestHint(int playerId)
     // 名字和ID不重要，因为我们只是借用它的算法
     NPCPlayer tempAI("HintBot", -1);
     
-    // 2. 把当前人类玩家的手牌和队伍信息"借"给这个临时AI
+    // 2. 把当前人类玩家的手牌和队伍传给这个临时AI
     tempAI.setHandCards(humanPlayer->getHandCards());
     tempAI.setTeam(humanPlayer->getTeam());
 
-    // 3. 调用我们新增的方法来获取最佳出牌建议
+    // 3. 调用NPCPlayer的方法来获取最佳出牌建议
     QVector<Card> suggestedCards = tempAI.getBestPlay(m_currentTableCombo);
 
     if (suggestedCards.isEmpty()) {

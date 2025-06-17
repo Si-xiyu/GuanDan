@@ -1,6 +1,8 @@
 #ifndef LEVELSTATUS_H
 #define LEVELSTATUS_H
 
+// LevelStatus起到了管理游戏级别状态的作用，它封装了所有关于升级和判断游戏胜利的复杂逻辑。
+
 #include <array>
 
 #include "Card.h"
@@ -25,7 +27,7 @@ public:
     // 检查整个游戏是否结束
     bool isGameOver() const;
 
-    // 获取导致游戏结束的获胜队伍ID (如果游戏未结束，-1) 用于“战绩”模块
+    // 获取导致游戏结束的获胜队伍ID (如果游戏未结束，-1) 用于游戏结束后模块
     int getGameWinnerTeamId() const;
 
 
@@ -42,4 +44,4 @@ private:
 
 };
 
-#endif // LEVELSTATUS_H
+#endif

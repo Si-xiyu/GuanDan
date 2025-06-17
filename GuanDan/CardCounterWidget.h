@@ -19,8 +19,8 @@ public slots:
     void updateCounts(const QMap<Card::CardPoint, int>& counts);
 
 private:
-    void initializeUI();
-    void setupCardLabels();
+	void initializeUI(); // 初始化UI组件
+	void setupCardLabels(); // 设置卡牌标签
     QString getCardPointName(Card::CardPoint point) const;
 
     QGridLayout* m_layout;
