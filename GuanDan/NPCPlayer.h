@@ -50,7 +50,10 @@ private:
     // 辅助函数：找出所有可能的三带二 (TripleWithPair)
     static QVector<QVector<Card>> findTripleWithPairs(const QMap<Card::CardPoint, QVector<Card>>& pointGroups, const QVector<Card>& wild_cards);
 
-    // 核心算法函数：找出所有可能的合法出牌组合
+	// 辅助函数：找出所有可能的钢板 (TripleSequence)
+    static QVector<QVector<Card>> findTripleSequences(const QMap<Card::CardPoint, QVector<Card>>& pointGroups);
+
+	// 核心算法函数：找出所有可能的合法出牌组合
     QVector<CardCombo::ComboInfo> findValidPlays(const QVector<Card>& hand, const CardCombo::ComboInfo& tableCombo);
 };
 

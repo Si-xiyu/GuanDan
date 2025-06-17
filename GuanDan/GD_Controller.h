@@ -15,7 +15,7 @@
 #include "Levelstatus.h"
 #include "Cardcombo.h" // 包含 CardCombo::ComboInfo 和 CardComboType
 
-// 前向声明UI类，如果Controller需要直接与之交互（通常通过信号槽）
+// 前向声明UI类
 class GameWindow;
 class PlayerWidget;
 
@@ -108,7 +108,7 @@ private:
     QVector<int> m_lastRoundFinishOrder;   // 存储上一局的玩家获胜顺序，用于进贡判断
     int m_activePlayersInRound;            // 本局还剩多少玩家没打完牌
 
-    QVector<Card> m_lastPlayedCards;       // 记录上次出牌时玩家选中的原始卡牌，用于正确移除手牌
+    QVector<Card> m_SelectedOriginCards;   // 记录上次出牌时玩家选中的原始卡牌，用于正确移除手牌
     int m_currentRoundNumber;              // 当前是第几局
 
     // 记牌器相关成员
