@@ -36,4 +36,4 @@
 //    // 阻塞等待玩家提交的事件循环
 //    QEventLoop m_eventLoop;
 //};
-//
+
