@@ -1,4 +1,5 @@
-# ♠️ GuanDan
+# ♠️ GuanDan    
+👉 [中文版 README](./README.md)
 
 ##### This project was completed by Si-xiyu as a C++ training assignment for the Class of 2024 at South China University of Technology (SCUT). It is for academic exchange only and should not be used for academic fraud or commercial purposes.
 Welcome to apply to South China University of Technology (SCUT)! OwO
