@@ -44,7 +44,9 @@ void Player::addCards(const QVector<Card>& cards)
 void Player::removeCards(const QVector<Card>& cards)
 {
     for (const auto& card : cards) {
-        m_handCards.removeAll(card);
+        // 将 removeAll 修改为 removeOne
+        // 这样每次循环只会从手牌中移除一张匹配的牌
+        m_handCards.removeOne(card);
     }
     // 由于原本就是有序的，不需要整理
     // 发出手牌更新信号
